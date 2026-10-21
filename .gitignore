@@ -1,0 +1,65 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+# 只有变量名模板进仓库，真实值始终留在本地的 .env.local
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# 本地备份与运行日志：百炼 Agent 配置快照里有本账号的 workspace / agent id，不入库
+scripts/agent-v1-backup.json
+evidence/start.log
+
+# 一次性探针脚本里写死了本机的 Playwright 路径，只对这台机器有意义；
+# 保留下来的是可复跑的验收套件 evidence/phase6-accept.mjs 与它的截图、日志。
+evidence/*probe*.mjs
+
+# 探针阶段的历史截图（中间态、部分带调试面板）不入库；仓库只保留当前验收套件产出的
+# phase6-06/07/08/09/10/15 这 6 张，它们逐张看过：只有地图与面板文案，没有凭据与账户标识。
+evidence/map-01-demo-fallback.png
+evidence/phase6-map-real.png
+evidence/phase6-01-map-fit.png
+evidence/phase6-02-map-layout.png
+evidence/phase6-03-verified-map.png
+evidence/phase6-04-four-pois.png
+evidence/phase6-11-zoom-probe.png
+evidence/phase6-12-sdk-failure-fallback.png
+evidence/phase6-13-adjust-stall.png
+evidence/phase6-14-sdk-availability.png
+evidence/phase6-accept.log

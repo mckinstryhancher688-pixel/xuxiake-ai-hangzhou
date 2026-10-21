@@ -1,0 +1,35 @@
+{
+  "name": "xuxiake-ai-hangzhou",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test:accept": "node evidence/phase6-accept.mjs",
+    "probe:bailian": "node --env-file=.env.local scripts/bailian-probe.mjs",
+    "probe:bailian:discover": "node --env-file=.env.local scripts/bailian-discover.mjs",
+    "probe:agent": "node scripts/agent-call.mjs"
+  },
+  "dependencies": {
+    "@amap/amap-jsapi-loader": "^1.0.1",
+    "@fly-ai/flyai-cli": "^1.0.16",
+    "next": "16.4.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

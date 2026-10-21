@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #effcf9;
+  --color-brand-100: #ccf5ee;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+
+  --color-accent-50: #fff8e8;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+
+  --color-ink-900: #10201e;
+  --color-ink-700: #2c3b39;
+  --color-ink-500: #5b6b68;
+  --color-ink-300: #9aa8a5;
+
+  --color-paper: #fbfaf7;
+  --color-card: #ffffff;
+  --color-line: #e6e8e2;
+
+  --font-sans:
+    var(--font-geist-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans SC", sans-serif;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+}
+
+/* 选中地点的地图光晕。SVG 元素要显式指定 transform-box 才能以自身中心缩放。 */
+@keyframes marker-halo {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.5;
+  }
+  70% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+.marker-halo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: marker-halo 2.4s ease-out infinite;
+}
