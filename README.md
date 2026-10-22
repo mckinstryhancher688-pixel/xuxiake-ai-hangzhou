@@ -8,7 +8,7 @@
 **未竟工作室 · 2026 飞猪 AI 旅行创新大赛参赛项目**
 
 [参赛介绍与投稿正文](docs/SUBMISSION.md) · [两分钟演示与操作手册](docs/DEMO.md) ·
-[能力与证据索引](docs/EVIDENCE.md) · [部署说明](docs/DEPLOYMENT.md) · [MIT License](LICENSE)
+[开场白与评委答辩](docs/PITCH.md) · [能力与证据索引](docs/EVIDENCE.md) · [部署说明](docs/DEPLOYMENT.md) · [MIT License](LICENSE)
 
 ## 一次真实取舍，改变了什么
 
