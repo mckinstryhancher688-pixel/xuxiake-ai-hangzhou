@@ -13,10 +13,18 @@ if (typeof window !== "undefined") {
  *     它是「前端可见」的，但绝不与 Web 服务 key 混用：混用会得到 USERKEY_PLAT_NOMATCH，
  *     本模块在两者相同直接判定为配置错误。
  *  3. AMAP_JS_SECURITY_CODE —— 安全密钥。绝不进浏览器，也不作为 NEXT_PUBLIC 变量。
- *     SDK 的 web 服务请求改走本项目的 /amap-proxy 代理，由服务端在这里补 jscode。
+ *     SDK 的 web 服务请求改走本项目的 /_AMapService 代理，由服务端在这里补 jscode。
  */
 
-export const MAP_PROXY_PREFIX = "/amap-proxy";
+/**
+ * 浏览器看到的那一段路径。高德 SDK 硬性要求安全代理的一级路由是 `_AMapService`，
+ * 否则会弹阻塞式提示；这个目录名在下划线开头，App Router 当它是私有目录不参与路由，
+ * 所以由 next.config.ts 的 rewrite 把它映射到真实的 handler 路径 PROXY_HANDLER_PREFIX。
+ * 两个入口共用同一个 handler，守卫规则完全一致。
+ */
+export const MAP_PROXY_PREFIX = "/_AMapService";
+/** 真实 handler 的位置（src/app/amap-proxy/[...path]/route.ts）。 */
+export const PROXY_HANDLER_PREFIX = "/amap-proxy";
 
 const REST_API_HOST = "https://restapi.amap.com";
 const WEB_API_HOST = "https://webapi.amap.com";
@@ -82,7 +90,7 @@ function upstreamHost(segments: string[]): string {
 }
 
 /**
- * 高德 SDK 的安全密钥代理。浏览器只看到 /amap-proxy/v3/... 这样的同源地址，
+ * 高德 SDK 的安全密钥代理。浏览器只看到 /_AMapService/v3/... 这样的同源地址，
  * jscode 在这里才拼进上游 URL，响应与错误文本都做了脱敏。
  */
 export async function proxyAmapRequest(

@@ -2,11 +2,14 @@ import type { AdapterNote } from "@/hooks/useJourney";
 
 export function DataSourcePanel({ adapterNotes }: { adapterNotes: AdapterNote[] }) {
   return (
-    <section className="rounded-2xl border border-line bg-paper p-3">
-      <h2 className="text-[11px] font-medium tracking-wide text-ink-300">
-        数据源状态 · 未点「开始核验」时页面是阶段一演示数据；核验之后行程点位与步行折线来自飞猪检索 + 高德实测，
-        只有「阶段一预写讲解」仍是 Mock，真实讲解在上方百炼面板
-      </h2>
+    <details className="rounded-2xl border border-line bg-paper p-3">
+      <summary className="cursor-pointer text-[11px] font-medium tracking-wide text-ink-500">
+        数据来源：飞猪 POI 检索 · 高德实测 · 百炼智能体（点开看每一项的真实状态）
+      </summary>
+      <p className="mt-2 text-[10px] leading-relaxed text-ink-300">
+        没点「生成我的路线」之前，屏幕上的四站行程与讲解全是预写的演示数据；点过之后，点位与步行折线换成飞猪检索＋高德实测，
+        只有那段预写讲解仍是演示文案——真实讲解在「在场探索」面板。
+      </p>
 
       <ul className="mt-2 space-y-2">
         {adapterNotes.map((adapter) => {
@@ -28,6 +31,6 @@ export function DataSourcePanel({ adapterNotes }: { adapterNotes: AdapterNote[] 
           );
         })}
       </ul>
-    </section>
+    </details>
   );
 }

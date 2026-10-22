@@ -355,6 +355,21 @@ export interface VerifyReport {
   rejections: { name: string; reason: string }[];
   amap: AmapUsage;
   flyaiProofs: FlyAiCallProof[];
+  /**
+   * 事实层入库摘要。核验时已经付费测出的有向段全部留在服务端事实库里，
+   * 双人协商只在这批数据上本地重解；报告里只带计数与 factsId，不带明细。
+   */
+  facts?: {
+    factsId: string;
+    cityName: string;
+    categories: string[];
+    /** 可点选全集：身份已核验且有高德坐标的候选数（含最近 6 个之外的） */
+    poolSize: number;
+    measuredPairs: number;
+    startLegs: number;
+    failedPairs: number;
+    measuredAt: string;
+  };
 }
 
 /* ── 第四阶段：百炼 Managed Agent（在场探索与动态调整）───────────────── */
@@ -459,6 +474,31 @@ export interface AgentNarration {
 /** 本阶段没有真实定位，到达一律是模拟点击；UI 必须这样标注。 */
 export type ArrivalMode = "simulated";
 
+/**
+ * 双人协商的「让 AI 解释这次取舍」。
+ *
+ * 模型只拿到服务端已经算好的事实块，输出也只允许复述与挑选：
+ * nextSteps 的文案与补测报价都由服务端按 key 回填，模型编出来的 key 会被直接丢掉。
+ */
+export interface NegotiationExplainResponse {
+  ok: boolean;
+  /** 失败时是服务端原话；此时界面必须继续显示规则求解结果，不能拿固定文案冒充 AI */
+  error: string | null;
+  summary: string | null;
+  points: string[];
+  nextSteps: { key: string; text: string; extraCalls: number | null; why: string | null }[];
+  cautions: string[];
+  /** 被模型提出但服务端没有这个选项的 key，如实列出来，不静默吞掉 */
+  rejectedKeys: string[];
+  /** 解释针对的是哪一版；版本变了这份解释就该重做 */
+  revision: number | null;
+  /** 数字对账：不在事实块里的米/分钟一律标出来 */
+  audit: NumericClaimAudit | null;
+  proof: AgentCallProof | null;
+  /** 会话作用域（plan + 角色 + 版本的脱敏键），证明两角色各用各的会话 */
+  scopeKey: string | null;
+}
+
 export interface ExploreResponse {
   ok: boolean;
   error: string | null;
@@ -491,8 +531,27 @@ export interface AdjustResponse {
   retried: boolean;
   /** 本回合高德新发起了几次真实请求（命中缓存为 0） */
   amapNewCalls: number;
+  /** 与调整前那一份高德实测路线的差值；方案未通过校验时为 null */
+  savings: RouteSavings | null;
+  /**
+   * 这份方案是在哪一条已核实路线上提出的（各站 flyaiId 拼出来的键）。
+   * 重新核验换了路线之后，旧方案就不再适用，靠它判定要不要丢弃。
+   */
+  baseItineraryKey: string | null;
   proof: AgentCallProof | null;
   token: string | null;
+}
+
+/**
+ * 「少走一点」到底省下了什么。三个数都由服务端拿两份高德实测行程相减得到，
+ * 不让智能体自己报数——它报的距离与耗时一律不进这里。
+ */
+export interface RouteSavings {
+  fromStops: number;
+  toStops: number;
+  savedMeters: number;
+  savedWalkMinutes: number;
+  savedTotalMinutes: number;
 }
 
 /**

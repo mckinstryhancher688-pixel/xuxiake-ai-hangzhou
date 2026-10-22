@@ -250,7 +250,8 @@ function AmapStatus({ status }: { status: AmapServerStatus | null }) {
         {status.walkingHourlyUsed}/{status.walkingHourlyCap} · 单条缓存 {status.cacheTtlSeconds}s ·
         缓存条目 {status.cacheEntries} · 流水线缓存 {status.pipelineCacheTtlSeconds}s · 预算{" "}
         {status.budgetMinutes} 分钟（停留 {status.simulatedStayMinutes} + 缓冲 {status.bufferMinutes}
-        ） · 偏差阈值 {status.deviationSuspectMeters} 米 · 类别 {status.categories.join("/")} ·
+        ） · 偏差阈值 {status.deviationSuspectMeters} 米 · 请求没带 categories 时的默认类别{" "}
+        {status.categories.join("/")} ·
         起点关键词 {status.startKeyword} · 服务端时间 {formatTime(status.serverTime)}
       </p>
     </Block>
@@ -271,11 +272,11 @@ function MapJsStatus({
         配置状态 {state.phase} · AMAP_JS_KEY{" "}
         {config?.jsKeyMask ? `已配置（${config.jsKeyMask}）` : "未配置"} · 安全密钥{" "}
         {config ? (config.securityCodePresent ? "已在服务端" : "未配置") : "未知"} · 代理{" "}
-        {config?.securityHost ?? "/amap-proxy"}（jscode 只在服务端补，浏览器拿不到）
+        {config?.securityHost ?? "/_AMapService"}（jscode 只在服务端补，浏览器拿不到）
       </p>
       {config && config.missing.length > 0 && (
         <p className="mt-1 text-[10px] leading-relaxed text-accent-600">
-          缺少：{config.missing.join("、")}。补齐后左侧才会加载真实底图，在此之前保持演示模式。
+          缺少：{config.missing.join("、")}。补齐后才会加载真实底图，在此之前保持演示模式。
         </p>
       )}
       {state.reason && (

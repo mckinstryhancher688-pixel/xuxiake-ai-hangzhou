@@ -1,3 +1,4 @@
+import type { FlyAiPoiCategory } from "@/lib/discovery";
 import type {
   DataSource,
   DiscoverBatch,
@@ -61,5 +62,5 @@ export interface AmapClient {
    * 真实步行路径 → 四小时可行性组合。
    * 一次调用会让服务端真实请求高德数十次，服务端整体缓存结果，重复调用零成本。
    */
-  verifyRoute(cityName: string): Promise<VerifyReport>;
+  verifyRoute(cityName: string, categories?: FlyAiPoiCategory[]): Promise<VerifyReport>;
 }

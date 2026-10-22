@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { pickCity } from "@/lib/discovery";
+import { pickCity, type FlyAiPoiCategory } from "@/lib/discovery";
 import { ARRIVAL_MODE } from "@/lib/agent";
 import { auditNumericClaims, parseJsonObject, toNarration } from "@/lib/agent-reply";
 import type {
@@ -9,8 +9,9 @@ import type {
   AgentServerStatus,
   ExploreResponse,
   MatchStatus,
+  NegotiationExplainResponse,
   OpeningStatus,
-  VerifyReport,
+  RouteSavings,
   VerifiedItinerary,
   VerifiedStop,
   WalkingLeg,
@@ -35,7 +36,13 @@ import {
   type BailianConfig,
   type TurnResult,
 } from "./bailian";
-import { composeItinerary, toLeg, verifyRoute } from "./verify";
+import { verifyRoute } from "./verify";
+import { composeItinerary, toLeg } from "@/lib/itinerary-compose";
+import { buildNegotiationBrief } from "@/lib/negotiation/ai-context";
+import { headRevisionOf } from "@/lib/negotiation/plan-state";
+import type { Role } from "@/lib/negotiation/types";
+import { executionBlockReason, planExecutionJourney, planForBrief } from "./plan-store";
+import { agentScopeKey, agentTurnKey } from "./plan-tickets";
 
 if (typeof window !== "undefined") {
   throw new Error("lib/server/agent 只能在 Next.js 服务端加载。");
@@ -82,8 +89,8 @@ type OpenedSession = {
   contextFingerprint: string | null;
 };
 const sessionTasks = new Map<string, Promise<OpenedSession>>();
-/** 同一票据 + 同一意图只允许一个回合在飞：双击不会变成两次付费调用 */
-const turnTasks = new Map<string, Promise<ExploreResponse> | Promise<AdjustResponse>>();
+/** 同一作用域 + 同一意图只允许一个回合在飞：双击不会变成两次付费调用 */
+const turnTasks = new Map<string, Promise<ExploreResponse | AdjustResponse | NegotiationExplainResponse>>();
 
 function pruneSessions(): void {
   const cutoff = Date.now() - SESSION_TTL_MS;
@@ -92,24 +99,33 @@ function pruneSessions(): void {
   }
 }
 
+/**
+ * 取或建一条百炼会话。
+ *
+ * 单人链路照旧：浏览器持有一个随机票据，票据就是会话表的键。
+ * 双人链路传 ownerKey（planId + 角色 + 版本），会话改由服务端按这个键持有，
+ * 浏览器传来的票据一概不认——这样 A 无论拿到什么，都指不到 B 的会话上。
+ */
 async function getOrCreateSession(
   config: BailianConfig,
   itineraryKey: string,
   clientToken: string | null,
+  ownerKey: string | null = null,
 ): Promise<OpenedSession> {
   pruneSessions();
-  if (clientToken) {
-    const existing = sessions.get(clientToken);
+  const key = ownerKey ?? clientToken;
+  if (key) {
+    const existing = sessions.get(key);
     if (existing && existing.itineraryKey === itineraryKey) {
       existing.lastUsedAt = Date.now();
       return {
-        token: clientToken,
+        token: key,
         sessionId: existing.sessionId,
         overrides: existing.overrides,
         contextFingerprint: existing.contextFingerprint,
       };
     }
-    if (existing) sessions.delete(clientToken);
+    if (existing && ownerKey === null) sessions.delete(key);
   }
 
   const pending = sessionTasks.get(itineraryKey);
@@ -123,7 +139,7 @@ async function getOrCreateSession(
     if (!created.ok || !created.sessionId) {
       throw new Error(created.error ?? "百炼会话创建失败。");
     }
-    const token = randomUUID();
+    const token = ownerKey ?? randomUUID();
     sessions.set(token, {
       sessionId: created.sessionId,
       lastUsedAt: Date.now(),
@@ -160,12 +176,31 @@ export interface JourneyIntent {
   /** 已核实行程里当前所在的那一站（飞猪 POI id） */
   stopId: string | null;
   interests: string[];
+  /**
+   * 这份行程当初是用哪些飞猪类别核出来的。必须回传：否则智能体读到的是默认类别
+   * 重新核验的那条路线，跟用户界面上看到的不是同一条。
+   */
+  categories: FlyAiPoiCategory[];
+  /**
+   * 双人模式：由端点用角色凭据换出来的作用域。带着它时，智能体读的是这条协商
+   * 双方确认的正式版本，不再按 city/categories 去取那条单人路线。
+   */
+  plan?: { planId: string; role: Role };
 }
 
 class AgentRefused extends Error {}
 
+/** 智能体只需要这两项补充事实：类别来自飞猪，评分来自高德，都是这一轮已经付过费的字段。 */
+interface MatchRowLite {
+  flyaiId: string;
+  category: string | null;
+  rating: string | null;
+}
+
 interface ResolvedJourney {
-  report: VerifyReport;
+  itinerary: VerifiedItinerary;
+  cityName: string;
+  matchRows: MatchRowLite[];
   stops: VerifiedStop[];
   legs: WalkingLeg[];
   /** 到达当前站即视为走过 stops[0..currentIndex] */
@@ -191,42 +226,37 @@ const INTEREST_WHITELIST = [
   "免费景点",
 ];
 
-async function resolveJourney(intent: JourneyIntent): Promise<ResolvedJourney> {
-  const city = pickCity(intent.cityName);
-  if (!city) {
+/** 两条链路共用同一套「按当前站切分已走过/还没走」的算法，避免出现两套进度口径。 */
+function shapeJourney(input: {
+  itinerary: VerifiedItinerary;
+  cityName: string;
+  matchRows: MatchRowLite[];
+  stopId: string | null;
+  interests: string[];
+  itineraryKey: string;
+  notInRouteMessage?: string;
+}): ResolvedJourney {
+  const { itinerary, stopId } = input;
+  const { stops, legs } = itinerary;
+  const requested = stops.findIndex((stop) => stop.flyaiId === stopId);
+  if (requested === -1 && stopId) {
     throw new AgentRefused(
-      `本阶段只支持杭州，收到的 cityName 是「${String(intent.cityName ?? "空").slice(0, 20)}」。`,
+      input.notInRouteMessage ??
+        `选中的站点不在已核实行程里（收到 id「${String(stopId).slice(0, 24)}」），请重新选择。`,
     );
   }
-
-  const report = await verifyRoute(city);
-  if (!report.ok || !report.itinerary) {
-    throw new AgentRefused(
-      report.error ??
-        report.insufficiency ??
-        "服务端还没有拿到经过高德核实的行程，请先点「校验真实路线」。",
-    );
-  }
-
-  const { stops, legs } = report.itinerary;
-  const requested = stops.findIndex((stop) => stop.flyaiId === intent.stopId);
   const currentIndex = requested === -1 ? 0 : requested;
-  if (requested === -1 && intent.stopId) {
-    throw new AgentRefused(
-      `选中的站点不在已核实行程里（收到 id「${String(intent.stopId).slice(0, 24)}」），请重新选择。`,
-    );
-  }
-
   const visitedCount = currentIndex + 1;
   const visited = stops.slice(0, visitedCount);
   // legs[i] 结尾就是 stops[i]，所以已走过的段正好是前 visitedCount 条
   const historyLegs = legs.slice(0, visitedCount);
   const elapsedMinutes =
-    historyLegs.reduce((sum, leg) => sum + leg.durationMinutes, 0) +
-    visitedCount * SIMULATED_STAY_MINUTES;
+    historyLegs.reduce((sum, leg) => sum + leg.durationMinutes, 0) + visitedCount * SIMULATED_STAY_MINUTES;
 
   return {
-    report,
+    itinerary,
+    cityName: input.cityName,
+    matchRows: input.matchRows,
     stops,
     legs,
     current: stops[currentIndex],
@@ -235,9 +265,69 @@ async function resolveJourney(intent: JourneyIntent): Promise<ResolvedJourney> {
     historyLegs,
     elapsedMinutes: Math.min(elapsedMinutes, BUDGET_MINUTES),
     remainingMinutes: Math.max(0, BUDGET_MINUTES - elapsedMinutes),
-    itineraryKey: stops.map((stop) => stop.flyaiId).join(","),
-    interests: intent.interests.filter((item) => INTEREST_WHITELIST.includes(item)),
+    itineraryKey: input.itineraryKey,
+    interests: input.interests.filter((item) => INTEREST_WHITELIST.includes(item)),
   };
+}
+
+async function resolveJourney(intent: JourneyIntent): Promise<ResolvedJourney> {
+  const keyOf = (stops: VerifiedStop[]) => stops.map((stop) => stop.flyaiId).join(",");
+
+  /* 双人：只读这条协商双方确认的正式版本。门禁没开就直接拒绝，绝不拿单人路线顶数。 */
+  if (intent.plan) {
+    const journey = planExecutionJourney(intent.plan.planId);
+    if (!journey) {
+      throw new AgentRefused(
+        `这条协商现在没有可正式执行的版本：${executionBlockReason(intent.plan.planId)}`,
+      );
+    }
+    const { facts, itinerary, officialRevision } = journey;
+    const matchRows = facts.pool.map((item) => ({
+      flyaiId: item.id,
+      category: item.category ?? null,
+      rating: item.rating ?? null,
+    }));
+    return shapeJourney({
+      itinerary,
+      cityName: journey.cityName,
+      matchRows,
+      stopId: intent.stopId,
+      interests: intent.interests,
+      // 会话与去重键都带上 plan 与角色：A 与 B 各用各的上下文，永远拿不到对方的会话
+      itineraryKey: agentScopeKey(intent.plan.planId, intent.plan.role, `v${officialRevision}|${keyOf(itinerary.stops)}`),
+      notInRouteMessage:
+        `选中的站点不在双方确认的正式行程里（收到 id「${String(intent.stopId).slice(0, 24)}」），` +
+        `当前正式版本是 v${officialRevision}，请重新选择。`,
+    });
+  }
+
+  const city = pickCity(intent.cityName);
+  if (!city) {
+    throw new AgentRefused(
+      `本阶段只支持杭州，收到的 cityName 是「${String(intent.cityName ?? "空").slice(0, 20)}」。`,
+    );
+  }
+
+  const report = await verifyRoute(city, intent.categories);
+  if (!report.ok || !report.itinerary) {
+    throw new AgentRefused(
+      report.error ??
+        report.insufficiency ??
+        "服务端还没有拿到经过高德核实的行程，请先点「校验真实路线」。",
+    );
+  }
+  return shapeJourney({
+    itinerary: report.itinerary,
+    cityName: report.cityName,
+    matchRows: report.matches.map((match) => ({
+      flyaiId: match.flyaiId,
+      category: match.category,
+      rating: match.amap?.rating ?? null,
+    })),
+    stopId: intent.stopId,
+    interests: intent.interests,
+    itineraryKey: keyOf(report.itinerary.stops),
+  });
 }
 
 /* ── 方案 A：服务端把已核实数据结构化后喂给智能体 ──────────────────── */
@@ -250,7 +340,7 @@ interface AgentContext {
   factMinutes: number[];
 }
 
-type MatchRow = VerifyReport["matches"][number];
+type MatchRow = MatchRowLite;
 
 const MATCH_LABEL: Record<MatchStatus, string> = {
   matched: "高德已匹配",
@@ -271,7 +361,7 @@ function currentStopBlock(stop: VerifiedStop, match: MatchRow | null): string {
     `名称 ${stop.name}`,
     match?.category ? `类别 ${match.category}` : null,
     stop.address ? `地址 ${stop.address}` : null,
-    match?.amap?.rating ? `高德评分 ${match.amap.rating}` : null,
+    match?.rating ? `高德评分 ${match.rating}` : null,
     `站点核对 ${MATCH_LABEL[stop.matchStatus]}`,
     `开放时间 ${OPENING_LABEL[stop.openingStatus]}`,
     stop.flyaiDescription ? `飞猪简介 ${stop.flyaiDescription.slice(0, 80)}` : null,
@@ -281,7 +371,7 @@ function currentStopBlock(stop: VerifiedStop, match: MatchRow | null): string {
 }
 
 function buildContext(journey: ResolvedJourney): AgentContext {
-  const matchById = new Map(journey.report.matches.map((match) => [match.flyaiId, match]));
+  const matchById = new Map(journey.matchRows.map((match) => [match.flyaiId, match]));
   const factMeters: number[] = [];
   const factMinutes: number[] = [BUDGET_MINUTES, journey.elapsedMinutes, journey.remainingMinutes];
 
@@ -301,18 +391,18 @@ function buildContext(journey: ResolvedJourney): AgentContext {
     const bits = [
       stop.name,
       match?.category ?? null,
-      match?.amap?.rating ? `评分${match.amap.rating}` : null,
+      match?.rating ? `评分${match.rating}` : null,
       `停留${stop.stayMinutes}分钟`,
     ].filter(Boolean);
     return bits.join(" ");
   });
 
-  const itinerary = journey.report.itinerary as NonNullable<VerifyReport["itinerary"]>;
+  const itinerary = journey.itinerary;
   factMeters.push(itinerary.totalWalkMeters);
   factMinutes.push(itinerary.totalWalkMinutes, itinerary.totalMinutes);
 
   const block = [
-    `【城市】${journey.report.cityName}·${VERIFY_DISTRICT}`,
+    `【城市】${journey.cityName}·${VERIFY_DISTRICT}`,
     `【兴趣】${journey.interests.join("、") || "未填写"}`,
     `【旅行状态】预算 ${BUDGET_MINUTES} 分钟，已用约 ${journey.elapsedMinutes} 分钟，剩余 ${journey.remainingMinutes} 分钟`,
     `【已走过】${walked.map((stop) => stop.name).join("、") || "（还没有）"}`,
@@ -438,7 +528,9 @@ export function exploreWithAgent(
   clientToken: string | null,
   options: { onDelta?: (text: string) => void } = {},
 ): Promise<ExploreResponse> {
-  const dedupeKey = `explore|${clientToken ?? "new"}|${intent.stopId ?? ""}`;
+  const dedupeKey = intent.plan
+    ? agentTurnKey(intent.plan.planId, intent.plan.role, "explore", "scoped", intent.stopId ?? "")
+    : `explore|${clientToken ?? "new"}|${intent.stopId ?? ""}`;
   const pending = turnTasks.get(dedupeKey);
   if (pending) return pending as Promise<ExploreResponse>;
 
@@ -461,6 +553,8 @@ export function exploreWithAgent(
       const context = buildContext(journey);
       const session = await getOrCreateSession(config, journey.itineraryKey, clientToken);
       const dataKnown = session.contextFingerprint === context.fingerprint;
+      // 双人模式下会话由服务端按 plan+角色 持有，浏览器不需要也不该拿到作用域键
+      const echoToken = intent.plan ? null : session.token;
 
       const turn = await runTurn(
         config,
@@ -475,7 +569,7 @@ export function exploreWithAgent(
       if (failure) {
         return {
           ...base,
-          token: session.token,
+          token: echoToken,
           error: failure,
           stopName: journey.current.name,
           proof,
@@ -489,7 +583,7 @@ export function exploreWithAgent(
       return {
         ...base,
         ok: true,
-        token: session.token,
+        token: echoToken,
         stopName: journey.current.name,
         narration,
         proof,
@@ -559,7 +653,7 @@ async function replan(journey: ResolvedJourney, proposedNames: string[]): Promis
   }
 
   const itinerary = composeItinerary(
-    journey.report.itinerary!.start,
+    journey.itinerary.start,
     [...journey.visited, ...chosen],
     [...journey.historyLegs, ...newLegs],
     assumedTripWindow(new Date()).startAt,
@@ -572,6 +666,20 @@ async function replan(journey: ResolvedJourney, proposedNames: string[]): Promis
     };
   }
   return { itinerary, error: null };
+}
+
+/**
+ * 两份高德实测行程相减。已走过的段在两边完全相同，所以差值恰好就是被删掉的那些段，
+ * 不存在「智能体少报了」的空间。负数一律压成 0，避免出现「少走一点反而更远」。
+ */
+function savingsOf(before: VerifiedItinerary, after: VerifiedItinerary): RouteSavings {
+  return {
+    fromStops: before.stops.length,
+    toStops: after.stops.length,
+    savedMeters: Math.max(0, before.totalWalkMeters - after.totalWalkMeters),
+    savedWalkMinutes: Math.max(0, before.totalWalkMinutes - after.totalWalkMinutes),
+    savedTotalMinutes: Math.max(0, before.totalMinutes - after.totalMinutes),
+  };
 }
 
 /** 消息没被服务端受理时，上下文其实没进会话，下一回合必须重发。 */
@@ -619,6 +727,8 @@ export function shortenWithAgent(
       firstAttemptFailure: null,
       retried: false,
       amapNewCalls: 0,
+      savings: null,
+      baseItineraryKey: null,
       proof: null,
       token: clientToken,
     };
@@ -695,10 +805,175 @@ export function shortenWithAgent(
         firstAttemptFailure,
         retried,
         amapNewCalls: amapCounters().walkingCalls - walkingBefore,
+        savings: ok ? savingsOf(journey.itinerary, replanResult!.itinerary!) : null,
+        baseItineraryKey: ok ? journey.itineraryKey : null,
         proof: turns.length ? makeProof(config, session.sessionId, turns, session.overrides) : null,
       };
     } catch (caught) {
       return { ...base, error: message(caught) };
+    }
+  })();
+
+  turnTasks.set(dedupeKey, task);
+  return task.finally(() => turnTasks.delete(dedupeKey));
+}
+
+/* ── 双人协商：让 AI 解释这次取舍 ─────────────────────────────────── */
+
+const EXPLAIN_TIMEOUT_MS = 90_000;
+
+/** 模型只能在这些动作里挑；文案与补测报价由服务端回填，所以它编不出新动作。 */
+function explainPrompt(brief: ReturnType<typeof buildNegotiationBrief>): string {
+  const options = brief.options.map((option) => `- ${option.key}：${option.text}`).join("\n");
+  return [
+    "两个人对同一条杭州半日路线各自提了条件，服务端已经算出结论。请解释这次取舍，并给出下一步建议。",
+    "",
+    brief.block,
+    "",
+    "【服务端允许的下一步（只能引用下面的 key）】",
+    options || "-（服务端没有给出可选动作）",
+    "",
+    "【必须遵守】",
+    "1. 可行性、距离、耗时、硬约束是否满足都由服务端判定；上面的数字只能原样照抄，不得新增、换算或相加。",
+    "2. 不得替任何一方同意，不得劝任何一方放宽底线；条件只能由当事人自己在界面上提交。",
+    "3. 下一步建议只能从上面的 key 里挑，不合适的可以不挑。",
+    "4. 数据里没有的价格、门票、开放时间细节、历史故事一律不提；确实要提就说「数据未提供，需现场核实」。",
+    "5. 还没实测的站不能说「走不到」，只能说「没有实测依据，需要先补测」。",
+    "",
+    "只输出一个 JSON 对象：",
+    '{"summary":"一句话说明这次为什么这样取舍","points":["…"],"nextSteps":[{"key":"…","why":"…"}],"cautions":["…"]}',
+  ].join("\n");
+}
+
+function clampList(value: unknown, max: number, limit: number): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    .slice(0, max)
+    .map((item) => item.trim().slice(0, limit));
+}
+
+export function explainNegotiation(
+  input: { planId: string; role: Role },
+  options: { onDelta?: (text: string) => void } = {},
+): Promise<NegotiationExplainResponse> {
+  const dedupeKey = agentTurnKey(input.planId, input.role, "explain", "scoped", "current");
+  const pending = turnTasks.get(dedupeKey);
+  if (pending) return pending as Promise<NegotiationExplainResponse>;
+
+  const task = (async (): Promise<NegotiationExplainResponse> => {
+    /** 内部作用域键不外传，外传的是它的短哈希：足以证明两角色各用各的会话 */
+    let scopeKey = "";
+    const maskedScope = () => (scopeKey ? createHash("sha1").update(scopeKey).digest("hex").slice(0, 12) : null);
+    const base: NegotiationExplainResponse = {
+      ok: false,
+      error: null,
+      summary: null,
+      points: [],
+      nextSteps: [],
+      cautions: [],
+      rejectedKeys: [],
+      revision: null,
+      audit: null,
+      proof: null,
+      scopeKey: null,
+    };
+    try {
+      const config = requireConfig();
+      const cap = turnCapMessage();
+      if (cap) throw new AgentRefused(cap);
+
+      const source = planForBrief(input.planId);
+      if (!source) {
+        throw new AgentRefused(
+          "这条协商的事实层已失效（服务重启、已撤销或超出保留期）。需要重新核验一次才能解释，我不会拿旧结论冒充真实结果。",
+        );
+      }
+      const revision = headRevisionOf(source.state);
+      const brief = buildNegotiationBrief({ facts: source.facts, state: source.state, revision });
+      const fingerprint = createHash("sha1").update(brief.block).digest("hex").slice(0, 16);
+      scopeKey = agentScopeKey(
+        input.planId,
+        input.role,
+        revision ? `v${revision.revision}|${revision.contentHash}` : "no-revision",
+      );
+      const session = await getOrCreateSession(config, scopeKey, null, scopeKey);
+      const dataKnown = session.contextFingerprint === fingerprint;
+
+      const turn = await runTurn(
+        config,
+        session.sessionId,
+        explainPrompt(brief),
+        { timeoutMs: EXPLAIN_TIMEOUT_MS, onDelta: options.onDelta },
+      );
+      if (!dataKnown && messageAccepted(turn)) markContextSent(session.token, fingerprint);
+      const proof = makeProof(config, session.sessionId, [turn], session.overrides);
+
+      const failure = turnFailure(turn);
+      if (failure) {
+        return { ...base, error: failure, proof, revision: revision?.revision ?? null, scopeKey: maskedScope() };
+      }
+
+      const parsed = parseJsonObject(turn.replyText);
+      const allowed = new Map(brief.options.map((option) => [option.key, option]));
+      const rawSteps = Array.isArray(parsed?.nextSteps) ? parsed.nextSteps : [];
+      const nextSteps: NegotiationExplainResponse["nextSteps"] = [];
+      const rejectedKeys: string[] = [];
+      for (const item of rawSteps.slice(0, 6)) {
+        const key = typeof (item as { key?: unknown })?.key === "string" ? String((item as { key: string }).key) : "";
+        const option = allowed.get(key);
+        if (!option) {
+          if (key) rejectedKeys.push(key.slice(0, 40));
+          continue;
+        }
+        nextSteps.push({
+          key: option.key,
+          text: option.text,
+          extraCalls: option.extraCalls,
+          why: typeof (item as { why?: unknown }).why === "string" ? String((item as { why: string }).why).slice(0, 160) : null,
+        });
+      }
+
+      const summary = typeof parsed?.summary === "string" ? parsed.summary.trim().slice(0, 240) : null;
+      const points = clampList(parsed?.points, 6, 160);
+      const cautions = clampList(parsed?.cautions, 4, 160);
+      if (!summary && !points.length) {
+        return {
+          ...base,
+          error: "智能体没有给出可用的解释文本（服务端没有替它编一段话），规则求解结果仍然按原样显示。",
+          proof,
+          revision: revision?.revision ?? null,
+          scopeKey: maskedScope(),
+        };
+      }
+      const audit = auditNumericClaims(
+        {
+          headline: summary ?? "",
+          details: [...points, ...cautions],
+          nextSuggestion: nextSteps.map((step) => step.why ?? "").join(" "),
+          degraded: false,
+          rawText: turn.replyText,
+          numericAudit: { claims: [], matched: 0, unmatched: [] },
+        },
+        brief.factMeters,
+        brief.factMinutes,
+      ).numericAudit;
+
+      return {
+        ok: true,
+        error: null,
+        summary,
+        points,
+        nextSteps,
+        cautions,
+        rejectedKeys,
+        revision: revision?.revision ?? null,
+        audit,
+        proof,
+        scopeKey: maskedScope(),
+      };
+    } catch (caught) {
+      return { ...base, error: message(caught), scopeKey: maskedScope() };
     }
   })();
 

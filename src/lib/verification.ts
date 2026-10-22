@@ -1,3 +1,4 @@
+import type { FlyAiPoiCategory } from "@/lib/discovery";
 import type { MatchStatus, OpeningStatus } from "@/lib/types";
 
 /** 浏览器只调这一个站内地址；高德 key 与所有请求都留在服务端。 */
@@ -8,8 +9,11 @@ export const VERIFY_CITY = "杭州";
 export const VERIFY_DISTRICT = "西湖湖滨";
 export const BUDGET_MINUTES = 240;
 
-/** 参与核验的飞猪类别：两类各 10 条，正好是验收里说的 20 条候选。 */
-export const VERIFY_CATEGORIES = ["自然风光", "文创街区"] as const;
+/**
+ * 参与核验的飞猪类别。界面上勾了什么就按勾的核验（单次最多 2 个），
+ * 没勾时用这两个：两类各 10 条，正好是验收里说的 20 条候选。
+ */
+export const DEFAULT_VERIFY_CATEGORIES: FlyAiPoiCategory[] = ["自然风光", "文创街区"];
 
 /** 固定起点关键词，必须是湖滨附近一个能被高德核实的具体地点。 */
 export const START_KEYWORD = "湖滨公园";

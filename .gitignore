@@ -46,6 +46,9 @@ next-env.d.ts
 scripts/agent-v1-backup.json
 evidence/start.log
 
+# 双人协商的最小快照：里面是真实采集的高德实测数据与协商状态，属于本机运行数据，不入库
+.data/
+
 # 一次性探针脚本里写死了本机的 Playwright 路径，只对这台机器有意义；
 # 保留下来的是可复跑的验收套件 evidence/phase6-accept.mjs 与它的截图、日志。
 evidence/*probe*.mjs

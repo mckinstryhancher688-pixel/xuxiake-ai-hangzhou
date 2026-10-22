@@ -1,5 +1,6 @@
 import { formatDistance, formatMinutes } from "@/lib/format";
-import type { Poi, RouteLeg } from "@/lib/types";
+import type { ExplorationStatus } from "@/hooks/useJourney";
+import type { Poi, RouteLeg, RouteVariant } from "@/lib/types";
 
 export function ItineraryPanel({
   routeLabel,
@@ -10,7 +11,12 @@ export function ItineraryPanel({
   activePoi,
   visitedIds,
   legFrom,
+  routeId,
+  isActiveVisited,
+  explorationStatus,
   onSelect,
+  onArrive,
+  onToggleRoute,
 }: {
   routeLabel: string;
   routeSummary: string;
@@ -20,13 +26,24 @@ export function ItineraryPanel({
   activePoi: Poi;
   visitedIds: string[];
   legFrom: Map<string, RouteLeg>;
+  routeId: RouteVariant;
+  isActiveVisited: boolean;
+  explorationStatus: ExplorationStatus;
   onSelect: (id: string) => void;
+  onArrive: () => void;
+  onToggleRoute: () => void;
 }) {
+  const arriving = explorationStatus === "loading";
   return (
-    <section className="rounded-2xl border border-line bg-card p-4 shadow-sm">
+    <section className="rounded-2xl border border-accent-500/40 bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-ink-900">{routeLabel}</h2>
+          <h2 className="text-sm font-semibold text-ink-900">
+            {routeLabel}
+            <span className="ml-1.5 rounded bg-accent-500/15 px-1.5 py-0.5 text-[10px] font-medium text-accent-600">
+              演示数据（Mock）
+            </span>
+          </h2>
           <p className="mt-1 text-xs leading-relaxed text-ink-500">{routeSummary}</p>
         </div>
       </div>
@@ -98,6 +115,29 @@ export function ItineraryPanel({
           );
         })}
       </ol>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onArrive}
+          disabled={arriving}
+          className="rounded-lg border border-accent-500/50 bg-accent-500/10 px-3 py-1.5 text-[11px] font-medium text-accent-700 transition hover:bg-accent-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {arriving ? "演示讲解生成中…" : isActiveVisited ? "再看一次演示讲解" : `标记已到 · ${activePoi.name}`}
+        </button>
+        <button
+          type="button"
+          onClick={onToggleRoute}
+          className="rounded-lg border border-line bg-paper px-3 py-1.5 text-[11px] font-medium text-ink-500 transition hover:bg-white"
+        >
+          {routeId === "standard" ? "换成少走一点的 3 站版" : "换回完整 4 站版"}
+        </button>
+      </div>
+
+      <p className="mt-2 text-[10px] leading-relaxed text-ink-300">
+        这一整块是演示行程（Mock）：地点、停留与讲解都是预写的，用来对照真实链路，
+        不参与高德核验，也不会画到真实地图上。
+      </p>
     </section>
   );
 }

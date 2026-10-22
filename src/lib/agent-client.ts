@@ -1,4 +1,6 @@
 import { AGENT_ENDPOINT } from "@/lib/agent";
+import { ROLE_TOKEN_HEADER } from "@/lib/plan-api";
+import type { FlyAiPoiCategory } from "@/lib/discovery";
 import type {
   AdjustResponse,
   AgentServerStatus,
@@ -11,8 +13,12 @@ export interface AgentRequest {
   cityName: string;
   stopId: string | null;
   interests: string[];
+  /** 当前这份已核实行程是用哪些类别核出来的，服务端要用同一套才能读到同一条路线 */
+  categories: FlyAiPoiCategory[];
   /** 上一次响应带回来的服务端票据；带上它才能续用同一条百炼会话 */
   token: string | null;
+  /** 双人模式：读的是这条协商双方确认的正式版本，凭据走请求头，不放这里 */
+  planId?: string | null;
 }
 
 /**
@@ -25,10 +31,14 @@ export interface AgentRequest {
 export async function requestAgent(
   request: AgentRequest,
   onDelta?: (text: string) => void,
+  roleToken?: string | null,
 ): Promise<ExploreResponse | AdjustResponse> {
   const response = await fetch(AGENT_ENDPOINT, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(roleToken ? { [ROLE_TOKEN_HEADER]: roleToken } : {}),
+    },
     body: JSON.stringify(request),
   });
 

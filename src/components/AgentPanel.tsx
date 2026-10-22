@@ -2,12 +2,17 @@
 
 import type { AgentController, LiveTurn } from "@/hooks/useAgent";
 import { AGENT_SOURCE_LABEL, ARRIVAL_MODE_LABEL } from "@/lib/agent";
+import { formatDistance, formatMinutes } from "@/lib/format";
 import type { AdjustResponse, AgentNarration, ExploreResponse } from "@/lib/types";
 
 const PHASE_BADGE = {
   idle: { label: "未调用", className: "bg-paper text-ink-300 ring-1 ring-line" },
   loading: { label: "调用中…", className: "bg-accent-500/15 text-accent-600" },
   done: { label: "LIVE · 百炼真实返回", className: "bg-brand-600/15 text-brand-700" },
+  restored: {
+    label: "LIVE · 刷新前那一次",
+    className: "bg-brand-600/10 text-brand-700 ring-1 ring-brand-100",
+  },
 } as const;
 
 export function AgentPanel({
@@ -25,8 +30,8 @@ export function AgentPanel({
         <div>
           <h2 className="text-sm font-semibold text-ink-900">在场探索 · 百炼托管智能体</h2>
           <p className="mt-1 text-xs leading-relaxed text-ink-500">
-            服务端把飞猪与高德已经核实过的结构化数据交给百炼 Managed Agent，智能体只负责讲解与删站建议；
-            它报出的每一个数字都会和高德实测值对账。
+            智能体只负责讲解与「少走哪一站」的建议；它报出的每个数字都会和高德实测值对账。
+            连续点会延续同一段对话，所以「少走一点」知道上文。
           </p>
         </div>
         <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-medium ${badge(agent).className}`}>
@@ -36,7 +41,7 @@ export function AgentPanel({
 
       {stops.length === 0 ? (
         <p className="mt-3 rounded-xl border border-dashed border-line bg-paper px-3 py-2.5 text-[11px] leading-relaxed text-ink-300">
-          这一层需要「已核实行程」才能工作。请先在上方点「校验真实路线」拿到飞猪＋高德的核验结果；
+          这一层需要「已核实行程」才能工作。请先点「生成我的路线」拿到飞猪＋高德的核验结果；
           没有核实数据时本面板不会调用百炼，也不会用演示文案冒充成功。
         </p>
       ) : (
@@ -63,27 +68,10 @@ export function AgentPanel({
             })}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void agent.arrive()}
-              disabled={loading}
-              className="rounded-lg bg-accent-500 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {agent.arrived.phase === "loading" ? "百炼生成中…" : "我到了"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void agent.shorten()}
-              disabled={loading}
-              className="rounded-lg bg-brand-700 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {agent.adjusted.phase === "loading" ? "调整校验中…" : "少走一点"}
-            </button>
-            <span className="text-[10px] leading-relaxed text-ink-300">
-              每点一次就是一次真实的百炼回合；同一个页面里连续点击会延续同一段对话，所以「少走一点」知道上文。
-            </span>
-          </div>
+          <p className="mt-2 text-[10px] leading-relaxed text-ink-300">
+            先在本面板的站名里选定「当前这一站」，再用「我到了／少走一点」发起回合。
+            一次点击＝一个真实百炼回合，地图平移缩放不会触发调用。
+          </p>
         </>
       )}
 
@@ -141,6 +129,8 @@ function badge(agent: AgentController) {
     return { label: "调用失败", className: "bg-red-500/10 text-red-600" };
   }
   if (anyDone && anyOk) return PHASE_BADGE.done;
+  // 刷新之后屏幕上这段是本标签页快照里恢复出来的：真实返回过，但不是这一次点出来的
+  if (agent.restored) return PHASE_BADGE.restored;
   return PHASE_BADGE.idle;
 }
 
@@ -195,7 +185,7 @@ function Narration({ narration, stopName }: { narration: AgentNarration; stopNam
 
       {narration.degraded && (
         <p className="mt-2 rounded-lg bg-accent-500/10 px-2.5 py-1.5 text-[10px] leading-relaxed text-accent-700">
-          智能体没有按约定的 JSON 格式返回，下面直接展示原文，未经结构化整理。
+          智能体没有按约定的 JSON 格式返回，这里直接展示原文，未经结构化整理。
         </p>
       )}
 
@@ -306,12 +296,11 @@ function AdjustResult({
       )}
 
       {/* 通过校验的路线只有一份：上图 + 上方核验面板，这里不再重复渲染一遍 */}
-      {response?.ok && response.itinerary && (
-        <p className="mt-2 rounded-xl border border-brand-100 bg-brand-50/60 px-3 py-2 text-[11px] leading-relaxed text-ink-700">
-          这份方案已经过服务端逐段高德实测校验，共 {response.itinerary.stops.length} 站 /{" "}
-          {response.itinerary.totalMinutes} 分钟，现在就是上方「高德核验路线」与左侧地图里显示的那一条。
-          本次校验新发起高德步行实测 {response.amapNewCalls} 次（0 表示全部命中服务端缓存，没有额外消耗配额）。
-        </p>
+      {response?.ok && response.itinerary && response.savings && (
+        <Savings
+          response={response}
+          stopNames={response.itinerary.stops.map((stop) => stop.name)}
+        />
       )}
 
       {response?.ok && (
@@ -321,6 +310,46 @@ function AdjustResult({
             : `未核实事项：${response.unverifiedNotes.join("；")}。`}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * 「少走一点」换来的三件事。三个数都是服务端把调整前后两份高德实测行程相减得到的，
+ * 智能体报的数字不进这里。
+ */
+function Savings({
+  response,
+  stopNames,
+}: {
+  response: AdjustResponse;
+  stopNames: string[];
+}) {
+  const saving = response.savings!;
+  const items = [
+    { label: "少走", value: formatDistance(saving.savedMeters) },
+    { label: "少步行", value: formatMinutes(saving.savedWalkMinutes) },
+    { label: "总行程缩短", value: formatMinutes(saving.savedTotalMinutes) },
+  ];
+  return (
+    <div className="mt-2 rounded-xl border border-brand-100 bg-brand-50/60 p-3">
+      <p className="text-xs font-semibold text-ink-900">
+        {saving.fromStops} 站 → {saving.toStops} 站：
+        {stopNames.join(" → ")}
+      </p>
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {items.map((item) => (
+          <div key={item.label} className="rounded-lg bg-white/80 px-2 py-1.5 text-center">
+            <p className="text-[10px] text-ink-500">{item.label}</p>
+            <p className="mt-0.5 text-[11px] font-semibold text-brand-700">{item.value}</p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[10px] leading-relaxed text-ink-500">
+        现在共 {response.itinerary!.stops.length} 站 / {response.itinerary!.totalMinutes} 分钟（预算{" "}
+        {response.itinerary!.budgetMinutes} 分钟），就是「高德核验路线」面板与地图里的那一条。
+        每一段都用高德步行实测校验过{response.amapNewCalls > 0 ? `，本次新发起 ${response.amapNewCalls} 次实测` : "，全部命中服务端缓存、没有新增调用"}。
+      </p>
     </div>
   );
 }

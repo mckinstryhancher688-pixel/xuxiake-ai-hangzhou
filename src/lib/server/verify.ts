@@ -20,6 +20,7 @@ import {
   BUFFER_MINUTES,
   BUDGET_MINUTES,
   DATUM_DECISIVE_METERS,
+  DEFAULT_VERIFY_CATEGORIES,
   DEVIATION_SUSPECT_METERS,
   MAX_STOPS,
   MAX_STRAIGHT_LINE_METERS,
@@ -27,7 +28,6 @@ import {
   SHORTLIST_SIZE,
   SIMULATED_STAY_MINUTES,
   START_KEYWORD,
-  VERIFY_CATEGORIES,
   VERIFY_DISTRICT,
   assumedTripWindow,
   isWindowClosed,
@@ -40,9 +40,11 @@ import {
   planWalking,
   readAmapKey,
   searchPlace,
-  type AmapWalkingData,
 } from "./amap";
 import { discoverCity } from "./discover";
+import { buildFactSet, mintFactsId, putFactSet } from "./facts";
+import { composeItinerary, toLeg } from "@/lib/itinerary-compose";
+import type { FlyAiPoiCategory } from "@/lib/discovery";
 
 if (typeof window !== "undefined") {
   throw new Error("lib/server/verify 只能在 Next.js 服务端加载。");
@@ -63,15 +65,18 @@ interface PipelineCacheEntry {
 const pipelineCache = new Map<string, PipelineCacheEntry>();
 const pipelineInflight = new Map<string, Promise<VerifyReport>>();
 
-export async function verifyRoute(cityName: string): Promise<VerifyReport> {
-  const cacheKey = `${cityName}|${VERIFY_CATEGORIES.join(",")}`;
+export async function verifyRoute(
+  cityName: string,
+  categories: FlyAiPoiCategory[] = DEFAULT_VERIFY_CATEGORIES,
+): Promise<VerifyReport> {
+  const cacheKey = `${cityName}|${categories.join(",")}`;
   const hit = pipelineCache.get(cacheKey);
   if (hit && Date.now() - hit.at < PIPELINE_CACHE_TTL_MS) return hit.report;
 
   const pending = pipelineInflight.get(cacheKey);
   if (pending) return pending;
 
-  const task = runPipeline(cityName);
+  const task = runPipeline(cityName, categories);
   pipelineInflight.set(cacheKey, task);
   try {
     const report = await task;
@@ -100,14 +105,17 @@ export function amapServerStatus(): AmapServerStatus {
     simulatedStayMinutes: SIMULATED_STAY_MINUTES,
     bufferMinutes: BUFFER_MINUTES,
     deviationSuspectMeters: DEVIATION_SUSPECT_METERS,
-    categories: [...VERIFY_CATEGORIES],
+    categories: [...DEFAULT_VERIFY_CATEGORIES],
     startKeyword: START_KEYWORD,
     serverTime: new Date().toISOString(),
     pid: process.pid,
   };
 }
 
-async function runPipeline(cityName: string): Promise<VerifyReport> {
+async function runPipeline(
+  cityName: string,
+  categories: FlyAiPoiCategory[],
+): Promise<VerifyReport> {
   const generatedAt = new Date().toISOString();
   const log: AmapCallLogEntry[] = [];
   const flyaiProofs: FlyAiCallProof[] = [];
@@ -117,7 +125,7 @@ async function runPipeline(cityName: string): Promise<VerifyReport> {
     districtName: VERIFY_DISTRICT,
     budgetMinutes: BUDGET_MINUTES,
     generatedAt,
-    categories: [...VERIFY_CATEGORIES],
+    categories: [...categories],
   };
 
   if (!readAmapKey()) {
@@ -130,7 +138,7 @@ async function runPipeline(cityName: string): Promise<VerifyReport> {
   }
 
   /* 1. 取飞猪真实候选。走 discoverCity 复用第二阶段的缓存与调用上限。 */
-  const batch = await discoverCity(cityName, [...VERIFY_CATEGORIES]);
+  const batch = await discoverCity(cityName, [...categories]);
   for (const result of batch.results) {
     if (result.proof) flyaiProofs.push(result.proof);
   }
@@ -177,6 +185,8 @@ async function runPipeline(cityName: string): Promise<VerifyReport> {
   const unverifiedCount = matches.filter((m) => m.status === "unverified").length;
   const routable = matches.filter((m) => m.routable && m.routablePosition);
   const rejections: { name: string; reason: string }[] = [];
+  /** 高德明确「没有路线」的有向段；与「从没测过」严格区分，见 facts.ts */
+  const failedPairKeys: string[] = [];
   for (const match of matches.filter((m) => !m.routable)) {
     rejections.push({ name: match.name, reason: match.routableReason || match.reason || "未通过地理核验" });
   }
@@ -215,6 +225,7 @@ async function runPipeline(cityName: string): Promise<VerifyReport> {
     const result = await planWalking(start.position, position);
     log.push(result.entry);
     if (!result.ok || !result.data) {
+      failedPairKeys.push(`${START_KEY}->${match.flyaiId}`);
       return { match, leg: null, skipped: `高德步行路径规划失败：${result.error ?? "无路线"}` };
     }
     return { match, leg: toLeg(start.name, match.name, start.position, position, result.data, result.entry.fromCache), skipped: null };
@@ -275,6 +286,7 @@ async function runPipeline(cityName: string): Promise<VerifyReport> {
         toLeg(from.match.name, to.match.name, fromPosition, toPosition, result.data, result.entry.fromCache),
       );
     } else {
+      failedPairKeys.push(`${from.match.flyaiId}->${to.match.flyaiId}`);
       rejections.push({
         name: `${from.match.name} → ${to.match.name}`,
         reason: `高德步行路径规划失败：${result.error ?? "无路线"}，含这一段的组合已被排除`,
@@ -349,6 +361,23 @@ async function runPipeline(cityName: string): Promise<VerifyReport> {
   }
 
   const itinerary = buildItinerary(chosen, start, tripWindow.startAt);
+
+  /* 事实层入库：把这次已经付费测出的全部有向段留下，供双人协商本地重解。 */
+  const measuredLegs = new Map(pairLegs);
+  for (const item of reachable) {
+    const key = `${START_KEY}->${item.match.flyaiId}`;
+    if (!measuredLegs.has(key)) measuredLegs.set(key, item.leg);
+  }
+  const facts = buildFactSet({
+    factsId: mintFactsId(),
+    cityName,
+    categories,
+    start,
+    matches,
+    legs: measuredLegs,
+    failedKeys: failedPairKeys,
+  });
+
   return {
     ...base,
     ok: true,
@@ -366,6 +395,7 @@ async function runPipeline(cityName: string): Promise<VerifyReport> {
     rejections,
     amap: usage(log),
     flyaiProofs,
+    facts: putFactSet(facts),
   };
 }
 
@@ -874,57 +904,4 @@ function buildItinerary(
   }));
 
   return composeItinerary(start, stops, chain.legs, assumedStart);
-}
-
-/**
- * 把「站点 + 高德实测段」装配成一份行程账。
- * 第四阶段的「少走一点」重排后也走这里，保证两条路径用同一套算法。
- */
-export function composeItinerary(
-  start: RouteStart,
-  stops: VerifiedStop[],
-  legs: WalkingLeg[],
-  assumedStart: Date,
-): VerifiedItinerary {
-  const totalWalkMinutes = legs.reduce((sum, leg) => sum + leg.durationMinutes, 0);
-  const totalWalkMeters = legs.reduce((sum, leg) => sum + leg.distanceMeters, 0);
-  const totalStayMinutes = stops.reduce((sum, stop) => sum + stop.stayMinutes, 0);
-  const totalMinutes = totalWalkMinutes + totalStayMinutes + BUFFER_MINUTES;
-
-  return {
-    start,
-    stops,
-    legs,
-    totalWalkMeters,
-    totalWalkMinutes,
-    totalStayMinutes,
-    bufferMinutes: BUFFER_MINUTES,
-    totalMinutes,
-    budgetMinutes: BUDGET_MINUTES,
-    feasible: totalMinutes <= BUDGET_MINUTES,
-    assumedStartAt: assumedStart.toISOString(),
-  };
-}
-
-export function toLeg(
-  fromName: string,
-  toName: string,
-  from: LatLng,
-  to: LatLng,
-  data: AmapWalkingData,
-  fromCache: boolean,
-): WalkingLeg {
-  return {
-    fromName,
-    toName,
-    from,
-    to,
-    distanceMeters: data.distanceMeters,
-    durationMinutes: Math.max(1, Math.round(data.durationSeconds / 60)),
-    durationSeconds: data.durationSeconds,
-    stepCount: data.stepCount,
-    firstInstruction: data.firstInstruction,
-    polyline: data.polyline,
-    fromCache,
-  };
 }

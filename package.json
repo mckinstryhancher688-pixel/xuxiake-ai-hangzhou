@@ -11,6 +11,12 @@
     "start": "next start",
     "lint": "eslint",
     "test:accept": "node evidence/phase6-accept.mjs",
+    "test:negotiation": "node evidence/negotiation-unit.mjs",
+    "test:rules": "node evidence/negotiation-rules.mjs",
+    "test:plan-ai": "node --import ./evidence/register-alias.mjs evidence/plan-ai.mjs",
+    "test:snapshot": "node evidence/plan-persistence.mjs",
+    "test:guards": "node evidence/plan-guard-probe.mjs",
+    "test:offline": "node evidence/negotiation-unit.mjs && node evidence/negotiation-rules.mjs && node --import ./evidence/register-alias.mjs evidence/plan-ai.mjs && node evidence/plan-persistence.mjs",
     "probe:bailian": "node --env-file=.env.local scripts/bailian-probe.mjs",
     "probe:bailian:discover": "node --env-file=.env.local scripts/bailian-discover.mjs",
     "probe:agent": "node scripts/agent-call.mjs"

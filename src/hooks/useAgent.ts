@@ -1,7 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchAgentStatus, requestAgent } from "@/lib/agent-client";
+import { parseCategories } from "@/lib/discovery";
+import {
+  saveSnapshot,
+  useSessionSnapshot,
+  AGENT_SNAPSHOT_KEY,
+} from "@/lib/session-snapshot";
+import { DEFAULT_VERIFY_CATEGORIES } from "@/lib/verification";
 import type {
   AdjustResponse,
   AgentServerStatus,
@@ -26,25 +33,40 @@ export interface LiveTurn {
 
 const EMPTY_LIVE: LiveTurn = { text: "", waitedMs: 0, startedAt: null };
 
+/** 刷新前这一段的状态。只存成功过的结果，失败提示不跨刷新保留。 */
+interface AgentSnapshot {
+  token: string | null;
+  pickedStopId: string | null;
+  arrivedStopIds: string[];
+  arrival: ExploreResponse | null;
+  adjustment: AdjustResponse | null;
+}
+
 /**
  * 「我到了」与「少走一点」都走这里。
- * 会话票据（token）只存在内存里，用来让第二次提问延续同一条百炼会话；
- * 刷新页面就重开会话——这是刻意的，避免把会话标识写进 localStorage。
+ * 会话票据（token）只是浏览器侧的随机标识，真实的百炼 Session ID 永远留在服务端。
+ * 进度会写进 sessionStorage（随标签页关闭即消失，不是 localStorage），
+ * 这样刷新页面后还在同一趟旅行里，不用重新点一遍。
  */
 export function useAgent(
   city: string,
   interests: string[],
   report: VerifyReport | null,
+  /**
+   * 双人模式：把这条协商的编号与本方凭据交给服务端，让它读双方确认的正式版本。
+   * 不传就是单人链路，行为与之前完全一致。
+   */
+  plan: { planId: string; token: string } | null = null,
 ) {
-  const [token, setToken] = useState<string | null>(null);
-  const [pickedStopId, setPickedStopId] = useState<string | null>(null);
+  const [tokenOverride, setToken] = useState<string | null>(null);
+  const [pickedOverride, setPickedStopId] = useState<string | null>(null);
   const [arrived, setArrived] = useState<AgentState>({ phase: "idle", error: null });
-  const [arrival, setArrival] = useState<ExploreResponse | null>(null);
+  const [arrivalOverride, setArrival] = useState<ExploreResponse | null>(null);
   const [adjusted, setAdjusted] = useState<AgentState>({ phase: "idle", error: null });
-  const [adjustment, setAdjustment] = useState<AdjustResponse | null>(null);
+  const [adjustmentOverride, setAdjustment] = useState<AdjustResponse | null>(null);
   const [status, setStatus] = useState<AgentServerStatus | null>(null);
-  /** 用户手动确认过到达的站点（flyaiId）。只是模拟到达，不是真实 GPS。 */
-  const [arrivedStopIds, setArrivedStopIds] = useState<string[]>([]);
+  /** 用户在本轮里手动确认过到达的站点（flyaiId）。只是模拟到达，不是真实 GPS。 */
+  const [arrivedOverride, setArrivedStopIds] = useState<string[]>([]);
   const [live, setLive] = useState<{ arrive: LiveTurn; shorten: LiveTurn }>({
     arrive: EMPTY_LIVE,
     shorten: EMPTY_LIVE,
@@ -62,11 +84,56 @@ export function useAgent(
 
   // 当前生效的行程＝「少走一点」通过校验后的那一份，没有就是核验结果。
   // 地图、行程卡片、可点选的站全部以它为准，避免出现「界面一套、地图另一套」。
+  // 刷新前的进度从 sessionStorage 快照里取（useSyncExternalStore：水合后才拿到值）。
+  const snapshot = useSessionSnapshot<AgentSnapshot>(AGENT_SNAPSHOT_KEY);
+  const token = tokenOverride ?? snapshot?.token ?? null;
+  const pickedStopId = pickedOverride ?? snapshot?.pickedStopId ?? null;
+
+  const reportKey = report?.itinerary?.stops.map((stop) => stop.flyaiId).join(",") ?? "";
+  const anyAdjustment = adjustmentOverride ?? (snapshot?.adjustment?.ok ? snapshot.adjustment : null);
+  // 重新核验得到的是另一条路线时，旧路线上的调整与讲解都不再对应屏幕上的站，整组当没有
+  const stale = Boolean(anyAdjustment?.baseItineraryKey) && reportKey !== "" && anyAdjustment?.baseItineraryKey !== reportKey;
+  const adjustment = stale ? null : anyAdjustment;
   const activeItinerary = adjustment?.itinerary ?? report?.itinerary ?? null;
   const stops = activeItinerary?.stops ?? [];
+  const narrationStops = stops.length ? stops : (report?.itinerary?.stops ?? []);
+  const anyArrival = arrivalOverride ?? (snapshot?.arrival?.ok ? snapshot.arrival : null);
+  const arrival =
+    anyArrival && anyArrival.stopName && narrationStops.some((stop) => stop.name === anyArrival.stopName)
+      ? anyArrival
+      : null;
+  const arrivedStopIds = useMemo(() => {
+    const all = arrivedOverride.length ? arrivedOverride : (snapshot?.arrivedStopIds ?? []);
+    const ids = new Set((activeItinerary?.stops ?? []).map((stop) => stop.flyaiId));
+    return all.filter((id) => ids.has(id));
+  }, [activeItinerary, arrivedOverride, snapshot]);
+  /** 屏幕上这一段是本标签页刷新前跑出来的，不是这次点的 */
+  const restored =
+    (arrival !== null || adjustment !== null) &&
+    arrived.phase === "idle" &&
+    adjusted.phase === "idle";
+
+  // 服务端只有按同样的类别重新核验，才会读到界面上这一条路线
+  const categories = useMemo(() => {
+    const parsed = parseCategories(report?.categories ?? []);
+    return parsed.length ? parsed : [...DEFAULT_VERIFY_CATEGORIES];
+  }, [report]);
   const selectedStopId = stops.some((stop) => stop.flyaiId === pickedStopId)
     ? pickedStopId
     : (stops[0]?.flyaiId ?? null);
+
+  // 到达过的站列表每次渲染都是新数组，所以用内容当依赖，避免写入效果每帧都跑一遍
+  const arrivedKey = arrivedStopIds.join(",");
+  useEffect(() => {
+    if (!token && !arrival && !adjustment && arrivedKey === "") return;
+    saveSnapshot(AGENT_SNAPSHOT_KEY, {
+      token,
+      pickedStopId,
+      arrivedStopIds: arrivedKey ? arrivedKey.split(",") : [],
+      arrival,
+      adjustment,
+    });
+  }, [adjustment, arrival, arrivedKey, pickedStopId, token]);
 
   const refreshStatus = useCallback(async () => {
     setStatus(await fetchAgentStatus());
@@ -105,19 +172,26 @@ export function useAgent(
       setState({ phase: "loading", error: null });
       try {
         const result = await requestAgent(
-          { intent, cityName: city, stopId: selectedStopId, interests, token },
+          {
+            intent,
+            cityName: city,
+            stopId: selectedStopId,
+            interests,
+            categories,
+            token,
+            planId: plan ? plan.planId : null,
+          },
           (text) =>
             setLive((prev) => ({
               ...prev,
               [intent]: { ...prev[intent], text: prev[intent].text + text },
             })),
+          plan ? plan.token : null,
         );
         if (intent === "arrive") {
           setArrival(result as ExploreResponse);
-          if (result.ok && selectedStopId) {
-            setArrivedStopIds((prev) =>
-              prev.includes(selectedStopId) ? prev : [...prev, selectedStopId],
-            );
+          if (result.ok && selectedStopId && !arrivedStopIds.includes(selectedStopId)) {
+            setArrivedStopIds([...arrivedStopIds, selectedStopId]);
           }
         } else {
           setAdjustment(result as AdjustResponse);
@@ -138,7 +212,7 @@ export function useAgent(
         await refreshStatus();
       }
     },
-    [city, interests, refreshStatus, selectedStopId, token],
+    [arrivedStopIds, categories, city, interests, plan, refreshStatus, selectedStopId, token],
   );
 
   const arrive = useCallback(() => send("arrive"), [send]);
@@ -155,6 +229,7 @@ export function useAgent(
     adjusted,
     adjustment,
     arrivedStopIds,
+    restored,
     live,
     arrive,
     shorten,

@@ -37,7 +37,7 @@ export function mapMode(
   if (scene === "demo") {
     return {
       real: false,
-      fallbackReason: "尚未做高德核验，左侧是手绘示意底图，不是真实地图",
+      fallbackReason: "尚未做高德核验，这里是手绘示意底图，不是真实地图",
     };
   }
   return {

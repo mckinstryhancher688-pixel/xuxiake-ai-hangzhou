@@ -52,9 +52,9 @@ export function ExplorePanel({
 
       {explorationStatus === "idle" && (
         <p className="mt-4 rounded-xl border border-dashed border-line bg-paper px-3 py-2.5 text-[11px] leading-relaxed text-ink-300">
-          到达这里之后点「我到了」，徐霞客 AI 会给出这个地方专属的探索内容。
+          这一条是演示行程的预写文案，用来看真实链路长什么样。
           <br />
-          这里是演示行程的预写 Mock 文案；已核验行程的真实讲解在上方「在场探索 · 百炼托管智能体」。
+          真实的在场讲解要先生成核验路线，再点「我到了」——那一步才会调用百炼智能体。
         </p>
       )}
 
@@ -88,7 +88,7 @@ export function ExplorePanel({
           {exploration.askNext.length > 0 && (
             <p className="mt-2 text-[11px] leading-relaxed text-ink-300">
               可以继续问：{exploration.askNext.join(" ／ ")}
-              <span className="block">（示例文案，本阶段未接入对话能力）</span>
+              <span className="block">（这一段是演示文案，点它不会真的对话；真实讲解在「在场探索 · 百炼托管智能体」面板）</span>
             </p>
           )}
         </div>

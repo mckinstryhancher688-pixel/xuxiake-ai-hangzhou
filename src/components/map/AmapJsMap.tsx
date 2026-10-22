@@ -147,7 +147,10 @@ export function AmapJsMap({
   const overlaysRef = useRef<AMapOverlay[]>([]);
   const fittedSignature = useRef<string>("");
   const pendingFitRef = useRef(false);
-  const featuresRef = useRef<MapFeature[]>(features);
+  /** 上一次「为这一站居中过」是谁：只有它真的变了才再居中一次 */
+  const lastPannedRef = useRef<string | null>(null);
+  /** 上一次全览时的容器尺寸，用来判断视口是不是真的换了一档（桌面↔手机） */
+  const fittedSizeRef = useRef<{ width: number; height: number } | null>(null);
   const [phase, setPhase] = useState<"loading" | "ready" | "failed">("loading");
 
   const fail = useCallback(
@@ -168,7 +171,16 @@ export function AmapJsMap({
     }
     engine.map.resize?.();
     engine.map.setFitView(overlaysRef.current, false, FIT_PADDING);
+    fittedSizeRef.current = { width: holder.clientWidth, height: holder.clientHeight };
     return true;
+  }, []);
+
+  /** 视口换了整整一档（桌面↔手机）才自动重算全览，普通滚动与轻微变化不去打断用户自己拖的视角。 */
+  const isViewportStep = useCallback((holder: HTMLDivElement) => {
+    const previous = fittedSizeRef.current;
+    if (!previous) return true;
+    const ratio = (a: number, b: number) => Math.abs(a - b) / Math.max(a, b);
+    return ratio(previous.width, holder.clientWidth) > 0.25 || ratio(previous.height, holder.clientHeight) > 0.25;
   }, []);
 
   // 1. 加载 SDK 并建图；卸载时销毁实例，避免重复初始化
@@ -265,49 +277,71 @@ export function AmapJsMap({
 
     map.add(next);
     overlaysRef.current = next;
-
-    // 站点集合真的变了才自动全览，平时不打断用户自己拖动的视角
-    const signature = features.map((f) => f.id).join("|");
-    if (signature !== fittedSignature.current) {
-      fittedSignature.current = signature;
-      pendingFitRef.current = !fitToOverlays();
-    }
   }, [features, fitToOverlays, onSelectFeature, phase, routeLines]);
 
-  // 3. 右侧点了哪个地点，地图就定位过去（只是移动视野，不发起任何外部调用）
-  // 只跟着「选中的站真的换了」走：晚到的道路几何、父组件重渲染都不该把用户刚拖动的视角拽回去，
-  // 所以这里不依赖 features，坐标从 ref 里取最新的那份。
-  useEffect(() => {
-    featuresRef.current = features;
-  }, [features]);
-
+  // 3. 视野只有一条规则：整条路线换了就全览，单纯换了选中的站才居中。
+  //    两者在同一次提交里同时发生时以全览为准——否则「刚换成双方确认的那一版」会立刻被
+  //    第一站的居中拽走，屏幕外的站就看不见了。晚到的道路几何、父组件重渲染都不该打断
+  //    用户自己拖动的视角，所以这里比对的是「真的换了」而不是「又渲染了一次」。
   useEffect(() => {
     const engine = sdkRef.current;
-    if (!engine || phase !== "ready" || !activeFeatureId) return;
-    const target = featuresRef.current.find((feature) => feature.id === activeFeatureId);
+    if (!engine || phase !== "ready") return;
+    const signature = features.map((feature) => feature.id).join("|");
+    if (signature !== fittedSignature.current) {
+      fittedSignature.current = signature;
+      lastPannedRef.current = activeFeatureId;
+      pendingFitRef.current = !fitToOverlays();
+      return;
+    }
+    if (!activeFeatureId || activeFeatureId === lastPannedRef.current) return;
+    const target = features.find((feature) => feature.id === activeFeatureId);
     if (!target) return;
     // 手动点选之后就不再欠一次全览，否则切回地图时总览会把这一站又居中掉。
+    lastPannedRef.current = activeFeatureId;
     pendingFitRef.current = false;
     engine.map.setCenter(new engine.sdk.LngLat(target.position.lng, target.position.lat));
-  }, [activeFeatureId, phase]);
+  }, [activeFeatureId, features, fitToOverlays, phase]);
 
-  // 4. 容器从 0 尺寸恢复成可见（移动端在「地图 / 行程」之间切换）时，补上欠的那次全览
+  // 4. 容器尺寸变了就补算视野：从隐藏恢复可见（移动端切标签）、以及桌面↔手机这种整档变化
   useEffect(() => {
     const holder = holderRef.current;
     if (!holder || typeof ResizeObserver === "undefined") return;
+    let debounce: ReturnType<typeof setTimeout> | null = null;
     const observer = new ResizeObserver(() => {
       // display:none → 可见时高德不会自己重算画布尺寸，这里补一次 resize；
-      // 欠着的全览只在容器真的有高度之后才执行，避免算出离谱层级。
+      // 全览只在容器真的有高度之后执行，避免算出离谱层级。
       sdkRef.current?.map.resize?.();
-      if (pendingFitRef.current && fitToOverlays()) pendingFitRef.current = false;
+      if (debounce) clearTimeout(debounce);
+      // 拖动窗口是连续事件，等尺寸稳定后再算，不然每帧都在重设视野
+      debounce = setTimeout(() => {
+        if (holder.clientHeight < 120) return;
+        if (pendingFitRef.current || isViewportStep(holder)) {
+          if (fitToOverlays()) pendingFitRef.current = false;
+        }
+      }, 240);
     });
     observer.observe(holder);
-    return () => observer.disconnect();
-  }, [fitToOverlays]);
+    return () => {
+      if (debounce) clearTimeout(debounce);
+      observer.disconnect();
+    };
+  }, [fitToOverlays, isViewportStep]);
 
   return (
     <div className="relative h-full w-full">
       <div ref={holderRef} className="h-full w-full" />
+      {phase === "ready" && (
+        <button
+          type="button"
+          onClick={() => {
+            pendingFitRef.current = false;
+            fitToOverlays();
+          }}
+          className="absolute right-2 top-2 z-10 rounded-lg border border-line bg-card/95 px-2.5 py-1.5 text-[11px] font-medium text-ink-700 shadow-sm transition hover:bg-white"
+        >
+          查看全程
+        </button>
+      )}
       {phase === "loading" && (
         <div className="absolute inset-0 grid place-items-center bg-paper/80">
           <p className="text-[11px] leading-relaxed text-ink-500">

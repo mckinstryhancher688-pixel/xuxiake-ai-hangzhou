@@ -1,4 +1,5 @@
 import { formatDistance, formatMinutes } from "@/lib/format";
+import type { FlyAiPoiCategory } from "@/lib/discovery";
 import type { VerifiedRoute, VerifyPhase } from "@/hooks/useVerifiedRoute";
 import {
   MATCH_STATUS_LABELS,
@@ -52,16 +53,22 @@ function SourceTag({ kind }: { kind: "flyai" | "amap" | "simulated" }) {
 export function VerifiedRoutePanel({
   cityName,
   route,
+  categories,
   activeItinerary,
   routeAdjusted,
+  jointRevision = null,
   selectedStopId,
   arrivedStopIds,
   onSelectStop,
 }: {
   cityName: string;
   route: VerifiedRoute;
+  /** 界面上勾中的飞猪类别：候选池就是它，跟「重新发现」面板共用同一份勾选 */
+  categories: FlyAiPoiCategory[];
   activeItinerary: VerifiedItinerary | null;
   routeAdjusted: boolean;
+  /** 双方确认的正式版本号；非空时屏幕上这一份就是它，不再是单人调整结果 */
+  jointRevision?: number | null;
   selectedStopId: string | null;
   arrivedStopIds: string[];
   onSelectStop: (id: string) => void;
@@ -81,8 +88,9 @@ export function VerifiedRoutePanel({
             四小时可行性
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-ink-500">
-            用高德 POI 搜索 2.0 核验飞猪候选的真实位置，再用步行路径规划 2.0
-            算真实距离与耗时，最后在 240 分钟内挑出走得完的组合。
+            候选池跟着「重新发现」的勾选：
+            <span className="ml-1 font-medium text-brand-700">{categories.join(" + ")}</span>
+            。这里把这些候选的真实位置核清楚，再按高德实测的步行耗时，挑出四小时内走得完的一段路。
           </p>
         </div>
         <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-medium ${badge.className}`}>
@@ -94,7 +102,7 @@ export function VerifiedRoutePanel({
         <button
           type="button"
           onClick={() => {
-            void route.verify();
+            void route.verify(categories);
           }}
           disabled={loading}
           className="rounded-lg bg-brand-700 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
@@ -110,11 +118,17 @@ export function VerifiedRoutePanel({
       </div>
 
       <p className="mt-2 text-[10px] leading-relaxed text-ink-300">
-        一次核验会让服务端真实请求高德约 60 次（POI 搜索 + 步行路径规划），结果整体缓存{" "}
-        {route.status ? route.status.pipelineCacheTtlSeconds / 60 : 30} 分钟，
-        重复点击不再产生新调用。停留时间统一按 {SIMULATED_STAY_MINUTES} 分钟的模拟值计算，
-        飞猪与高德都不提供这个数据。
+        一次核验按勾选的类别数量真实请求高德约 36 次（单类）～62 次（双类），结果整体缓存{" "}
+        {route.status ? route.status.pipelineCacheTtlSeconds / 60 : 30} 分钟，重复点击不再产生新调用。
       </p>
+
+      {route.restored && report && (
+        <p className="mt-2 rounded-lg bg-paper px-2.5 py-2 text-[11px] leading-relaxed text-ink-500 ring-1 ring-line">
+          这一份是刷新前本标签页已经核验过的结果（
+          {new Date(report.generatedAt).toLocaleString("zh-CN", { hour12: false })}
+          ），原样恢复出来接着走；点「开始核验」会重新走一遍真实核验。
+        </p>
+      )}
 
       {route.error && (
         <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/5 p-3">
@@ -129,14 +143,13 @@ export function VerifiedRoutePanel({
 
       {route.phase === "idle" && (
         <p className="mt-3 rounded-lg bg-paper px-2.5 py-2 text-[11px] leading-relaxed text-ink-300 ring-1 ring-line">
-          还没有发起核验。左侧地图与上方行程仍是<strong className="font-semibold text-accent-600">演示数据（Mock）</strong>，
+          还没有发起核验。地图与行程仍是<strong className="font-semibold text-accent-600">演示数据（Mock）</strong>，
           未经高德验证；点「开始核验」后这里会给出真实路线。
         </p>
       )}
 
       {report && (
         <>
-          <DatumLine datum={report.datum} />
           <CountLine report={report} />
 
           {report.start && <StartLine start={report.start} />}
@@ -163,12 +176,18 @@ export function VerifiedRoutePanel({
 
           {shownItinerary && (
             <>
-              {routeAdjusted && (
-                <p className="mt-3 rounded-lg bg-accent-500/10 px-2.5 py-2 text-[11px] leading-relaxed text-accent-700">
-                  下面是「少走一点」调整后的<strong className="font-semibold">当前生效路线</strong>，
-                  左侧地图与时间合计都以它为准；调整前的原始核验记录保留在页面底部的开发调试面板里。
+              {jointRevision !== null ? (
+                <p className="mt-3 rounded-lg bg-emerald-50 px-2.5 py-2 text-[11px] leading-relaxed text-emerald-800 ring-1 ring-emerald-200">
+                  这里列出的是<strong className="font-semibold">双方确认的正式路线 v{jointRevision}</strong>，
+                  地图与时间合计都以它为准。要再少走一点，请在下方「双人协商」里提提案并等对方确认——
+                  单人那一侧不会再自动替换这一版。
                 </p>
-              )}
+              ) : routeAdjusted ? (
+                <p className="mt-3 rounded-lg bg-accent-500/10 px-2.5 py-2 text-[11px] leading-relaxed text-accent-700">
+                  这里列出「少走一点」调整后的<strong className="font-semibold">当前生效路线</strong>，
+                  地图与时间合计都以它为准；调整前的原始核验记录保留在「开发调试」面板里。
+                </p>
+              ) : null}
               <Itinerary
                 itinerary={shownItinerary}
                 selectedStopId={selectedStopId}
@@ -178,6 +197,12 @@ export function VerifiedRoutePanel({
             </>
           )}
 
+          <details className="mt-3 rounded-lg bg-paper ring-1 ring-line">
+            <summary className="cursor-pointer px-2.5 py-2 text-[11px] font-medium text-ink-700">
+              核验依据 · 坐标系判定与飞猪原始坐标的处理方式
+            </summary>
+            <DatumLine datum={report.datum} />
+          </details>
           <CandidateTable matches={report.matches} />
           <RejectionList report={report} />
         </>

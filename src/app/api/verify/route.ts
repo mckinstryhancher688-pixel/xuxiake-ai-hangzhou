@@ -1,10 +1,12 @@
-import { pickCity } from "@/lib/discovery";
+import { MAX_CATEGORIES_PER_CALL, parseCategories, pickCity } from "@/lib/discovery";
 import { amapServerStatus, verifyRoute } from "@/lib/server/verify";
-import { VERIFY_CATEGORIES } from "@/lib/verification";
+import { DEFAULT_VERIFY_CATEGORIES } from "@/lib/verification";
 import { connection } from "next/server";
 
 interface VerifyRequestBody {
   cityName?: unknown;
+  /** 界面上勾选的飞猪类别；不传就用默认两类。只接受白名单值，不做静默替换。 */
+  categories?: unknown;
 }
 
 /**
@@ -41,6 +43,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const report = await verifyRoute(cityName);
-  return Response.json({ report, categories: [...VERIFY_CATEGORIES] });
+  const requested = body?.categories;
+  const categories =
+    requested === undefined || requested === null
+      ? [...DEFAULT_VERIFY_CATEGORIES]
+      : parseCategories(requested);
+  if (!categories.length) {
+    return Response.json(
+      {
+        error: `categories 里没有任何受支持的类别（单次最多 ${MAX_CATEGORIES_PER_CALL} 个）。`,
+      },
+      { status: 400 },
+    );
+  }
+
+  const report = await verifyRoute(cityName, categories);
+  return Response.json({ report, categories });
 }

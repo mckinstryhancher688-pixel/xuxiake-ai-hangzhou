@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { ActionBar } from "@/components/ActionBar";
 import { AgentPanel } from "@/components/AgentPanel";
 import { DataSourcePanel } from "@/components/DataSourcePanel";
 import { DebugPanel } from "@/components/DebugPanel";
@@ -9,6 +8,8 @@ import { DiscoverPanel } from "@/components/DiscoverPanel";
 import { ExplorePanel } from "@/components/ExplorePanel";
 import { ItineraryPanel } from "@/components/ItineraryPanel";
 import { MapPanel } from "@/components/MapPanel";
+import { NegotiationPanel } from "@/components/NegotiationPanel";
+import { PlanActionBar } from "@/components/PlanActionBar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { VerifiedRoutePanel } from "@/components/VerifiedRoutePanel";
 import { useAgent } from "@/hooks/useAgent";
@@ -16,6 +17,7 @@ import { agentDataSourceNote } from "@/lib/agent";
 import { useDiscover } from "@/hooks/useDiscover";
 import { useJourney } from "@/hooks/useJourney";
 import { useMapJsConfig } from "@/hooks/useMapJsConfig";
+import { usePlan } from "@/hooks/usePlan";
 import { useRouteGeometry } from "@/hooks/useRouteGeometry";
 import { useVerifiedRoute } from "@/hooks/useVerifiedRoute";
 import { buildVerifiedScene } from "@/lib/map/verified-scene";
@@ -34,18 +36,32 @@ export function JourneyApp() {
   const discover = useDiscover(journey.context.city);
   const verifiedRoute = useVerifiedRoute(journey.context.city);
   const mapConfig = useMapJsConfig();
+  // 双人协商挂在同一份已核验事实层上：不新建第二套数据，也不改单人链路
+  const plan = usePlan();
+  // 只有服务端判定「双方确认了同一个版本」时，这一版才成为正式执行路线。
+  // 读的是服务端返回的 official 那一版，不退回更早的城市/类别结果，浏览器也不自行判定。
+  const jointRoute = plan.snapshot?.canExecute.allowed ? (plan.snapshot.official?.itinerary ?? null) : null;
+  const effectiveReport =
+    jointRoute && verifiedRoute.report ? { ...verifiedRoute.report, itinerary: jointRoute } : verifiedRoute.report;
+  // 只有双方确认的正式版本真的在屏幕上生效时，才把这条协商交给智能体：
+  // 于是「我到了」读的就是地图与面板上那一份，不会再按 city/类别 回到旧的单人路线。
+  const agentScope = useMemo(
+    () => (jointRoute && plan.identity ? { planId: plan.identity.planId, token: plan.identity.token } : null),
+    [jointRoute, plan.identity],
+  );
   const agent = useAgent(
     journey.context.city,
     journey.context.interests,
-    verifiedRoute.report,
+    effectiveReport,
+    agentScope,
   );
   const verifiedStops = (agent.activeItinerary?.stops ?? []).map((stop) => ({
     flyaiId: stop.flyaiId,
     name: stop.name,
     matchStatus: stop.matchStatus,
   }));
-
-  // 地图跟着「当前生效行程」走：智能体调整过就用调整后的，否则用核验结果；
+  // 双人协商挂在同一份已核验事实层上：不新建第二套数据，也不改单人链路
+  // 地图跟着「当前生效行程」走：智能体调整过就用调整后的，否则用（可能已被双方确认版替换过的）核验结果；
   // 两者都还没有时只能继续显示演示行程，绝不把未核验的飞猪坐标画上去。
   const activeItinerary = agent.activeItinerary;
   // 调整过之后，核验面板显示的就是这一份；原始核验结果只在开发调试面板里保留。
@@ -98,7 +114,7 @@ export function JourneyApp() {
         }
       />
 
-      <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-4 px-4 py-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_25rem] lg:items-start">
+      <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-4 px-4 pt-4 pb-40 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_25rem] lg:items-start lg:pb-4">
         <div
           className={`${tab === "map" ? "block" : "hidden"} lg:sticky lg:top-4 lg:block lg:h-[calc(100dvh-7.5rem)]`}
         >
@@ -126,32 +142,24 @@ export function JourneyApp() {
             </TabButton>
           </div>
 
+          {/* 主流程按钮：窄屏钉在屏幕下沿（滚到哪一步都能点，首屏就一定看得见），
+              桌面端回到右栏顶部跟随滚动。同一份组件、同一批按钮，不会出现两个入口。 */}
+          <div className="fixed inset-x-0 bottom-0 z-30 p-3 lg:sticky lg:inset-x-auto lg:bottom-auto lg:top-4 lg:z-20 lg:p-0">
+            <PlanActionBar route={verifiedRoute} agent={agent} categories={discover.selected} jointLocked={jointRoute !== null} />
+          </div>
+
           <div
             className={`${tab === "plan" ? "flex" : "hidden"} flex-col gap-4 lg:flex lg:overflow-y-auto lg:pr-1`}
           >
-            {/* 主界面只留一条路线：核验出结果之后，阶段一的演示行程与预写讲解就退到调试记录里，
-                否则屏幕上会同时出现「地图上一条、面板里另一条」。 */}
-            {!activeItinerary && (
-              <ItineraryPanel
-                routeLabel={journey.route.label}
-                routeSummary={journey.route.summary}
-                totalWalkMeters={journey.route.totalWalkMeters}
-                totalMinutes={journey.route.totalMinutes}
-                pois={journey.pois}
-                activePoi={journey.activePoi}
-                visitedIds={journey.visitedIds}
-                legFrom={journey.legFrom}
-                onSelect={journey.selectPoi}
-              />
-            )}
-
             <DiscoverPanel cityName={journey.context.city} discover={discover} />
 
             <VerifiedRoutePanel
               cityName={journey.context.city}
               route={verifiedRoute}
+              categories={discover.selected}
               activeItinerary={activeItinerary}
-              routeAdjusted={routeAdjusted}
+              routeAdjusted={jointRoute ? false : routeAdjusted}
+              jointRevision={jointRoute ? (plan.snapshot?.officialRevision ?? null) : null}
               selectedStopId={agent.selectedStopId}
               arrivedStopIds={agent.arrivedStopIds}
               onSelectStop={agent.selectStop}
@@ -159,35 +167,36 @@ export function JourneyApp() {
 
             <AgentPanel agent={agent} stops={verifiedStops} />
 
-            {activeItinerary ? (
-              <p className="rounded-2xl border border-line bg-paper p-3 text-[11px] leading-relaxed text-ink-500">
-                当前生效的路线就是「高德核验路线」面板与左侧地图里的这一条（{activeItinerary.stops.length} 站 /{" "}
-                {activeItinerary.totalMinutes} 分钟）。阶段一的演示行程与它的预写讲解已经撤下主界面，
-                只保留在下面的开发调试面板里。
-              </p>
-            ) : (
-              <ExplorePanel
-                poi={journey.activePoi}
-                exploration={journey.exploration}
-                explorationStatus={journey.explorationStatus}
-              />
+            <NegotiationPanel plan={plan} factsId={verifiedRoute.report?.facts?.factsId ?? null} />
+
+            {/* 阶段一的演示链路（预写行程与讲解）只在还没有真实路线时兜底显示，
+                核验出结果之后整块撤下主界面，只保留在下面调试面板里，避免屏幕上并排两条路线。 */}
+            {!activeItinerary && (
+              <>
+                <ItineraryPanel
+                  routeLabel={journey.route.label}
+                  routeSummary={journey.route.summary}
+                  totalWalkMeters={journey.route.totalWalkMeters}
+                  totalMinutes={journey.route.totalMinutes}
+                  pois={journey.pois}
+                  activePoi={journey.activePoi}
+                  visitedIds={journey.visitedIds}
+                  legFrom={journey.legFrom}
+                  routeId={journey.route.id}
+                  isActiveVisited={journey.isActiveVisited}
+                  explorationStatus={journey.explorationStatus}
+                  onSelect={journey.selectPoi}
+                  onArrive={journey.markArrived}
+                  onToggleRoute={journey.toggleRoute}
+                />
+                <ExplorePanel
+                  poi={journey.activePoi}
+                  exploration={journey.exploration}
+                  explorationStatus={journey.explorationStatus}
+                />
+              </>
             )}
           </div>
-
-          {!activeItinerary && (
-            <div className="sticky bottom-3 z-10 mt-auto lg:static lg:mt-0">
-              <ActionBar
-                activePoiName={journey.activePoi.name}
-                isActiveVisited={journey.isActiveVisited}
-                explorationStatus={journey.explorationStatus}
-                routeId={journey.route.id}
-                remainingMinutes={journey.remainingMinutes}
-                totalMinutes={journey.context.totalMinutes}
-                onArrived={journey.markArrived}
-                onToggleRoute={journey.toggleRoute}
-              />
-            </div>
-          )}
 
           <DataSourcePanel
             adapterNotes={[...journey.adapterNotes, agentDataSourceNote(agent.status)]}

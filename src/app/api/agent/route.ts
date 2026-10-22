@@ -1,6 +1,15 @@
-import { pickCity } from "@/lib/discovery";
-import { agentServerStatus, exploreWithAgent, shortenWithAgent } from "@/lib/server/agent";
+import { parseCategories, pickCity } from "@/lib/discovery";
+import {
+  agentServerStatus,
+  exploreWithAgent,
+  shortenWithAgent,
+  type JourneyIntent,
+} from "@/lib/server/agent";
+import { AUTH_FAILURE, readToken } from "@/lib/server/plan-http";
+import { identifyRole } from "@/lib/server/plan-store";
+import type { Role } from "@/lib/negotiation/types";
 import type { AdjustResponse, AgentStreamFrame, ExploreResponse } from "@/lib/types";
+import { DEFAULT_VERIFY_CATEGORIES } from "@/lib/verification";
 import { connection } from "next/server";
 
 interface AgentRequestBody {
@@ -9,6 +18,8 @@ interface AgentRequestBody {
   cityName?: unknown;
   stopId?: unknown;
   interests?: unknown;
+  categories?: unknown;
+  planId?: unknown;
 }
 
 /** 增量帧太碎会压垮浏览器渲染，攒到这么长或这么久没出字再发一帧。 */
@@ -31,7 +42,7 @@ export async function GET() {
  */
 function streamAgent(
   intent: "arrive" | "shorten",
-  journey: { cityName: string; stopId: string | null; interests: string[] },
+  journey: JourneyIntent,
   token: string | null,
 ): Response {
   let pump: (chunk: string) => void = () => {};
@@ -125,7 +136,7 @@ export async function POST(request: Request) {
   // 正常请求只有几百字节。这条上限挡住用巨型 prompt 灌本端点：超限直接 413，不建会话、不进模型。
   if (rawBody.length > 8_192) {
     return Response.json(
-      { error: "请求体过大（本端点只接受意图、站点 id、兴趣标签与会话票据）。" },
+      { error: "请求体过大（本端点只接受意图、站点 id、兴趣标签、类别与会话票据）。" },
       { status: 413 },
     );
   }
@@ -146,6 +157,33 @@ export async function POST(request: Request) {
     );
   }
 
+  /**
+   * 双人模式：带 planId 就必须拿出这一方的角色凭据，服务端据此读取这条协商
+   * 双方确认的正式版本；不带凭据或凭据不对，一律不读别人的方案。
+   * 单人流程完全不变（不带 planId 就是单人）。
+   */
+  const planId = typeof body?.planId === "string" && body.planId.length <= 64 ? body.planId : null;
+  let plan: { planId: string; role: Role } | undefined;
+  if (planId) {
+    const identified = identifyRole(planId, readToken(request));
+    if ("error" in identified) {
+      const entry = AUTH_FAILURE[identified.error] ?? AUTH_FAILURE["bad-token"];
+      return Response.json({ error: entry.message, code: identified.error }, { status: entry.status });
+    }
+    if (intent === "shorten") {
+      return Response.json(
+        {
+          error:
+            "双人模式下「少走一点」不能由单人当场替换已确认的正式行程。" +
+            "请在协商面板点「少走一点（只提提案，不改条件）」，新提案要双方确认才会生效。",
+          code: "joint-shorten-refused",
+        },
+        { status: 409 },
+      );
+    }
+    plan = { planId, role: identified.role };
+  }
+
   const cityName = pickCity(body?.cityName);
   if (!cityName) {
     return Response.json(
@@ -161,6 +199,19 @@ export async function POST(request: Request) {
     ? body.interests.filter((item): item is string => typeof item === "string")
     : [];
 
+  // 智能体读的行程必须跟界面上那份同源，所以类别由浏览器回传；不带就按默认类别
+  const requestedCategories = body?.categories;
+  const categories =
+    requestedCategories === undefined || requestedCategories === null
+      ? [...DEFAULT_VERIFY_CATEGORIES]
+      : parseCategories(requestedCategories);
+  if (!categories.length) {
+    return Response.json(
+      { error: "categories 里没有任何受支持的类别（自然风光 / 文创街区 / 城市观光）。" },
+      { status: 400 },
+    );
+  }
+
   // 参数不合法仍是普通 JSON + HTTP 400；进入智能体后改为流式响应
-  return streamAgent(intent, { cityName, stopId, interests }, token);
+  return streamAgent(intent, { cityName, stopId, interests, categories, plan }, token);
 }

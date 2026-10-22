@@ -14,11 +14,13 @@ const PHASE_BADGE = {
   mock: { label: "MOCK · 演示数据", className: "bg-accent-500/15 text-accent-600" },
 } as const;
 
-const ORIGIN_NOTICE: Record<DiscoverOrigin, string> = {
-  "flyai-live":
-    "下列坐标是飞猪原始返回，本面板不做任何地理核实，因此不会画到左侧示意地图上；坐标是否可信、能不能走进四小时路线，看下方「高德核验路线」。",
+/** 一屏里最多摊开几张候选卡片，剩下的收起来，免得把主流程挤出首屏。 */
+const VISIBLE_CARDS = 4;
+
+const ORIGIN_NOTICE: Record<DiscoverOrigin, string> = {  "flyai-live":
+    "下列坐标是飞猪原始返回，本面板不做任何地理核实，因此不会画到地图上；坐标是否可信、能不能走进四小时路线，看「高德核验路线」面板。",
   "mock-fallback":
-    "当前展示的是本地演示数据（Mock），不是飞猪返回；演示数据不区分类别，仅用于接口失败时对照。同样不会画到示意地图上。",
+    "当前展示的是本地演示数据（Mock），不是飞猪返回；演示数据不区分类别，仅用于接口失败时对照。同样不会画到地图上。",
 };
 
 /**
@@ -43,7 +45,8 @@ export function DiscoverPanel({
         <div>
           <h2 className="text-sm font-semibold text-ink-900">重新发现 · 飞猪真实 POI</h2>
           <p className="mt-1 text-xs leading-relaxed text-ink-500">
-            手动触发服务端 flyai search-poi（{cityName}），把真实返回整理成统一结构的候选地点。
+            {cityName} 的飞猪真实返回。这里勾的类别就是「生成我的路线」的候选池：勾「自然风光」，
+            路线只会在自然风光的候选里挑。卡片上的坐标还没经过高德核实，所以先不画到地图上。
           </p>
         </div>
         <span
@@ -87,9 +90,20 @@ export function DiscoverPanel({
       </div>
 
       <p className="mt-2 text-[10px] leading-relaxed text-ink-300">
-        单次最多 {discover.maxCategories} 个类别，每多选一个＝服务端多一次真实调用；{ttlMinutes}{" "}
-        分钟内重复点击复用服务端缓存，不产生新调用。
+        单次最多 {discover.maxCategories} 个类别，每多选一个＝服务端多一次真实调用。
+        选完类别就直接点「生成我的路线」（按钮一直钉在屏幕上）；路线里放哪几站由高德按「四小时走得完」挑，
+        这里不提供手工加站，想换范围就改类别再核一次。
       </p>
+
+      <details className="mt-2 rounded-lg bg-paper ring-1 ring-line">
+        <summary className="cursor-pointer px-2.5 py-2 text-[11px] font-medium text-ink-700">
+          调用与缓存说明
+        </summary>
+        <p className="px-2.5 pb-2.5 text-[10px] leading-relaxed text-ink-500">
+          按钮由服务端代理调用 flyai search-poi CLI，{ttlMinutes} 分钟内同一（城市, 类别）复用服务端缓存，
+          不产生新调用；每次调用的命令行、耗时与原始返回都在「开发调试」面板里。
+        </p>
+      </details>
 
       {discover.error && (
         <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/5 p-3">
@@ -117,7 +131,8 @@ export function DiscoverPanel({
 
       {discover.phase === "idle" && (
         <p className="mt-3 rounded-lg bg-paper px-2.5 py-2 text-[11px] leading-relaxed text-ink-300 ring-1 ring-line">
-          还没有发起调用。点「重新发现」后，这里会显示飞猪真实返回的 POI 候选列表。
+          这一步还没单独调用过飞猪：「生成我的路线」已经在服务端按勾选类别查过候选并逐条核实，
+          明细在「高德核验路线」面板的折叠项里；想只看飞猪原始返回，就点「重新发现」。
         </p>
       )}
 
@@ -129,6 +144,8 @@ export function DiscoverPanel({
 }
 
 function CategoryResult({ result }: { result: DiscoverCategoryResult }) {
+  const visible = result.items.slice(0, VISIBLE_CARDS);
+  const rest = result.items.slice(VISIBLE_CARDS);
   return (
     <div className="mt-4">
       <div className="flex items-baseline justify-between gap-2">
@@ -142,12 +159,26 @@ function CategoryResult({ result }: { result: DiscoverCategoryResult }) {
         </p>
       )}
 
-      {result.items.length > 0 && (
+      {visible.length > 0 && (
         <ul className="mt-2 space-y-2">
-          {result.items.map((poi, index) => (
+          {visible.map((poi, index) => (
             <PoiCard key={poi.id} poi={poi} index={index} />
           ))}
         </ul>
+      )}
+
+      {/* 一屏十张卡片会把真实主流程顶到屏幕外，所以其余候选默认收起 */}
+      {rest.length > 0 && (
+        <details className="mt-2 rounded-lg bg-paper ring-1 ring-line">
+          <summary className="cursor-pointer px-2.5 py-2 text-[11px] font-medium text-ink-700">
+            展开其余 {rest.length} 个候选
+          </summary>
+          <ul className="mt-1 space-y-2 px-2.5 pb-2.5">
+            {rest.map((poi, index) => (
+              <PoiCard key={poi.id} poi={poi} index={VISIBLE_CARDS + index} />
+            ))}
+          </ul>
+        </details>
       )}
     </div>
   );
