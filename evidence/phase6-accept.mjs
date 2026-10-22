@@ -297,19 +297,24 @@ await page.screenshot({ path: path.join(EVIDENCE, "phase6-08-arrived-map-state.p
 const adjustStart = apiCalls.length;
 const before = { markers: s6.markers.length, names: s6.markers.map((m) => m.label) };
 await page.click('button:text-is("少走一点")');
+// 按钮在请求期间会改文案并禁用（现在是「方案校验中…」），等它回到空闲态才算调整结束
 await page.waitForFunction(
-  () => !Array.from(document.querySelectorAll("button")).some((b) => b.textContent.trim() === "调整校验中…"),
+  () =>
+    Array.from(document.querySelectorAll("button")).some(
+      (b) => b.textContent.trim() === "少走一点" && !b.disabled,
+    ),
   null,
   { timeout: 150000 },
 );
 await page.waitForTimeout(2200);
 const s7 = await page.evaluate(MAP_PROBE);
 const adjustSection = await page.evaluate(() => {
-  const b = Array.from(document.querySelectorAll("button")).find((x) => x.textContent.trim() === "少走一点");
-  const sec = b ? b.closest("section") : null;
+  const sec = Array.from(document.querySelectorAll("section")).find((s) =>
+    (s.querySelector("h2")?.textContent ?? "").includes("在场探索"),
+  );
   return sec ? sec.innerText.replace(/\s+/g, " ").slice(0, 1400) : "missing";
 });
-const adjustIdx = adjustSection.indexOf("「少走一点」动态调整");
+const adjustIdx = adjustSection.indexOf("少走一点");
 const adjustPart = adjustSection.slice(adjustIdx < 0 ? 0 : adjustIdx, adjustIdx < 0 ? 600 : adjustIdx + 600);
 const dropped = before.names.filter((n) => !s7.markers.some((m) => m.label === n));
 check("「少走一点」后地图同步为调整后的行程（旧站点标记被清除）", s7.markers.length < before.markers && dropped.length > 0, {
@@ -321,8 +326,11 @@ check("「少走一点」后地图同步为调整后的行程（旧站点标记�
 const domMarkers = await page.locator(".amap-container [aria-label]").count();
 check("标记 DOM 数量与覆盖物数量一致（没有重复初始化或残留叠加）", domMarkers === s7.markers.length, { domMarkers, overlays: s7.markers.length });
 const amapCalls = apiCalls.slice(adjustStart);
-const reverifyNote = await page.locator("text=本次校验新发起高德步行实测").count();
+// 文案会随缓存命中与否变化，所以按「校验凭证那一行」判定，不写死次数
+const reverifyNote = await page.locator("text=每一段都用高德步行实测校验过").count();
 check("调整结果带服务端高德复验凭证才上图", reverifyNote >= 1, { reverifyNote, amapCalls });
+const savingsNote = await page.locator("text=总行程缩短").count();
+check("调整收益用高德实测差值给出（少走 / 少步行 / 总行程缩短）", savingsNote >= 1, { savingsNote });
 console.log("调整面板摘要:", adjustPart);
 await page.screenshot({ path: path.join(EVIDENCE, "phase6-09-adjusted-route.png") });
 

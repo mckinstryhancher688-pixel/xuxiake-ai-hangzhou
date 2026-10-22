@@ -1,0 +1,14 @@
+PASS S0 账本状态可查且不含任何密钥 :: {"plans":{"entries":0,"ttlSeconds":259200},"facts":{"entries":0,"ttlSeconds":21600},"persist":{"file":".data/plan-snapshot.json","exists":false,"bytes":0,"writtenAt":null,"plans":0,"restored":{"status":"missing","detail":null,"loaded":0,"skipped":{"expiredPlan":0,"corrupt":0}}},"walkingHourlyUsed":0,"walkingHourlyCap":80,"placeHourlyUsed":0,"placeHourlyCap":40,"cacheEntries":0,"pid":31332,"serverTime":"2026-10-22T10:33:46.374Z"}
+PASS S1 事实集失效时如实 410，并说明重新核验的成本 :: {"status":410}
+PASS S2 非法 JSON 直接 400
+PASS S3 超限请求体 413，不进入任何状态迁移 :: {"status":413,"error":"请求体过大（上限 8192 字节）。"}
+PASS S4 未知方案读取返回 410（不区分「不存在」与「已失效」以免枚举）
+PASS S5 没有对应方案时任何写操作都是 410，不会创建状态
+PASS S6 条件里带不认识的字段先被拒（这里 factsId 也不存在，仍不进状态迁移） :: {"status":410}
+PASS S7 同伴落地页可访问（凭据只在前端 fragment 里处理） :: {"status":200}
+PASS S7b 落地页 HTML 里没有令牌、没有密钥、也没有内部路径
+PASS S8 AI 解释在没有方案/没有凭据时被挡在门外 :: {"无凭据":410,"错凭据":410}
+PASS S8b 挡下这两次请求没有买任何百炼回合 :: {"before":0,"after":0}
+PASS S9 快照状态接口如实报告最小快照的位置与大小 :: {"file":".data/plan-snapshot.json","exists":false,"bytes":0,"writtenAt":null,"plans":0,"restored":{"status":"missing","detail":null,"loaded":0,"skipped":{"expiredPlan":0,"corrupt":0}}}
+
+12/12 通过（零高德/飞猪/百炼调用）

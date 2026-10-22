@@ -1,0 +1,10 @@
+PASS 手绘底图的提示不再说「左侧」
+PASS 「重新发现」的空态不再和已生成的路线打架
+PASS 核验成本按类别数量说清
+PASS 页面文本里不残留「左侧地图／上方行程」这类只在桌面成立的指向词
+PASS 滚到底后最后一段内容完整露在按钮条之上 :: {"barTop":707,"barHeight":137,"lastLabel":null,"lastBottom":684,"viewport":844}
+PASS 探针没有发出任何 POST（0 次核验、0 个百炼回合） :: {"posts":[]}
+PASS 高德 SDK 仍然没有弹窗 :: {"dialogs":[]}
+
+7/7 通过
+copy exit=0

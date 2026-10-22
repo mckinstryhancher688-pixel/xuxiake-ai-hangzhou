@@ -1,0 +1,40 @@
+PASS 手机端「生成我的路线」在首屏内 :: {"cta":{"x":24.80000114440918,"y":731.4500122070312,"width":325.5999927520752,"height":44},"viewport":{"width":390,"height":844}}
+PASS 发现卡片不再堆满主流程 :: {"手工加站按钮数":0}
+PASS 主按钮说清候选池来自勾选的类别 :: {"hintCats":"自然风光","ctaHint":"按「自然风光」的飞猪候选，用高德逐段实测距离与耗时，挑出四小时内走得完的一条。"}
+PASS 每一次点击只发一次核验请求 :: {"verifyClicks":1,"verifyError":null,"browserCalls":{"officialProxy":2,"handlerPath":0,"restApi":0,"sdkHost":4,"verify":1,"agent":0,"geometry":0}}
+PASS 浏览器只走官方一级路由 /_AMapService，内部 handler 路径与数据接口都不出现在浏览器里 :: {"officialProxy":2,"handlerPath":0,"restApi":0,"sdkHost":4,"verify":1,"agent":0}
+PASS 高德 SDK 没有弹出阻塞提示 :: {"dialogs":[]}
+PASS 核验走真实高德链路（报告自带调用与命中计数；0 新增＝命中 6 小时缓存，不是 Mock） :: {"本小时新增":{"place":11,"walking":25},"报告计数":{"place":11,"walking":25,"cacheHits":0,"failed":0}}
+PASS 同输入重取报告命中流水线缓存（服务端计数一格没涨） :: {"before":{"place":11,"walking":25,"entries":36},"after":{"place":11,"walking":25,"entries":36}}
+PASS 报告记录的类别＝界面勾选的类别 :: {"报告":["自然风光"],"勾选":["自然风光"]}
+PASS 每一站都在勾选类别的候选里（没有偷偷混入别的类别） :: {"每站类别":["自然风光","自然风光","自然风光"],"飞猪候选":10,"调用凭证条数":1}
+PASS 出路线后「我到了／少走一点」仍在手机首屏 :: {"arrived":{"x":24.80000114440918,"y":731.4500122070312,"width":158.80000495910645,"height":44},"viewport":{"width":390,"height":844}}
+PASS 滚动之后核心按钮依然钉在屏幕内（不用回到首屏去点） :: {"scrolled":{"x":191.60000610351562,"y":731.4500122070312,"width":158.79998779296875,"height":44}}
+PASS 刷新后没有重新发起核验（0 次 POST /api/verify） :: {"browserCalls":{"officialProxy":2,"handlerPath":0,"restApi":0,"sdkHost":4,"verify":0,"agent":0,"geometry":0}}
+PASS 刷新后高德 REST 请求计数没有增长（真恢复，不是重跑） :: {"before":{"place":11,"walking":25,"entries":36},"after":{"place":11,"walking":25,"entries":36}}
+PASS 刷新后站数与状态行原样恢复 :: {"stopsBefore":3,"stopsAfterReload":3,"statusLineBefore":"正在看第 1 站 · 平湖秋月 · 全程 3 站 / 210 分钟，已确认到达 0 站 （到达由你手动点，不是真实定位）。","lineAfterReload":"正在看第 1 站 · 平湖秋月 · 全程 3 站 / 210 分钟，已确认到达 0 站 （到达由你手动点，不是真实定位）。"}
+PASS 刷新后仍是真实底图 :: {"canvases":1,"markers":4}
+PASS 「我到了」买了一个真实回合 :: {"browserCalls":{"officialProxy":0,"handlerPath":0,"restApi":0,"sdkHost":0,"verify":0,"agent":1,"geometry":0}}
+PASS 刚点出来的这一轮标为百炼真实返回 :: {"badgeLive":"LIVE · 百炼真实返回"}
+PASS 到达后被记进进度 :: {"statusLineArrived":"正在看第 1 站 · 平湖秋月 · 全程 3 站 / 210 分钟，已确认到达 1 站 （到达由你手动点，不是真实定位）。"}
+PASS 刷新后讲解徽标说明这是上一轮的真实返回 :: {"badgeRestored":"LIVE · 刷新前那一次"}
+PASS 刷新后讲解原文与到达记录一起回来 :: {"statusLineRestored":"正在看第 1 站 · 平湖秋月 · 全程 3 站 / 210 分钟，已确认到达 1 站 （到达由你手动点，不是真实定位）。","讲解字数":237}
+PASS 刷新恢复讲解没有再买回合（0 次 POST /api/agent） :: {"browserCalls":{"officialProxy":2,"handlerPath":0,"restApi":0,"sdkHost":4,"verify":0,"agent":0,"geometry":0}}
+PASS 「总行程缩短」= 界面前后两份高德实测行程之差 :: {"totalBefore":210,"totalAfter":130,"claimedSaved":80,"savingsText":"3 站 → 2 站：平湖秋月 → 三潭印月 少走 3.7 公里 少步行 50 分钟 总行程缩短 1 小时 20 分 现在共 2 站 / 130 分钟（预算 240 分钟），就是「高德核验路线」面板与地图里的那一条。 每一段都用高德步行实测校验过，全部命中服务端缓存、没有新增调用。"}
+PASS 收益三格都给出（少走 / 少步行 / 总行程缩短） :: {"savingsText":"3 站 → 2 站：平湖秋月 → 三潭印月 少走 3.7 公里 少步行 50 分钟 总行程缩短 1 小时 20 分 现在共 2 站 / 130 分钟（预算 240 分钟），就是「高德核验路线」面板与地图里的那一条。 每一段都用高德步行实测校"}
+PASS 桌面切到 390×844 后所有站点重新回到底图内 :: {"size":[342,439],"outside":[],"markers":[{"label":"2 三潭印月","x":103,"y":382},{"label":"1 平湖秋月","x":113,"y":180},{"label":"起 杭州西湖风景名胜区-湖滨公园","x":277,"y":115}]}
+PASS 「查看全程」按钮存在
+PASS 放大后确有站点移出屏幕（这就是「查看全程」要解决的场景） :: {"zoom":17,"outside":["1 平湖秋月","起 杭州西湖风景名胜区-湖滨公园"]}
+PASS 点「查看全程」后全览重新收进所有站点 :: {"zoom":14.16,"settled":true,"size":[342,439],"outside":[],"markers":3}
+PASS 技术证明只在折叠区里 :: {"detailsCount":9,"openDetails":0,"visibleLeaks":[]}
+
+本轮真实用量（服务端计数）
+  高德 Web 服务：place 11/40，walking 25/80，缓存 36 条
+  本轮路线：类别 自然风光 · 飞猪候选 10 条 · 成线 3 站 / 210 分钟
+  浏览器发出的核验 POST：1 次 · 百炼回合 POST：2 次
+  官方代理路径 6 次 · 内部 handler 路径 0 次 · 浏览器直连数据接口 0 次 · SDK 脚本来源 12 次
+  弹窗：0 次
+  截图：evidence/phase8-01-mobile-first-screen.png · evidence/phase8-02-mobile-action-bar.png · evidence/phase8-03-restored-after-reload.png · evidence/phase8-04-narration-live.png · evidence/phase8-05-savings-and-adjusted-route.png · evidence/phase8-06-mobile-fit.png · evidence/phase8-07-fit-all-back.png
+
+29/29 通过
+phase8 exit=0

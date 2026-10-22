@@ -1,0 +1,35 @@
+起始计数：{"place":0,"walking":0,"entries":0,"pid":12084}
+PASS 1 拿到真实核验报告与事实集编号 :: {"ok":true,"error":null,"facts":{"factsId":"YEZ4xO5i9dSoSInQ","cityName":"杭州","categories":["自然风光"],"poolSize":8,"measuredPairs":20,"startLegs":5,"failedPairs":0,"measuredAt":"2026-10-22T05:22:53.984Z"}}
+FAIL 1b 这次核验没有新增真实高德请求（全部命中缓存） :: {"before":{"place":0,"walking":0,"entries":0,"pid":12084},"after":{"place":11,"walking":25,"entries":36,"pid":12084}}
+PASS 2 建方案成功并发出两条角色链接 :: {"status":200}
+PASS 2b 链接里不含任何密钥或内部路径 :: {"linkB":"http://0.0.0.0:3000/plan/9AppVEBXdQAEMTzSN-Z67I9iazIv1FBr#r=B&t=zdU08AzlILBWr5dk8V_IzIQeYu3LyGX9"}
+PASS 2c 角色凭据不出现在响应体字段里（只出现在分享链接的 fragment）
+PASS 2d A 身份建方案后就是当前版本，但还不能执行 :: {"head":1,"canExecute":{"allowed":false,"reason":"还没有双方确认过的版本。"}}
+PASS 2e 可点选全集大于最近 6 个（必须去不会因短名单被静默丢掉） :: {"poolSize":8,"measuredPairs":20,"startLegs":5}
+PASS 3 B 用角色链接能读到同一份当前版本 :: {"status":200,"role":"B"}
+PASS 3b 不带凭据只得到同形状 401，不泄露方案内容 :: {"status":401}
+PASS 3c 错凭据与缺凭据同形状（防枚举）
+PASS 4 B 的硬条件生成新版本并挂起旧确认 :: {"status":200,"code":"ok","message":"v2 已生成，等待 A、B 分别确认。"}
+PASS 4b 差异保留负号且带实测数字 :: {"delta":-3729,"line":"v1 → v2：总步行 7.50 公里 → 3.77 公里（少走 3.73 公里，−3.73 公里）"}
+PASS 4c v1 已被记为挂起，正式执行入口关闭 :: {"official":null,"reason":"还没有双方确认过的版本。"}
+PASS 4d 双方确认之前，A 也不能拿 v1 去确认
+PASS 4e 确认过期版本被拒绝（409） :: {"status":409,"message":"当前版本是 v2，v1 已不是最新方案。"}
+PASS 5 B 先确认 v2：单方确认不生效 :: "已记录 B 的确认，等待 A 确认 v2。"
+PASS 5b 指纹不符的确认被拒绝
+PASS 5c 双方确认同一 revision 后正式生效 :: {"reason":"v2 已双方确认、事实核验完成且满足双方现行硬条件。"}
+PASS 5d 已确认路线确实满足 B 的新上限 :: {"walk":3772,"cap":6001}
+FAIL 6 需要补测时先给报价，不批就不执行 :: {"code":"no-solution","need":18,"target":"九溪烟树"}
+FAIL 7 B 不能撤销 A 的分享链接 :: {"status":405}
+FAIL 7b A 撤销立即生效
+FAIL 7c 撤销后两条链接都只得到 410 :: {"status":200}
+FAIL 8 全程没有新增真实高德请求 :: {"before":{"place":0,"walking":0,"entries":0,"pid":12084},"final":{"place":11,"walking":25,"entries":36,"pid":12084}}
+PASS 8b 协商没有产生补测与重试 :: {"spentThisPlan":0,"logicalRequests":0,"httpRetries":0,"perResolveHardMax":9,"perPlanHardMax":18,"approvalThreshold":6,"hourlyHeadroomWalking":55}
+PASS 8c 响应里不含密钥与内部路径
+
+20/26 通过
+未通过：1b 这次核验没有新增真实高德请求（全部命中缓存）
+未通过：6 需要补测时先给报价，不批就不执行
+未通过：7 B 不能撤销 A 的分享链接
+未通过：7b A 撤销立即生效
+未通过：7c 撤销后两条链接都只得到 410
+未通过：8 全程没有新增真实高德请求
