@@ -48,17 +48,21 @@ Serverless 的多实例 + 冷启动会把这些护栏变成「每个实例各算
 | 飞猪 12 次/小时上限 + 10 分钟分类缓存 | `discover.ts:19` | 每实例独立计数 → 上限最多变成 12×实例数；冷启动直接归零 |
 | 高德 POI 40 次/小时、步行 80 次/小时 | `amap.ts:32-33` | 同上 |
 | 高德结果缓存（6 小时） | `amap.ts:30` | 冷启动清空 → 同一条路线被重新逐段实测 |
-| 整条核验流水线缓存（30 分钟） | `verify.ts:52` | 冷启动清空。**一次冷跑实测 62 次高德请求**（21 次 POI + 41 次步行，见开发日志计数），一次无谓重放就是几十次付费调用 |
+| 整条核验流水线缓存（30 分钟） | `verify.ts:52` | 冷启动清空。**冷跑实测：勾一个类别 36 次高德请求（11 次 POI + 25 次步行），勾两个类别 62 次（21 + 41）**，一次无谓重放就是几十次调用 |
 | 百炼 40 回合/小时 + 超限前的只读预检 | `bailian.ts:117` | 每实例独立计数 → 真金白银的 token 回合按实例数放大 |
 | 百炼 session 表（30 分钟 TTL，「少走一点」依赖同一段对话的上文） | `agent.ts:60` | **最硬的一条**：请求落到另一个实例就查不到 session，要么丢上文重新建会话，要么直接失败 |
 | 高德安全代理 240 次/分钟 | `amap-js.ts:28` | 每实例 240 → 对上游实际可达 240×N |
+| 双人协商方案表（24 条 / 72 小时）与事实集（6 小时） | `plan-store.ts:47-48`、`facts.ts` | 同伴点开链接落到另一台机器 → 如实 410「方案在本实例上找不到」，不会假装协商还在 |
+| 最小快照落盘 `.data/plan-snapshot.json` | `plan-snapshot.ts:26-29` | **需要一个可写目录**。只读文件系统上关键状态写不进去，端点会把已成功的内存迁移改报 `persist-failed`（500）而不是假装已保存；临时文件系统（多数 serverless）则每次冷启动回到"没有快照" |
 
 再加一条区域问题：飞猪、高德、百炼都是大陆服务。从海外区域调用，每次请求叠加几百毫秒到数秒；而**一次冷跑核验就是 60+ 次串行高德请求**（见上表），区域不匹配带来的延迟会成倍放大，首屏「开始核验」明显变慢，而且这个抖动正好打在 30 分钟缓存过期后的第一次点击上。
 
 所以「Vercel 能不能上」的诚实回答是：
 **演示 5 分钟可以；作为对外公布的长期入口不行**，因为我无法向评委保证「点一次只花一次钱」。
 
-要在 serverless 上保住语义，必须把上表 7 项状态搬到外部存储（Redis 的 `INCR`+`EXPIRE` 做限流、KV 做 session 表），并把服务区域选到大陆就近。那是一次独立的架构改造，不属于本次「不新增任何产品功能」的范围，所以**本次没有做，也没有假装它没问题**。
+要在 serverless 上保住语义，必须把上表 9 项状态搬到外部存储（Redis 的 `INCR`+`EXPIRE` 做限流、
+KV 做 session 表与协商方案/快照），并把服务区域选到大陆就近。那是一次独立的架构改造，
+不属于本次「不新增任何产品功能」的范围，所以**本次没有做，也没有假装它没问题**。
 
 ---
 
@@ -74,9 +78,15 @@ npx next build
 npx next start -p 3000
 ```
 
+### 一个可写目录（双人协商新增的要求）
+`next start` 会把协商快照写到 `<项目>/.data/plan-snapshot.json`（原子写：先写 `${pid}.tmp` 再 `rename`）。
+Docker / 云主机上只要那个路径可写就行；要换位置用 `PLAN_SNAPSHOT_FILE` 指过去，**并且把它挂成卷**——
+文件随容器一起销毁的话，"重启后同伴的链接还能用"这件事就不成立，但功能仍然安全：读不到就是如实 410。
+只读文件系统上也不会静默成功：写不进去时端点返回 `persist-failed`（500）并说明原因，界面对应动作不当成功处理。
+
 ### 反向代理要满足两点
 1. 读超时 ≥ 120s（百炼回合 90s + 网络余量），并且**不要缓冲响应**。
-2. 保留 `/amap-proxy/…` 的同源转发——高德 JS SDK 是按「同域」配安全代理的，路径被改写就打不出底图。
+2. 原样放过 `/_AMapService/…`——高德 JS SDK 硬性要求安全代理的一级路由是 `_AMapService`（写成别的就会在首屏弹一个阻塞提示），本项目由 `next.config.ts` 的 rewrite 把它接到真实 handler `/amap-proxy/…`。反向代理若吃掉下划线路径或改写它，底图打不出来。`next start` 自带这条 rewrite，平台不需要额外配置；只有**完全脱离 Next** 自己起 nginx 时才需要手写 `location /_AMapService/ { proxy_pass http://127.0.0.1:3000/amap-proxy/; }`。
 
 ### 环境变量（只列名字，永不写值）
 
@@ -85,11 +95,12 @@ npx next start -p 3000
 | `FLYAI_API_KEY` | 是 | 飞猪 CLI |
 | `AMAP_WEB_KEY` | 是 | 高德「Web 服务」Key，服务端 REST 用 |
 | `AMAP_JS_KEY` | 是 | 高德「Web 端 (JS API)」Key，必须是 JS 类型，不能拿 Web 服务 Key 冒充 |
-| `AMAP_JS_SECURITY_CODE` | 是 | 高德 JS 安全密钥，只在服务端 `/amap-proxy` 里补进请求 |
+| `AMAP_JS_SECURITY_CODE` | 是 | 高德 JS 安全密钥，只在服务端 `/amap-proxy` handler 里补进请求；浏览器侧看到的是官方一级路由 `/_AMapService` |
 | `DASHSCOPE_API_KEY` | 是 | 百炼 `sk-ws-` 工作空间密钥 |
 | `BAILIAN_WORKSPACE_ID` / `BAILIAN_AGENT_ID` / `BAILIAN_ENV_ID` | 是 | 百炼三元组 |
 | `BAILIAN_REGION` | 否 | 默认 `cn-beijing`，Agent 不在北京区域时才需要设 |
 | `FLYAI_CLI_ROOT` | 否 | 只有把 CLI 装在**全局**而不是项目依赖时才需要 |
+| `PLAN_SNAPSHOT_FILE` | 否 | 双人协商快照位置，默认 `<项目>/.data/plan-snapshot.json`；该目录必须可写且不进 Git |
 
 全部都不带 `NEXT_PUBLIC_` 前缀 → 不进浏览器包。`.env.example` 是模板，`.env.local` 已被 `.gitignore` 忽略。
 
@@ -107,7 +118,14 @@ BASE=https://你的域名
 curl -s $BASE/api/discover | head -c 400   # 看 hourlyCallCap、cliEntry（已脱敏成相对路径）
 curl -s $BASE/api/verify                    # 看 placeHourlyUsed / walkingHourlyUsed / cacheEntries / pid
 curl -s $BASE/api/agent                     # 只有 keyMask / hostMasked / agentIdMasked，没有明文
-BASE_URL=$BASE node evidence/phase6-accept.mjs   # 20 项真实浏览器验收（可见窗口、真实鼠标）
+curl -s $BASE/api/plan                      # 看 plans / facts / persist（快照相对路径与恢复结果）/ pid
+BASE_URL=$BASE node evidence/phase6-accept.mjs   # 25 项真实浏览器验收（可见窗口、真实鼠标）
+BASE_URL=$BASE node evidence/plan-guard-probe.mjs # 12 项端点守卫，零外部调用
 ```
+
+`/api/plan` 的 `persist.restored.status` 是重启后第一个该看的字段：`loaded` 说明快照真的把方案带回来了，
+`corrupt` / `schema-mismatch` 说明整份拒绝恢复（不会拿半份状态当有效），`missing` 说明这台机器上没有快照。
+`pid` 与它配对看：多实例部署时同一个方案换个实例读，`plans.entries` 会归零、`pid` 会跳变——这正是
+「换实例＝方案丢失」的如实暴露，不是 bug。
 
 `/api/verify` 里的 `pid` 是故意留的：多实例部署时它会跳变，配合 `cacheEntries` 从 0 重来，就能一眼看出「每实例各算各的」到底有没有发生。
