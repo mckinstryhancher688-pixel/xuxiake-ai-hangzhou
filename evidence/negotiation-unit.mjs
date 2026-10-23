@@ -20,6 +20,7 @@ import {
   makeShortlistedFacts,
 } from "./negotiation-fixture.ts";
 import { sanitizeConditions } from "../src/lib/plan-api.ts";
+import { costApprovalKey } from "../src/lib/negotiation/editor.ts";
 import {
   agentScopeKey,
   agentTurnKey,
@@ -49,6 +50,16 @@ function cond(role, over = {}) {
     soft: over.soft ?? {},
     bias: over.bias ?? "neutral",
   };
+}
+
+/** 先提交条件拿到报价/硬限额结论，再批准同一份已保存条件。 */
+async function approveQuotedConditions(state, facts, input) {
+  const quoted = await submitConditions(state, facts, {
+    ...input, attemptId: `${input.attemptId}:quote`, confirmCost: false,
+  });
+  if (!["cost-approval-needed", "quota"].includes(quoted.code)) throw new Error(`夹具未得到成本报价：${quoted.code}`);
+  return submitConditions(state, facts, { ...input,
+    expectedCostKey: costApprovalKey(state.planId, input.role, state.headRevision, state.conditions) });
 }
 
 const nameOf = (facts, id) => (id === "__start__" ? facts.start.name : facts.pool.find((item) => item.id === id)?.name ?? id);
@@ -101,6 +112,42 @@ const baseline = solveJoint(facts, cond("A"), null, START_AT);
 check("S1 单人无附加条件时双人求解给出最长可行组合", baseline.kind === "found" && baseline.best.stops.length === 4, {
   kind: baseline.kind, stops: baseline.best.stops.map((s) => s.name), meters: baseline.best.totalWalkMeters, minutes: baseline.best.totalMinutes,
 });
+check("S1b 无自环的完整图：未入选站有真实可行走法，不能归因为缺实测段",
+  Object.keys(facts.legs).every((key) => { const [from, to] = key.split("->"); return from !== to; }) &&
+    baseline.dispositions.some((item) => item.status === "dropped-soft") &&
+    baseline.dispositions.every((item) => item.status !== "not-measured"),
+  { 未入选: baseline.dispositions.filter((item) => item.status !== "selected") });
+
+const unrelatedFacts = makeCompleteFacts();
+delete unrelatedFacts.legs["c4->c5"];
+delete unrelatedFacts.legs["c5->c4"];
+const unrelated = solveJoint(unrelatedFacts, cond("A", { hard: { maxWalkMeters: 2000 } }), null, START_AT);
+const unrelatedC5 = unrelated.dispositions.find((item) => item.id === "c5");
+check("S1c 两个未入选站之间缺边，不是与当前路线缺连接的证据",
+  !unrelated.best.stops.some((stop) => ["c4", "c5"].includes(stop.flyaiId)) &&
+    unrelatedC5.status === "rejected-hard" && !unrelatedC5.text.includes("尚未实测"),
+  { 入选: unrelated.best.stops.map((stop) => stop.flyaiId), 未入选: unrelatedC5 });
+
+const directionalFacts = makeCompleteFacts();
+directionalFacts.pool = directionalFacts.pool.filter((item) => ["c1", "c2"].includes(item.id));
+for (const key of Object.keys(directionalFacts.legs)) {
+  if (!["__start__->c1", "c2->c1"].includes(key)) delete directionalFacts.legs[key];
+}
+const directional = solveJoint(directionalFacts, cond("A"), null, START_AT);
+const directionalC2 = directional.dispositions.find((item) => item.id === "c2");
+check("S1d 反向已测不能冒充正向已测：逐条说明真正缺少的入站方向",
+  directionalC2.status === "not-measured" && directionalC2.text.includes("集贤亭 → 湖滨步行街") &&
+    directionalC2.text.includes("湖滨公园（夹具起点） → 湖滨步行街") &&
+    !directionalC2.text.includes("湖滨步行街 → 集贤亭") && !directionalC2.text.includes("湖滨步行街 → 湖滨步行街"),
+  directionalC2);
+const knownVisitFacts = makeCompleteFacts();
+knownVisitFacts.pool = knownVisitFacts.pool.filter((item) => ["c1", "c2"].includes(item.id));
+delete knownVisitFacts.legs["c1->c2"];
+const knownVisit = solveJoint(knownVisitFacts, cond("A", { hard: { maxWalkMeters: 800 } }), null, START_AT);
+check("S1e 已有可行访问方式时，某个替换方向缺测不应抹掉已核验依据",
+  knownVisit.best.stops.map((stop) => stop.flyaiId).join(",") === "c1" &&
+    knownVisit.dispositions.find((item) => item.id === "c2").status === "dropped-soft",
+  knownVisit.dispositions.find((item) => item.id === "c2"));
 
 const capped = solveJoint(facts, cond("A"), cond("B", { hard: { maxWalkMeters: 2000 } }), START_AT);
 const downDiff = diffItineraries(baseline.best, capped.best, { fromRevision: 1, toRevision: 2, fromHash: "h1", toHash: "h2" });
@@ -205,7 +252,7 @@ check("G1-pre 双方确认同一版本后可正式执行", canExecute(plan1, STA
 
 const failing = makeMeasure({ fail: true, retries: 2 });
 const before = { head: plan1.headRevision, revisions: plan1.revisions.length, spent: plan1.budget.spentThisPlan };
-const g1 = await submitConditions(plan1, g1facts, {
+const g1 = await approveQuotedConditions(plan1, g1facts, {
   role: "B",
   conditions: cond("B", { hard: { mustVisit: ["s7"], maxWalkMeters: 3000 } }),
   expectedRevision: v2.revision,
@@ -294,6 +341,7 @@ check("门3a 超过建议支出阈值时先报价再执行，未批准一分不�
 check("门3a2 待成本批准时不能确认，也不能执行", confirmRevision(plan3, { role: "A", revision: plan3.headRevision, contentHash: headRevisionOf(plan3).contentHash, now: START_AT }).code === "not-confirmable" && !canExecute(plan3, START_AT).allowed);
 const approved = makeMeasure({ retries: 3 });
 const afterApprove = await submitConditions(plan3, usableFacts, {
+  expectedCostKey: costApprovalKey(plan3.planId, "B", plan3.headRevision, plan3.conditions),
   role: "B", conditions: cond("B", { hard: { mustVisit: ["s7"] } }), expectedRevision: plan3.headRevision, attemptId: "c-b2", confirmCost: true, now: START_AT, measure: approved.measure,
 });
 check("门3b 批准后在硬上限内才真正补测，逻辑请求与 HTTP 重试分开记账", afterApprove.code === "ok" && approved.calls.length === 1 && plan3.budget.logicalRequests === oneTarget && plan3.budget.httpRetries === 3 && plan3.budget.spentThisPlan === oneTarget, {
@@ -306,7 +354,7 @@ usableFacts = makeShortlistedFacts();
 const plan5 = createPlan(mintPlanId(), usableFacts, cond("A"), START_AT);
 await submitConditions(plan5, usableFacts, { role: "A", conditions: cond("A"), expectedRevision: null, attemptId: "c3-a1", now: START_AT, measure: makeMeasure().measure });
 const overResolve = makeMeasure();
-const resolveRefusal = await submitConditions(plan5, usableFacts, {
+const resolveRefusal = await approveQuotedConditions(plan5, usableFacts, {
   role: "B", conditions: cond("B", { hard: { mustVisit: ["s7", "s8"] } }), expectedRevision: plan5.headRevision, attemptId: "c3-b1", confirmCost: true, now: START_AT, measure: overResolve.measure,
 });
 check("门3c confirmCost 越不过单轮硬上限，且在花钱之前就拒绝", resolveRefusal.code === "quota" && overResolve.calls.length === 0 && plan5.budget.spentThisPlan === 0, {
@@ -317,7 +365,7 @@ const plan4 = createPlan(mintPlanId(), usableFacts, cond("A"), START_AT);
 await submitConditions(plan4, usableFacts, { role: "A", conditions: cond("A"), expectedRevision: null, attemptId: "c2-a1", now: START_AT, measure: makeMeasure().measure });
 plan4.budget.spentThisPlan = HARD_CAP_PER_PLAN - 1;
 const overspent = makeMeasure();
-const hardRefusal = await submitConditions(plan4, usableFacts, {
+const hardRefusal = await approveQuotedConditions(plan4, usableFacts, {
   role: "B", conditions: cond("B", { hard: { mustVisit: ["s7"] } }), expectedRevision: plan4.headRevision, attemptId: "c2-b1", confirmCost: true, now: START_AT, measure: overspent.measure,
 });
 check("门3c confirmCost 越不过单方案硬上限，且一分不花", hardRefusal.code === "quota" && overspent.calls.length === 0 && plan4.budget.spentThisPlan === HARD_CAP_PER_PLAN - 1, {
@@ -330,10 +378,71 @@ check("门3e 小时余量同样是硬上限", plan4.budget.hourlyHeadroomWalking
 plan4.budget.spentThisPlan = 0;
 plan4.budget.hourlyHeadroomWalking = 1;
 const tightHourly = makeMeasure();
-const hourlyRefusal = await submitConditions(plan4, usableFacts, {
+const hourlyRefusal = await approveQuotedConditions(plan4, usableFacts, {
   role: "B", conditions: cond("B", { hard: { mustVisit: ["s7"] } }), expectedRevision: plan4.headRevision, attemptId: "c2-b2", confirmCost: true, now: START_AT, measure: tightHourly.measure,
 });
 check("门3f 本小时余量不足时直接拒绝，不退化成「先试一下」", hourlyRefusal.code === "quota" && tightHourly.calls.length === 0, hourlyRefusal.message);
+
+/* 成本 CAS：revision 不变时，双方条件变化也不能沿用旧报价。 */
+const casFacts = makeShortlistedFacts();
+const casPlan = createPlan(mintPlanId(), casFacts, cond("A"), START_AT);
+await submitConditions(casPlan, casFacts, {
+  role: "A", conditions: cond("A"), expectedRevision: null, attemptId: "cas-a", now: START_AT, measure: makeMeasure().measure,
+});
+await submitConditions(casPlan, casFacts, {
+  role: "B", conditions: cond("B"), expectedRevision: casPlan.headRevision, attemptId: "cas-b", now: START_AT, measure: makeMeasure().measure,
+});
+const casHead = headRevisionOf(casPlan);
+confirmRevision(casPlan, { role: "A", revision: casHead.revision, contentHash: casHead.contentHash, now: START_AT });
+confirmRevision(casPlan, { role: "B", revision: casHead.revision, contentHash: casHead.contentHash, now: START_AT });
+const protectedCostState = () => JSON.stringify({
+  conditions: casPlan.conditions, status: casPlan.status, head: casPlan.headRevision,
+  official: casPlan.officialRevision, revisions: casPlan.revisions, budget: casPlan.budget,
+});
+const farB = cond("B", { hard: { mustVisit: ["s7"] } });
+for (const [label, expectedCostKey] of [["缺少报价指纹", undefined], ["错误报价指纹", "wrong-key"]]) {
+  const beforeCostCas = protectedCostState();
+  const measure = makeMeasure();
+  const rejected = await submitConditions(casPlan, casFacts, {
+    role: "B", conditions: farB, expectedRevision: casPlan.headRevision,
+    attemptId: `cas-invalid-${label}`, confirmCost: true, expectedCostKey, now: START_AT, measure: measure.measure,
+  });
+  check(`门3CAS ${label}不补测、不覆盖底线、不挂起原正式路线`,
+    rejected.code === "stale-revision" && rejected.message === "报价已失效，请重新提交条件" &&
+      measure.calls.length === 0 && protectedCostState() === beforeCostCas && canExecute(casPlan, START_AT).allowed,
+    { code: rejected.code, calls: measure.calls.length });
+}
+const casQuote = await submitConditions(casPlan, casFacts, {
+  role: "B", conditions: farB, expectedRevision: casPlan.headRevision,
+  attemptId: "cas-quote", now: START_AT, measure: makeMeasure().measure,
+});
+const heldCostKey = costApprovalKey(casPlan.planId, "B", casPlan.headRevision, casPlan.conditions);
+const quotedRevision = casPlan.headRevision;
+const beforeChangedPayload = protectedCostState();
+const changedPayloadMeasure = makeMeasure();
+const changedPayload = await submitConditions(casPlan, casFacts, {
+  role: "B", conditions: cond("B", { hard: { mustVisit: ["s8"] } }), expectedRevision: quotedRevision,
+  attemptId: "cas-change-mine", confirmCost: true, expectedCostKey: heldCostKey,
+  now: START_AT, measure: changedPayloadMeasure.measure,
+});
+check("门3CAS 正确报价指纹也不能夹带另一份本人条件", casQuote.code === "cost-approval-needed" &&
+  changedPayload.code === "stale-revision" && changedPayloadMeasure.calls.length === 0 && protectedCostState() === beforeChangedPayload,
+  { quote: casQuote.code, code: changedPayload.code });
+const changedPeer = await submitConditions(casPlan, casFacts, {
+  role: "A", conditions: cond("A", { hard: { maxWalkMeters: 200, mustVisit: ["s8"] } }),
+  expectedRevision: quotedRevision, attemptId: "cas-change-peer", now: START_AT, measure: makeMeasure().measure,
+});
+const beforeStaleCost = protectedCostState();
+const staleCostMeasure = makeMeasure();
+const staleCost = await submitConditions(casPlan, casFacts, {
+  role: "B", conditions: farB, expectedRevision: quotedRevision,
+  attemptId: "cas-stale-peer", confirmCost: true, expectedCostKey: heldCostKey,
+  now: START_AT, measure: staleCostMeasure.measure,
+});
+check("门3CAS 对方条件更新失败未升版时，旧报价仍在付费前拒绝", changedPeer.code === "quota" &&
+  casPlan.headRevision === quotedRevision && staleCost.code === "stale-revision" && staleCostMeasure.calls.length === 0 &&
+  protectedCostState() === beforeStaleCost,
+  { peerUpdate: changedPeer.code, head: casPlan.headRevision, code: staleCost.code });
 
 /* ── 门 4：一方拿不到另一方的 Agent 上下文 ─────────────────────── */
 const itineraryKey = "c1,c2,c3,c4";

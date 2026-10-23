@@ -29,7 +29,7 @@ export interface NegotiationBrief {
 const BIAS_LABEL: Record<PartyConditions["bias"], string> = {
   see_more: "多看几个",
   walk_less: "少走路",
-  neutral: "无所谓",
+  neutral: "无特定倾向（不代表无异议）",
 };
 
 const SOFT_LABEL: Record<string, string> = {
@@ -61,24 +61,23 @@ function nameOf(facts: FactSet, id: string): string {
 }
 
 function partyLine(facts: FactSet, party: PartyConditions | null): string {
-  if (!party) return `${party === null ? "B" : "?"}：还没有表态`;
+  if (!party) return `${party === null ? "B" : "?"}：尚未提交条件（不代表无异议或已同意）`;
   const hard = [
     party.hard.maxWalkMeters === null ? "未提步行上限" : `步行≤${metersText(party.hard.maxWalkMeters)}`,
     party.hard.mustVisit.length
       ? `必须去 ${party.hard.mustVisit.map((id) => nameOf(facts, id)).join("、")}`
-      : "无必须去",
+      : "未设置必须去",
     party.hard.neverAccept.length
       ? `绝不接受 ${party.hard.neverAccept.map((id) => nameOf(facts, id)).join("、")}`
-      : "无绝不接受",
+      : "未设置绝不接受",
     party.hard.latestEndMinutes === null ? null : `最晚 ${String(Math.floor(party.hard.latestEndMinutes / 60)).padStart(2, "0")}:${String(party.hard.latestEndMinutes % 60).padStart(2, "0")} 结束`,
   ]
     .filter(Boolean)
     .join("｜");
   const soft = Object.entries(party.soft)
-    .filter(([, rank]) => rank !== "ok")
     .map(([id, rank]) => `${nameOf(facts, id)}=${SOFT_LABEL[rank] ?? rank}`)
     .join("、");
-  return `${party.role}：${hard}｜倾向 ${BIAS_LABEL[party.bias]}${soft ? `｜偏好 ${soft}` : ""}`;
+  return `${party.role}：${hard}｜倾向 ${BIAS_LABEL[party.bias]}｜偏好 ${soft || "尚未填写逐站偏好（不代表没有反对意见）"}`;
 }
 
 function chainLine(facts: FactSet, stops: { flyaiId: string; name: string }[]): string {
@@ -109,6 +108,7 @@ export function buildNegotiationBrief(input: { facts: FactSet; state: PlanState;
   );
   lines.push(`【双方条件】${partyLine(facts, state.conditions.A)}`);
   lines.push(`【双方条件】${partyLine(facts, state.conditions.B)}`);
+  lines.push("【表达边界】未设置条件、未评价地点只表示没有相应记录，不能写成没有反对意见、愿意接受或已同意；是否同意当前行程只能依据该版本的确认记录。");
 
   if (!revision) {
     lines.push(`【当前版本】还没有任何版本，方案状态 ${state.status}`);

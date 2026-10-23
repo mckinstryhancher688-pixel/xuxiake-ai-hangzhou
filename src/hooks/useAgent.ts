@@ -14,6 +14,7 @@ import type {
   AgentServerStatus,
   ExploreResponse,
   VerifyReport,
+  VerifiedItinerary,
 } from "@/lib/types";
 
 export type AgentPhase = "idle" | "loading" | "done";
@@ -56,7 +57,9 @@ export function useAgent(
    * 双人模式：把这条协商的编号与本方凭据交给服务端，让它读双方确认的正式版本。
    * 不传就是单人链路，行为与之前完全一致。
    */
-  plan: { planId: string; token: string } | null = null,
+  plan: { planId: string; token: string; itinerary?: VerifiedItinerary } | null = null,
+  /** 已进入双人协商但还没有可执行的正式版本：不能退回单人会话或旧调整。 */
+  executionBlocked = false,
 ) {
   const [tokenOverride, setToken] = useState<string | null>(null);
   const [pickedOverride, setPickedStopId] = useState<string | null>(null);
@@ -93,13 +96,13 @@ export function useAgent(
   const anyAdjustment = adjustmentOverride ?? (snapshot?.adjustment?.ok ? snapshot.adjustment : null);
   // 重新核验得到的是另一条路线时，旧路线上的调整与讲解都不再对应屏幕上的站，整组当没有
   const stale = Boolean(anyAdjustment?.baseItineraryKey) && reportKey !== "" && anyAdjustment?.baseItineraryKey !== reportKey;
-  const adjustment = stale ? null : anyAdjustment;
-  const activeItinerary = adjustment?.itinerary ?? report?.itinerary ?? null;
+  const adjustment = stale || executionBlocked || plan !== null ? null : anyAdjustment;
+  const activeItinerary = executionBlocked ? null : (plan?.itinerary ?? adjustment?.itinerary ?? report?.itinerary ?? null);
   const stops = activeItinerary?.stops ?? [];
   const narrationStops = stops.length ? stops : (report?.itinerary?.stops ?? []);
   const anyArrival = arrivalOverride ?? (snapshot?.arrival?.ok ? snapshot.arrival : null);
   const arrival =
-    anyArrival && anyArrival.stopName && narrationStops.some((stop) => stop.name === anyArrival.stopName)
+    !executionBlocked && anyArrival && anyArrival.stopName && narrationStops.some((stop) => stop.name === anyArrival.stopName)
       ? anyArrival
       : null;
   const arrivedStopIds = useMemo(() => {
@@ -163,6 +166,13 @@ export function useAgent(
 
   const send = useCallback(
     async (intent: "arrive" | "shorten") => {
+      if (executionBlocked || (plan && intent === "shorten")) {
+        const setState = intent === "arrive" ? setArrived : setAdjusted;
+        setState({ phase: "done", error: executionBlocked
+          ? "双人方案尚未正式生效，请先确认同一版本。"
+          : "双方确认版不能由单人调整，请在双人协商中提出新方案。" });
+        return;
+      }
       if (inFlight.current[intent]) return;
       inFlight.current[intent] = true;
       const setState = intent === "arrive" ? setArrived : setAdjusted;
@@ -212,7 +222,7 @@ export function useAgent(
         await refreshStatus();
       }
     },
-    [arrivedStopIds, categories, city, interests, plan, refreshStatus, selectedStopId, token],
+    [arrivedStopIds, categories, city, executionBlocked, interests, plan, refreshStatus, selectedStopId, token],
   );
 
   const arrive = useCallback(() => send("arrive"), [send]);

@@ -418,9 +418,29 @@ export function solveJoint(
       return { id: item.id, name: item.name, status: "rejected-never", text: `${roles.join("、")} 标为绝不接受，已排除` };
     }
     if (chosen.has(item.id)) return { id: item.id, name: item.name, status: "selected", text: "已进入当前方案" };
-    const sawMissing = universe.some((other) => !facts.legs[legKey(item.id, other)] && !facts.legs[legKey(other, item.id)]);
-    if (sawMissing) {
-      return { id: item.id, name: item.name, status: "not-measured", text: "与本方案其它站之间没有实测段，尚未核验（不是「不去」）" };
+    // 已有含该站的可行组合，就不能把它写成「缺连接、尚未核验」。
+    if (feasible.some((candidate) => candidate.ids.includes(item.id))) {
+      return {
+        id: item.id, name: item.name, status: "dropped-soft",
+        text: `有含该站的已实测可行走法，但本版按双方条件与偏好取 ${best.ids.length} 站、${metersText(best.walkMeters)}，未选用该站`,
+      };
+    }
+    // 只说明与当前路线相关的缺边，不要求自环，也不把其它未入选站的缺边当作本版原因。
+    // 两个方向独立核查；反向已测不能证明正向已测。高德明确失败的段不算「没测过」。
+    const connectionKeys = [
+      legKey(FACT_START_KEY, item.id),
+      ...best.ids.flatMap((other) => [legKey(other, item.id), legKey(item.id, other)]),
+    ];
+    const missingConnections = connectionKeys.filter((key) => !facts.legs[key] && !facts.failedPairs.includes(key));
+    if (missingConnections.length) {
+      const names = missingConnections.map((key) => {
+        const [fromId, toId] = key.split("->");
+        return `${displayName(facts, fromId)} → ${displayName(facts, toId)}`;
+      });
+      return {
+        id: item.id, name: item.name, status: "not-measured",
+        text: `与当前路线相关的有向步行段尚未实测：${names.join("、")}；含该站的走法仍需核验（不是「不去」，也不代表没有任何连接）`,
+      };
     }
     if (parties.some((p) => p.hard.mustVisit.includes(item.id))) {
       return { id: item.id, name: item.name, status: "rejected-hard", text: "必须去却未排入——已按硬约束拒绝该组合" };
@@ -428,8 +448,8 @@ export function solveJoint(
     return {
       id: item.id,
       name: item.name,
-      status: "dropped-soft",
-      text: `可行但未入选（本方案取 ${best.ids.length} 站、${metersText(best.walkMeters)}）`,
+      status: "rejected-hard",
+      text: "已实测组合中未找到满足当前双方条件的含该站走法，未入选；未测组合不作可行性判断",
     };
   });
 

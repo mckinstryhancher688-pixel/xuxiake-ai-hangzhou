@@ -40,13 +40,17 @@ export function JourneyApp() {
   const plan = usePlan();
   // 只有服务端判定「双方确认了同一个版本」时，这一版才成为正式执行路线。
   // 读的是服务端返回的 official 那一版，不退回更早的城市/类别结果，浏览器也不自行判定。
-  const jointRoute = plan.snapshot?.canExecute.allowed ? (plan.snapshot.official?.itinerary ?? null) : null;
+  const jointRoute = !plan.busy && !plan.syncError && plan.snapshot?.canExecute.allowed ? (plan.snapshot.official?.itinerary ?? null) : null;
+  const jointMode = plan.identity !== null || (plan.exited && plan.error !== null);
+  const jointBlocked = jointMode && jointRoute === null;
+  const jointBlockReason = plan.busy ? "正在保存协商结果，完成前暂停执行。"
+    : plan.error ?? plan.snapshot?.canExecute.reason ?? "正在读取当前协商状态，请稍候。";
   const effectiveReport =
-    jointRoute && verifiedRoute.report ? { ...verifiedRoute.report, itinerary: jointRoute } : verifiedRoute.report;
+    jointBlocked ? null : jointRoute && verifiedRoute.report ? { ...verifiedRoute.report, itinerary: jointRoute } : verifiedRoute.report;
   // 只有双方确认的正式版本真的在屏幕上生效时，才把这条协商交给智能体：
   // 于是「我到了」读的就是地图与面板上那一份，不会再按 city/类别 回到旧的单人路线。
   const agentScope = useMemo(
-    () => (jointRoute && plan.identity ? { planId: plan.identity.planId, token: plan.identity.token } : null),
+    () => (jointRoute && plan.identity ? { planId: plan.identity.planId, token: plan.identity.token, itinerary: jointRoute } : null),
     [jointRoute, plan.identity],
   );
   const agent = useAgent(
@@ -54,6 +58,7 @@ export function JourneyApp() {
     journey.context.interests,
     effectiveReport,
     agentScope,
+    jointBlocked,
   );
   const verifiedStops = (agent.activeItinerary?.stops ?? []).map((stop) => ({
     flyaiId: stop.flyaiId,
@@ -118,7 +123,16 @@ export function JourneyApp() {
         <div
           className={`${tab === "map" ? "block" : "hidden"} lg:sticky lg:top-4 lg:block lg:h-[calc(100dvh-7.5rem)]`}
         >
-          <MapPanel
+          {jointBlocked ? (
+            <div className="flex min-h-[24rem] h-full items-center justify-center rounded-2xl border border-line bg-card p-6">
+              <div className="max-w-md text-sm leading-6">
+                <h2 className="font-semibold">路线暂停执行，等待双方确认</h2>
+                <p className="mt-2 text-ink-500">{jointBlockReason}</p>
+                <p className="mt-2 text-ink-500">确认前不显示旧路线，也不会切回单人行程。</p>
+                <a href="#joint-negotiation" onClick={() => setTab("plan")} className="mt-3 inline-block text-brand-700 underline">查看协商与确认</a>
+              </div>
+            </div>
+          ) : <MapPanel
             features={mapFeatures}
             routeLines={mapRouteLines}
             lakeOutline={journey.geography.lakeOutline}
@@ -129,7 +143,7 @@ export function JourneyApp() {
             scene={scene}
             mapConfig={mapConfig}
             undrawnLegs={verifiedScene?.undrawnLegs ?? []}
-          />
+          />}
         </div>
 
         <div className="flex min-h-0 flex-col gap-4">
@@ -145,15 +159,21 @@ export function JourneyApp() {
           {/* 主流程按钮：窄屏钉在屏幕下沿（滚到哪一步都能点，首屏就一定看得见），
               桌面端回到右栏顶部跟随滚动。同一份组件、同一批按钮，不会出现两个入口。 */}
           <div className="fixed inset-x-0 bottom-0 z-30 p-3 lg:sticky lg:inset-x-auto lg:bottom-auto lg:top-4 lg:z-20 lg:p-0">
-            <PlanActionBar route={verifiedRoute} agent={agent} categories={discover.selected} jointLocked={jointRoute !== null} />
+            {jointBlocked ? (
+              <div className="rounded-2xl border border-line bg-card/95 p-3 text-xs shadow-sm">
+                <p className="font-medium">双人方案尚未生效</p>
+                <p className="mt-1 text-ink-500">{jointBlockReason}</p>
+                <a href="#joint-negotiation" onClick={() => setTab("plan")} className="mt-2 inline-block text-brand-700 underline">查看双方条件并确认</a>
+              </div>
+            ) : <PlanActionBar route={verifiedRoute} agent={agent} categories={discover.selected} jointLocked={jointRoute !== null} />}
           </div>
 
           <div
             className={`${tab === "plan" ? "flex" : "hidden"} flex-col gap-4 lg:flex lg:overflow-y-auto lg:pr-1`}
           >
-            <DiscoverPanel cityName={journey.context.city} discover={discover} />
+            {!jointBlocked && <DiscoverPanel cityName={journey.context.city} discover={discover} />}
 
-            <VerifiedRoutePanel
+            {!jointBlocked && <VerifiedRoutePanel
               cityName={journey.context.city}
               route={verifiedRoute}
               categories={discover.selected}
@@ -163,15 +183,17 @@ export function JourneyApp() {
               selectedStopId={agent.selectedStopId}
               arrivedStopIds={agent.arrivedStopIds}
               onSelectStop={agent.selectStop}
-            />
+            />}
 
-            <AgentPanel agent={agent} stops={verifiedStops} />
+            {!jointBlocked && <AgentPanel agent={agent} stops={verifiedStops} />}
 
-            <NegotiationPanel plan={plan} factsId={verifiedRoute.report?.facts?.factsId ?? null} />
+            <div id="joint-negotiation">
+              <NegotiationPanel plan={plan} factsId={verifiedRoute.report?.facts?.factsId ?? null} />
+            </div>
 
             {/* 阶段一的演示链路（预写行程与讲解）只在还没有真实路线时兜底显示，
                 核验出结果之后整块撤下主界面，只保留在下面调试面板里，避免屏幕上并排两条路线。 */}
-            {!activeItinerary && (
+            {!activeItinerary && !jointMode && (
               <>
                 <ItineraryPanel
                   routeLabel={journey.route.label}

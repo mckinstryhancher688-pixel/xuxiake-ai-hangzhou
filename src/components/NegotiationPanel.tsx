@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { COST_SCOPE_NOTICE, type PartyConditions, type SoftRank } from "@/lib/negotiation/types";
+import { useState } from "react";
+import { COST_SCOPE_NOTICE, type PartyConditions } from "@/lib/negotiation/types";
+import { conditionsFromDraft, costApprovalKey, draftFromConditions, savedConditionsKey, type ConditionsDraft, type PoiChoice } from "@/lib/negotiation/editor";
 import { MATCH_STATUS_LABELS, OPENING_STATUS_LABELS } from "@/lib/verification";
-import type { EditorConditions, PlanController } from "@/hooks/usePlan";
-import type { PlanSnapshot, RevisionView } from "@/lib/plan-api";
+import type { PlanController } from "@/hooks/usePlan";
+import type { RevisionView } from "@/lib/plan-api";
 import type { NegotiationExplainResponse } from "@/lib/types";
 
 const RANK_LABELS: Record<string, string> = {
@@ -15,36 +16,6 @@ const RANK_LABELS: Record<string, string> = {
   avoid: "不太想去",
   follow: "愿意跟随",
 };
-
-/** 一个下拉框承载全部六档态度：硬条件与软偏好在数据结构上就是分开的两档。 */
-type Choice = "ok" | "must" | "never" | "prefer" | "avoid" | "follow";
-
-function choiceOf(snapshot: PlanSnapshot | null, id: string): Choice {
-  if (!snapshot) return "ok";
-  const mine = snapshot.conditions[snapshot.role];
-  if (!mine) return "ok";
-  if (mine.hard.mustVisit.includes(id)) return "must";
-  if (mine.hard.neverAccept.includes(id)) return "never";
-  return (mine.soft[id] ?? "ok") as Choice;
-}
-
-/** 界面只交结构化条件；角色、上限与可行性一律由服务端判定，浏览器不参与决定。 */
-function toConditions(choices: Record<string, Choice>, cap: string, bias: PartyConditions["bias"]): EditorConditions {
-  const mustVisit: string[] = [];
-  const neverAccept: string[] = [];
-  const soft: Record<string, SoftRank> = {};
-  for (const [id, choice] of Object.entries(choices)) {
-    if (choice === "must") mustVisit.push(id);
-    else if (choice === "never") neverAccept.push(id);
-    else if (choice !== "ok") soft[id] = choice as SoftRank;
-  }
-  const trimmed = cap.trim();
-  return {
-    hard: { maxWalkMeters: trimmed ? Number(trimmed) : null, mustVisit, neverAccept },
-    soft,
-    bias,
-  };
-}
 
 function DiffCard({ revision }: { revision: RevisionView }) {
   const diff = revision.diff;
@@ -84,11 +55,13 @@ function ExplainCard({
   explaining,
   headRevision,
   onExplain,
+  blockedReason,
 }: {
   explanation: NegotiationExplainResponse | null;
   explaining: boolean;
   headRevision: number | null;
   onExplain: () => void;
+  blockedReason: string | null;
 }) {
   const stale = explanation !== null && explanation.revision !== null && explanation.revision !== headRevision;
   const unmatched = explanation?.audit?.unmatched ?? [];
@@ -98,7 +71,7 @@ function ExplainCard({
         <p className="font-medium">让 AI 解释这次取舍</p>
         <button
           type="button"
-          disabled={explaining || headRevision === null}
+          disabled={explaining || headRevision === null || blockedReason !== null}
           onClick={onExplain}
           className="rounded-lg border border-brand-500/40 bg-brand-50 px-3 py-1.5 font-medium text-brand-700 disabled:opacity-50"
         >
@@ -109,6 +82,7 @@ function ExplainCard({
         这一步会真实调用一次百炼。距离、耗时、可行性与硬约束是否满足都由服务端判定，模型只解释取舍、
         并只能在服务端给出的下一步选项里挑；它不能改任何人的底线，也不能替对方同意。
       </p>
+      {blockedReason ? <p className="mt-2 text-amber-800">{blockedReason}</p> : null}
       {stale ? (
         <p className="mt-2 rounded bg-amber-50 p-2 text-amber-900">
           这份解释针对的是 v{explanation?.revision}，当前已是 v{headRevision}，请重新解释。
@@ -191,15 +165,18 @@ export function NegotiationPanel({ plan, factsId }: { plan: PlanController; fact
     leave,
     explain,
   } = plan;
-  const [choices, setChoices] = useState<Record<string, Choice>>({});
-  const [cap, setCap] = useState("");
-  const [bias, setBias] = useState<PartyConditions["bias"]>("neutral");
+  const [edit, setEdit] = useState<{
+    owner: string;
+    savedKey: string;
+    revision: number | null;
+    draft: ConditionsDraft;
+  } | null>(null);
+  const [costQuote, setCostQuote] = useState<{ context: string; mine: string } | null>(null);
 
   const head = snapshot?.head ?? null;
-  const gate = useMemo(() => {
-    if (!snapshot) return null;
-    return snapshot.canExecute;
-  }, [snapshot]);
+  const gate = busy
+    ? { allowed: false, reason: "正在更新协商状态，结果返回前暂停执行。" }
+    : plan.syncError ? { allowed: false, reason: plan.syncError } : snapshot?.canExecute ?? null;
 
   if (!identity) {
     return (
@@ -224,6 +201,41 @@ export function NegotiationPanel({ plan, factsId }: { plan: PlanController; fact
 
   const role = snapshot?.role ?? identity.role;
   const mine = snapshot ? snapshot.conditions[role] : null;
+  const owner = `${identity.planId}:${role}`;
+  const savedKey = savedConditionsKey(mine);
+  const activeEdit = edit?.owner === owner ? edit : null;
+  // 没有编辑时直接从完整已保存条件派生；同伴刷新不会覆盖正在填写的本方草稿。
+  const draft = activeEdit?.draft ?? draftFromConditions(mine);
+  const ownConditionsChanged = activeEdit !== null && activeEdit.savedKey !== savedKey;
+  const peerRevisionChanged = activeEdit !== null && activeEdit.revision !== (snapshot?.headRevision ?? null);
+  const submittedConditions = { role, ...conditionsFromDraft(draft) };
+  const quoteValid = costQuote !== null && snapshot?.status === "awaiting-cost-approval"
+    && costQuote.context === costApprovalKey(identity.planId, role, snapshot.headRevision, snapshot.conditions)
+    && costQuote.mine === savedConditionsKey(submittedConditions);
+  const editDraft = (change: Partial<ConditionsDraft>) => {
+    setCostQuote(null);
+    setEdit({
+      owner,
+      savedKey: activeEdit?.savedKey ?? savedKey,
+      revision: activeEdit ? activeEdit.revision : snapshot?.headRevision ?? null,
+      draft: { ...draft, ...change },
+    });
+  };
+  const submitDraft = async (confirmCost: boolean) => {
+    if (ownConditionsChanged || !snapshot || busy || (confirmCost && !quoteValid)) return;
+    setCostQuote(null);
+    const view = await submitConditions(conditionsFromDraft(draft), confirmCost, confirmCost ? costQuote?.context : undefined);
+    if (view?.code === "cost-approval-needed") {
+      setCostQuote({
+        context: costApprovalKey(identity.planId, role, snapshot.headRevision, { ...snapshot.conditions, [role]: submittedConditions }),
+        mine: savedConditionsKey(submittedConditions),
+      });
+    }
+    // 下列结果的条件已经保存，即使求解无解也不能恢复旧底线。冲突/网络失败则保留编辑。
+    if (view && ["ok", "cost-approval-needed", "no-solution", "measurement-failed", "quota"].includes(view.code)) {
+      setEdit(null);
+    }
+  };
   const peerConfirmed = head ? head.confirmations[role === "A" ? "B" : "A"] : null;
   const iConfirmed = head ? head.confirmations[role] : null;
 
@@ -235,6 +247,13 @@ export function NegotiationPanel({ plan, factsId }: { plan: PlanController; fact
           退出这条协商
         </button>
       </div>
+      <div className="mt-2 flex items-center justify-between gap-2 text-xs text-ink-500">
+        <span>双方状态自动同步；条件修改后需分别确认新版。</span>
+        <button type="button" disabled={busy || plan.refreshing} onClick={() => void plan.refresh()} className="shrink-0 underline disabled:opacity-50">
+          {plan.refreshing ? "正在同步…" : "刷新协商状态"}
+        </button>
+      </div>
+      {plan.updateNotice ? <p role="status" className="mt-1 text-xs text-brand-700">{plan.updateNotice}</p> : null}
 
       <p className="mt-1 text-xs leading-5 text-ink-500">
         链接是访问凭据，不是身份证明：拿到 {role} 这条链接的人，就等于这一方。
@@ -304,7 +323,7 @@ export function NegotiationPanel({ plan, factsId }: { plan: PlanController; fact
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={busy || snapshot?.status !== "awaiting-confirmation" || Boolean(iConfirmed)}
+              disabled={busy || activeEdit !== null || snapshot?.status !== "awaiting-confirmation" || Boolean(iConfirmed)}
               onClick={() => head && void confirm(head.revision, head.contentHash)}
               className="rounded-lg bg-brand-700 px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
             >
@@ -325,12 +344,16 @@ export function NegotiationPanel({ plan, factsId }: { plan: PlanController; fact
                 : ""}
             </p>
           </div>
+          {activeEdit ? <p className="mt-1 text-xs text-amber-800">请先提交或放弃未提交的条件修改，再确认这份方案。</p> : null}
 
           <ExplainCard
             explanation={explanation}
             explaining={explaining}
             headRevision={head.revision}
             onExplain={() => void explain()}
+            blockedReason={busy || head.status === "superseded" || snapshot?.status === "paused" || snapshot?.status === "awaiting-cost-approval"
+              ? "当前条件尚未求解完成，请先解决冲突或完成补测，再解释新版。"
+              : null}
           />
         </>
       ) : (
@@ -338,22 +361,38 @@ export function NegotiationPanel({ plan, factsId }: { plan: PlanController; fact
       )}
 
       {/* 条件录入：全部从已核验候选全集里点选，不做自由文本 */}
-      <div className="mt-4 border-t border-line pt-3">
+      <fieldset disabled={busy || !snapshot} className="mt-4 border-t border-line pt-3">
         <p className="text-xs font-medium">我这一方的条件</p>
+        {ownConditionsChanged ? (
+          <p role="status" className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
+            本方已保存条件在另一页面发生变化。你的草稿仍保留，请先加载本方最新条件再编辑，避免覆盖底线。
+            <button type="button" onClick={() => { setEdit(null); setCostQuote(null); }} className="ml-2 underline">加载本方最新条件</button>
+          </p>
+        ) : peerRevisionChanged ? (
+          <p role="status" className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
+            方案已更新，你的未提交条件已保留；请查看上方新版后再提交。
+            <button type="button" onClick={() => { setEdit(null); setCostQuote(null); }} className="ml-2 underline">放弃未提交修改</button>
+          </p>
+        ) : activeEdit ? (
+          <p className="mt-1 text-xs text-ink-500">
+            有未提交的条件修改
+            <button type="button" onClick={() => { setEdit(null); setCostQuote(null); }} className="ml-2 underline">放弃未提交修改</button>
+          </p>
+        ) : null}
         <div className="mt-2 space-y-1">
           <label className="flex items-center gap-2 text-xs">
             <span className="w-24 shrink-0 text-ink-500">步行上限</span>
             <input
               inputMode="numeric"
-              value={cap}
-              onChange={(event) => setCap(event.target.value.replace(/[^\d]/g, "").slice(0, 5))}
+              value={draft.cap}
+              onChange={(event) => editDraft({ cap: event.target.value.replace(/[^\d]/g, "").slice(0, 5) })}
               placeholder="米，留空＝不提这个要求"
               className="w-full rounded border border-line bg-paper px-2 py-1"
             />
           </label>
           <label className="flex items-center gap-2 text-xs">
             <span className="w-24 shrink-0 text-ink-500">整体倾向</span>
-            <select value={bias} onChange={(event) => setBias(event.target.value as PartyConditions["bias"])} className="rounded border border-line bg-paper px-2 py-1">
+            <select value={draft.bias} onChange={(event) => editDraft({ bias: event.target.value as PartyConditions["bias"] })} className="rounded border border-line bg-paper px-2 py-1">
               <option value="neutral">无所谓</option>
               <option value="see_more">多看几个</option>
               <option value="walk_less">少走路</option>
@@ -372,8 +411,9 @@ export function NegotiationPanel({ plan, factsId }: { plan: PlanController; fact
                   : ""}
               </span>
               <select
-                value={choiceOf(snapshot, item.id)}
-                onChange={(event) => setChoices((previous) => ({ ...previous, [item.id]: event.target.value as Choice }))}
+                aria-label={`${item.name}的出游意愿`}
+                value={draft.choices[item.id] ?? "ok"}
+                onChange={(event) => editDraft({ choices: { ...draft.choices, [item.id]: event.target.value as PoiChoice } })}
                 className="shrink-0 rounded border border-line bg-paper px-1 py-1 text-[11px]"
               >
                 {Object.entries(RANK_LABELS).map(([value, label]) => (
@@ -388,12 +428,16 @@ export function NegotiationPanel({ plan, factsId }: { plan: PlanController; fact
 
         <button
           type="button"
-          disabled={busy || !snapshot}
-          onClick={() => void submitConditions(toConditions(choices, cap, bias), false)}
+          disabled={busy || !snapshot || ownConditionsChanged}
+          onClick={() => void submitDraft(false)}
           className="mt-3 w-full rounded-lg bg-brand-700 px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
         >
-          {busy ? "服务端正在重解…" : "提交我的条件（已实测段内重解，不新增调用）"}
+          {busy ? "服务端正在重解…" : "提交我的条件"}
         </button>
+        <p className="mt-1 text-[11px] leading-4 text-ink-500">
+          优先复用已实测数据；缺段时可能自动补测，超过 {snapshot?.budget.approvalThreshold ?? 6} 条会先询问。
+          实际调用数见下方消耗记录。
+        </p>
         {mine ? (
           <p className="mt-1 text-[11px] text-ink-500">
             当前生效：{mine.hard.maxWalkMeters ? `步行≤${mine.hard.maxWalkMeters} 米` : "未提步行上限"} ·{" "}
@@ -401,11 +445,12 @@ export function NegotiationPanel({ plan, factsId }: { plan: PlanController; fact
             {mine.hard.neverAccept.length ? `绝不接受 ${mine.hard.neverAccept.length} 处` : "无绝不接受"}
           </p>
         ) : null}
-      </div>
+      </fieldset>
 
       {/* 成本闸门：只有这一步会真的花钱，且必须显式点击 */}
       {result?.code === "cost-approval-needed" ? (
         <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs">
+          {!quoteValid ? <p className="mb-2 font-medium">条件或方案已变化，原补测报价已失效。请先重新提交条件获取报价。</p> : null}
           <p className="font-medium">需要补测 {result.missingEdges.length} 条步行段才能回答这个条件</p>
           <ul className="mt-1 list-disc pl-4">
             {result.missingEdges.slice(0, 10).map((edge) => (
@@ -415,8 +460,8 @@ export function NegotiationPanel({ plan, factsId }: { plan: PlanController; fact
           <p className="mt-1 text-ink-500">本小时步行余量 {snapshot?.budget.hourlyHeadroomWalking} 次；批准后才会发起这些请求。</p>
           <button
             type="button"
-            disabled={busy}
-            onClick={() => void submitConditions(toConditions(choices, cap, bias), true)}
+            disabled={busy || ownConditionsChanged || !quoteValid}
+            onClick={() => void submitDraft(true)}
             className="mt-2 w-full rounded-lg bg-amber-700 px-3 py-2 font-medium text-white disabled:opacity-50"
           >
             同意新增 {result.missingEdges.length} 次高德实测

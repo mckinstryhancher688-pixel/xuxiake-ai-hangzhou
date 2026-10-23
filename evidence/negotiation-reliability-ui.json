@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-23",
+  "source": "本地夹具，非真实API路线验收",
+  "development": [
+    {
+      "name": "B 初始上限完整回填6000米",
+      "pass": true
+    },
+    {
+      "name": "POI 三种选择不会回跳",
+      "pass": true
+    },
+    {
+      "name": "A 无需手动刷新收到 B 新版且旧正式确认挂起",
+      "pass": true
+    },
+    {
+      "name": "同伴更新保留 A 未提交5000米草稿",
+      "pass": true
+    },
+    {
+      "name": "刷新后回填上限和必须去/绝不接受/特别想去",
+      "pass": true
+    },
+    {
+      "name": "有效session刷新不误报缺失链接凭据",
+      "pass": true
+    },
+    {
+      "name": "刷新后只改整体倾向仍保留6000米及三类POI态度",
+      "pass": true
+    },
+    {
+      "name": "邀请页退出后身份不会自动恢复",
+      "pass": true
+    },
+    {
+      "name": "退出后刷新仍不会自动重入",
+      "pass": true
+    }
+  ],
+  "production": [
+    {
+      "name": "生产构建：修改硬条件后旧确认挂起",
+      "pass": true
+    },
+    {
+      "name": "生产构建：A自动收到B新版，无需手动刷新",
+      "pass": true
+    },
+    {
+      "name": "生产构建：刷新保留B2000米与必须去",
+      "pass": true
+    },
+    {
+      "name": "未提交草稿时不能误确认旧条件",
+      "pass": true
+    },
+    {
+      "name": "只一方确认时主界面隐藏旧地图及付费操作",
+      "pass": true
+    },
+    {
+      "name": "双方确认后主界面使用新版1站54分钟而非旧4站170分钟",
+      "pass": true
+    },
+    {
+      "name": "双方确认后B再改底线，A自动挂起旧正式地图与操作",
+      "pass": true
+    },
+    {
+      "name": "最终构建冒烟：底线1500米与新提交文案恢复",
+      "pass": true
+    },
+    {
+      "name": "最终构建冒烟：双方确认v4后执行门禁放行",
+      "pass": true
+    }
+  ],
+  "finalCounters": {
+    "headRevision": 4,
+    "canExecute": true,
+    "placeCalls": 0,
+    "walkingCalls": 0,
+    "logicalRequests": 0,
+    "httpRetries": 0,
+    "fixture": true
+  }
+}

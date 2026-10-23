@@ -3,8 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { buildNegotiationBrief } from "../src/lib/negotiation/ai-context.ts";
 import { emptyConditions } from "../src/lib/negotiation/types.ts";
-import { makeCompleteFacts } from "./negotiation-fixture.ts";
+import { makeCompleteFacts, makeShortlistedFacts } from "./negotiation-fixture.ts";
 import { agentScopeKey, agentTurnKey } from "../src/lib/server/plan-tickets.ts";
+import { costApprovalKey } from "../src/lib/negotiation/editor.ts";
 
 /**
  * 双人协商 × 百炼的零付费验收。
@@ -67,6 +68,19 @@ check("1 事实块里两边条件都在（含步行上限与倾向）",
   brief.block.includes("A：") && brief.block.includes("B：") && /3000 米|3\.00 公里/.test(brief.block) && brief.block.includes("倾向"),
   { 条件行: brief.block.split("\n").filter((line) => line.startsWith("【双方条件】")).map((line) => line.slice(0, 56)) });
 check("2 事实块带服务端判定与当前版本", /【服务端判定】/.test(brief.block) && /【当前版本】v2/.test(brief.block));
+const emptyALine = brief.block.split("\n").find((line) => line.startsWith("【双方条件】A：")) ?? "";
+check("2b 空条件明确标成未设置，不把默认值写成用户无所谓或无异议",
+  emptyALine.includes("未设置必须去") && emptyALine.includes("未设置绝不接受") &&
+    emptyALine.includes("尚未填写逐站偏好") && !emptyALine.includes("无所谓") &&
+    brief.block.includes("是否同意当前行程只能依据该版本的确认记录"),
+  { A: emptyALine });
+check("2c 完整图未入选站的真实可行依据进入 AI 事实块，不输入虚假的缺连接理由",
+  brief.block.includes("有含该站的已实测可行走法") && !brief.block.includes("与本方案其它站之间没有实测段"));
+const explicitlyOk = structuredClone(store.planForBrief(planId));
+explicitlyOk.state.conditions.A.soft = { c1: "ok" };
+const explicitBrief = buildNegotiationBrief(explicitlyOk);
+check("2d 显式可以去与未评价分开表达，不能在压缩事实时丢失当事人评价",
+  explicitBrief.block.split("\n").find((line) => line.startsWith("【双方条件】A："))?.includes("集贤亭=可以去"));
 const diffLine = (brief.block.split("【真实差异】")[1] ?? "").split("\n")[0];
 const diffPair = diffLine.match(/总步行\s*([\d.]+)\s*(公里|米)\s*→\s*([\d.]+)\s*(公里|米)/);
 const asMeters = (value, unit) => (unit === "公里" ? Math.round(parseFloat(value) * 1000) : Math.round(parseFloat(value)));
@@ -190,6 +204,47 @@ check("19b 对外的解释响应里没有任何会话键，只有 12 位截断�
   /^[0-9a-f]{12}$/.test(String(explainFailed.scopeKey ?? "")) &&
     !JSON.stringify(explainFailed).includes(scopeA) &&
     !JSON.stringify(explainFailed).includes(scopeB));
+
+/* ── 4. 新条件未解出新版本时，不能把新条件与旧 solve 拼给百炼 ───── */
+const pendingFacts = makeShortlistedFacts();
+pendingFacts.measuredAt = new Date().toISOString();
+factsStore.putFactSet(pendingFacts);
+const pending = store.createPlanRecord({ facts: pendingFacts, conditionsA: emptyConditions("A"), now: new Date() });
+await store.runPlanMutation(pending.planId, {
+  kind: "conditions", role: "A", conditions: emptyConditions("A"),
+  expectedRevision: null, attemptId: "pending-a", confirmCost: false,
+});
+const pendingV1 = store.planSnapshot(pending.planId, "A").headRevision;
+const needsFar = { ...emptyConditions("B"), hard: { ...emptyConditions("B").hard, mustVisit: ["s7"] } };
+const quoted = await store.runPlanMutation(pending.planId, {
+  kind: "conditions", role: "B", conditions: needsFar,
+  expectedRevision: pendingV1, attemptId: "pending-quote", confirmCost: false,
+});
+const beforePendingExplain = outbound.length;
+const pendingExplain = await agent.explainNegotiation({ planId: pending.planId, role: "A" });
+check("20 待成本批准仍保留旧 head 时，解释在付费前拒绝且外部请求为零",
+  quoted.code === "cost-approval-needed" && store.planSnapshot(pending.planId, "A").headRevision === pendingV1 &&
+    pendingExplain.ok === false && /先完成当前条件/.test(pendingExplain.error ?? "") &&
+    pendingExplain.proof === null && outbound.length === beforePendingExplain,
+  { code: quoted.code, headRevision: pendingV1, error: pendingExplain.error, addedRequests: outbound.length - beforePendingExplain });
+
+// 明确注入模拟失败，避免借测试发出任何外部补测请求。
+const pendingSource = store.planForBrief(pending.planId);
+const { submitConditions } = await import("../src/lib/negotiation/plan-state.ts");
+const failedConditions = await submitConditions(pendingSource.state, pendingFacts, {
+  expectedCostKey: costApprovalKey(pendingSource.state.planId, "B", pendingV1, pendingSource.state.conditions),
+  role: "B", conditions: needsFar, expectedRevision: pendingV1, attemptId: "pending-fail", confirmCost: true,
+  now: new Date(), measure: async () => ({ ok: false, error: "夹具注入的补测失败", simulated: true, retries: 0 }),
+});
+const beforeFailedExplain = outbound.length;
+const failedExplain = await agent.explainNegotiation({ planId: pending.planId, role: "B" });
+check("21 条件已保存但补测失败、head 未升版时，不把新条件与旧求解结果送给百炼",
+  failedConditions.code === "measurement-failed" && pendingSource.state.status === "paused" &&
+    pendingSource.state.conditions.B.hard.mustVisit.includes("s7") && pendingSource.state.headRevision === pendingV1 &&
+    failedExplain.ok === false && /先完成当前条件/.test(failedExplain.error ?? "") &&
+    failedExplain.proof === null && outbound.length === beforeFailedExplain,
+  { code: failedConditions.code, status: pendingSource.state.status, headRevision: pendingSource.state.headRevision,
+    error: failedExplain.error, addedRequests: outbound.length - beforeFailedExplain });
 
 const passed = results.filter((item) => item.pass).length;
 console.log(`\n${passed}/${results.length} 通过（夹具事实 + 假密钥 + fetch 桩，零高德/飞猪/百炼真实调用）`);

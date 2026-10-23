@@ -9,6 +9,7 @@ import {
   submitConditions,
 } from "../src/lib/negotiation/plan-state.ts";
 import { makeCompleteFacts, makeShortlistedFacts } from "./negotiation-fixture.ts";
+import { costApprovalKey } from "../src/lib/negotiation/editor.ts";
 
 /**
  * 状态规则的独立验收：这一组只管「规则有没有被绕过」，零高德、零飞猪、零百炼。
@@ -35,6 +36,15 @@ function cond(role, over = {}) {
     soft: over.soft ?? {},
     bias: over.bias ?? "neutral",
   };
+}
+
+async function approveQuotedConditions(state, facts, input) {
+  const quoted = await submitConditions(state, facts, {
+    ...input, attemptId: `${input.attemptId}:quote`, confirmCost: false,
+  });
+  if (!["cost-approval-needed", "quota"].includes(quoted.code)) throw new Error(`夹具未得到成本报价：${quoted.code}`);
+  return submitConditions(state, facts, { ...input,
+    expectedCostKey: costApprovalKey(state.planId, input.role, state.headRevision, state.conditions) });
 }
 
 function freshPlan(facts, a = cond("A")) {
@@ -70,7 +80,7 @@ function measureSpy({ fail = false } = {}) {
   confirmRevision(state, { role: "B", revision: v1.revision, contentHash: v1.contentHash, now: START_AT });
   const wasOfficial = state.officialRevision;
   const tooTight = Math.max(200, v1.itinerary.totalWalkMeters - 1);
-  const failed = await submitConditions(state, facts, {
+  const failed = await approveQuotedConditions(state, facts, {
     role: "B",
     conditions: cond("B", { hard: { maxWalkMeters: tooTight, mustVisit: ["s7"] } }),
     expectedRevision: v1.revision,
@@ -197,13 +207,14 @@ function measureSpy({ fail = false } = {}) {
     role: "A", conditions: cond("A"), expectedRevision: null, attemptId: "r5-a", now: START_AT, measure: spy.measure,
   });
   const v1 = headRevisionOf(state);
-  await submitConditions(state, facts, {
+  await approveQuotedConditions(state, facts, {
     role: "B",
     conditions: cond("B", { hard: { mustVisit: ["s7"] } }),
     expectedRevision: v1.revision, attemptId: "r5-b", confirmCost: true, now: START_AT, measure: spy.measure,
   });
   const spentAfterValid = state.budget.spentThisPlan;
   const stale = await submitConditions(state, facts, {
+    expectedCostKey: costApprovalKey(state.planId, "A", state.headRevision, state.conditions),
     role: "A",
     // 同样是要补测的条件，但基于过期版本：必须在花钱之前就被拒
     conditions: cond("A", { hard: { mustVisit: ["s8"] } }),
@@ -227,7 +238,7 @@ function measureSpy({ fail = false } = {}) {
   });
   const v1 = headRevisionOf(state);
   state.budget.spentThisPlan = state.budget.perPlanHardMax - 1;
-  const over = await submitConditions(state, facts, {
+  const over = await approveQuotedConditions(state, facts, {
     role: "B",
     conditions: cond("B", { hard: { mustVisit: ["s7"] } }),
     expectedRevision: v1.revision, attemptId: "r6-b", confirmCost: true, now: START_AT, measure: spy.measure,

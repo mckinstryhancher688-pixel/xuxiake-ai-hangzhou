@@ -890,6 +890,14 @@ export function explainNegotiation(
         );
       }
       const revision = headRevisionOf(source.state);
+      if (
+        source.state.status === "paused" || source.state.status === "awaiting-cost-approval" ||
+        revision?.status === "superseded" || revision?.suspended
+      ) {
+        throw new AgentRefused(
+          "当前条件尚未完成求解，旧版本已挂起，不能用旧方案解释新的条件。请先完成当前条件的求解或补测成本批准，再解释有效版本；本次没有调用百炼。",
+        );
+      }
       const brief = buildNegotiationBrief({ facts: source.facts, state: source.state, revision });
       const fingerprint = createHash("sha1").update(brief.block).digest("hex").slice(0, 16);
       scopeKey = agentScopeKey(

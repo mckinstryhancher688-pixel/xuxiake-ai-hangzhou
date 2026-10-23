@@ -1,6 +1,7 @@
 import type { VerifiedItinerary } from "@/lib/types";
 import { diffItineraries } from "./diff.ts";
 import { estimateMissingEdges, solveJoint } from "./solve.ts";
+import { costApprovalKey, savedConditionsKey } from "./editor.ts";
 import {
   type FactEntry,
   type FactSet,
@@ -309,6 +310,7 @@ export async function submitConditions(
     expectedRevision: number | null;
     attemptId: string;
     confirmCost?: boolean;
+    expectedCostKey?: string;
     now: Date;
     measure: MeasureFn;
   },
@@ -340,6 +342,20 @@ export async function submitConditions(
       detail: `提交基于 v${input.expectedRevision ?? "无"},当前已是 v${state.headRevision ?? "无"}；过期页面不能覆盖新版本。`,
       legsSpent: 0, missingEdges: [], simulated: false, createdAt: input.now.toISOString(),
     }, "stale-revision", `版本已更新，请刷新后重试（当前 v${state.headRevision ?? "无"}）。`);
+  }
+
+  // 成本批准只能批准刚才看到的条件：检查必须在锁内、任何条件落定与补测之前。
+  // 条件变更失败时 headRevision 可能不变，单靠版本 CAS 无法保护这一次付费。
+  if (input.confirmCost && (
+    input.expectedCostKey !== costApprovalKey(state.planId, input.role, state.headRevision, state.conditions) ||
+    savedConditionsKey(input.conditions) !== savedConditionsKey(state.conditions[input.role])
+  )) {
+    const message = "报价已失效，请重新提交条件";
+    return reject(state, {
+      attemptId: input.attemptId, role: input.role, kind: "update-conditions",
+      status: "rejected:stale-revision", detail: message, legsSpent: 0, missingEdges: [],
+      simulated: false, createdAt: input.now.toISOString(),
+    }, "stale-revision", message);
   }
 
   // ── 花钱之前，先把条件与状态落定 ────────────────────────────────

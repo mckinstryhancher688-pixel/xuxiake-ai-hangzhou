@@ -48,6 +48,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pla
       expectedRevision: expected.value,
       attemptId,
       confirmCost: parsed.body.confirmCost === true,
+      expectedCostKey: typeof parsed.body.expectedCostKey === "string" ? parsed.body.expectedCostKey : undefined,
     }),
   );
   return Response.json(

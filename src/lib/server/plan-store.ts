@@ -260,7 +260,7 @@ function refreshBudgetWindow(state: PlanState): void {
 }
 
 export type PlanMutation =
-  | { kind: "conditions"; role: Role; conditions: PartyConditions; expectedRevision: number | null; attemptId: string; confirmCost: boolean }
+  | { kind: "conditions"; role: Role; conditions: PartyConditions; expectedRevision: number | null; attemptId: string; confirmCost: boolean; expectedCostKey?: string }
   | { kind: "propose"; role: Role; expectedRevision: number | null; attemptId: string }
   | { kind: "confirm"; role: Role; revision: number; contentHash: string }
   | { kind: "revoke"; role: Role };
@@ -394,6 +394,7 @@ async function applyPlanMutation(planId: string, mutation: PlanMutation): Promis
       expectedRevision: mutation.expectedRevision,
       attemptId: mutation.attemptId,
       confirmCost: mutation.confirmCost,
+      expectedCostKey: mutation.expectedCostKey,
       now,
       measure,
     });
