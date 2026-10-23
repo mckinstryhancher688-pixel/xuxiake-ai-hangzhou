@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { NegotiationPanel } from "@/components/NegotiationPanel";
+import { OfficialPlanCard } from "@/components/OfficialPlanCard";
 import { SiteHeader } from "@/components/SiteHeader";
 import { usePlan, type PlanIdentity } from "@/hooks/usePlan";
 import { clearPlanFragment, readPlanLink } from "@/lib/plan-api";
+import { executableOfficial } from "@/lib/negotiation/official-view";
 
 /**
  * 同伴那一方的落地页。
  * 凭据来自 URL fragment：首帧读完立刻清掉地址栏，此后只走请求头。
- * 这一步不做地图、不做讲解，只把「你这一方的条件 → 差异 → 确认」这条链走通。
+ * 本页展示条件、差异、确认与正式行程清单；地图在同标签页的主界面查看。
  */
 export function PlanClient({ planId }: { planId: string }) {
   const [seed, setSeed] = useState<PlanIdentity | null>(null);
@@ -52,6 +53,7 @@ export function PlanClient({ planId }: { planId: string }) {
 
   // 刷新后从本标签页恢复；不能误用另一个 plan 的存储身份。
   const plan = usePlan(seed?.planId === planId ? seed : null, planId, linkReady);
+  const official = executableOfficial(plan.snapshot, plan.busy, plan.syncError);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -60,11 +62,11 @@ export function PlanClient({ planId }: { planId: string }) {
         remainingMinutes={240}
         routeLabel="双人协商"
         plan={
-          plan.snapshot?.canExecute.allowed && plan.snapshot.official
+          official
             ? {
-                stops: plan.snapshot.official.itinerary.stops.length,
-                totalMinutes: plan.snapshot.official.itinerary.totalMinutes,
-                budgetMinutes: plan.snapshot.official.itinerary.budgetMinutes,
+                stops: official.itinerary.stops.length,
+                totalMinutes: official.itinerary.totalMinutes,
+                budgetMinutes: official.itinerary.budgetMinutes,
               }
             : null
         }
@@ -79,7 +81,10 @@ export function PlanClient({ planId }: { planId: string }) {
           <p className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800">{warning}</p>
         ) : null}
         {plan.identity ? (
-          <NegotiationPanel plan={plan} factsId={null} />
+          <>
+            {official ? <OfficialPlanCard revision={official} headRevision={plan.snapshot?.headRevision ?? null} /> : null}
+            <NegotiationPanel plan={plan} factsId={null} />
+          </>
         ) : (
           <>
             {/* 链接失效的原因（撤销／过期／凭据不符）由服务端给出，这里如实转达，不写成「等待有效链接」了事 */}
@@ -89,9 +94,10 @@ export function PlanClient({ planId }: { planId: string }) {
             <p className="text-xs text-ink-500">{!linkReady ? "正在读取角色链接…" : plan.exited ? "已退出这条协商。重新打开完整角色链接才会再次进入。" : "等待有效链接。"}</p>
           </>
         )}
-        <Link href="/" className="text-xs text-brand-700 underline">
-          回到单人主界面
-        </Link>
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- 整页载入才能按当前 session 恢复身份，避免 Activity 复用旧 A/退出状态。 */}
+        <a href="/" className="text-xs text-brand-700 underline">
+          {plan.identity ? "前往主界面（保留当前协商身份）" : "返回主界面"}
+        </a>
       </main>
     </div>
   );

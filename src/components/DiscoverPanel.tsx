@@ -1,4 +1,4 @@
-import { MISSING_FIELD_LABELS } from "@/lib/discovery";
+import { MISSING_FIELD_LABELS, sameCategories } from "@/lib/discovery";
 import type { Discover } from "@/hooks/useDiscover";
 import type {
   DiscoverCategoryResult,
@@ -34,7 +34,11 @@ export function DiscoverPanel({
   cityName: string;
   discover: Discover;
 }) {
-  const badge = PHASE_BADGE[discover.phase];
+  const batchCategories = discover.batch?.results.map((result) => result.category) ?? [];
+  const stale = discover.batch !== null && !sameCategories(batchCategories, discover.selected);
+  const badge = stale && discover.phase !== "loading"
+    ? { label: "上次发现结果", className: "bg-accent-500/15 text-accent-600" }
+    : PHASE_BADGE[discover.phase];
   const loading = discover.phase === "loading";
   const atCategoryLimit = discover.selected.length >= discover.maxCategories;
   const ttlMinutes = discover.status ? discover.status.cacheTtlSeconds / 60 : 10;
@@ -45,8 +49,8 @@ export function DiscoverPanel({
         <div>
           <h2 className="text-sm font-semibold text-ink-900">重新发现 · 飞猪真实 POI</h2>
           <p className="mt-1 text-xs leading-relaxed text-ink-500">
-            {cityName} 的飞猪真实返回。这里勾的类别就是「生成我的路线」的候选池：勾「自然风光」，
-            路线只会在自然风光的候选里挑。卡片上的坐标还没经过高德核实，所以先不画到地图上。
+            为下一次生成选择 {cityName} 的飞猪候选类别。默认从文创街区开始；自然风光可能包含远郊地点，
+            不一定能组成四小时步行路线。卡片坐标仍须高德核实。
           </p>
         </div>
         <span
@@ -90,7 +94,7 @@ export function DiscoverPanel({
       </div>
 
       <p className="mt-2 text-[10px] leading-relaxed text-ink-300">
-        单次最多 {discover.maxCategories} 个类别，每多选一个＝服务端多一次真实调用。
+        单次最多 {discover.maxCategories} 个类别，未命中缓存时每类需要一次真实调用。
         选完类别就直接点「生成我的路线」（按钮一直钉在屏幕上）；路线里放哪几站由高德按「四小时走得完」挑，
         这里不提供手工加站，想换范围就改类别再核一次。
       </p>
@@ -125,14 +129,15 @@ export function DiscoverPanel({
 
       {discover.batch && (
         <p className="mt-3 rounded-lg bg-paper px-2.5 py-2 text-[10px] leading-relaxed text-ink-500 ring-1 ring-line">
+          {stale && <span className="mb-1 block font-medium text-accent-600">以下来自「{batchCategories.join(" + ")}」；已改选「{discover.selected.join(" + ")}」，当前类别尚未查询。</span>}
           {ORIGIN_NOTICE[discover.batch.origin]}
         </p>
       )}
 
       {discover.phase === "idle" && (
         <p className="mt-3 rounded-lg bg-paper px-2.5 py-2 text-[11px] leading-relaxed text-ink-300 ring-1 ring-line">
-          这一步还没单独调用过飞猪：「生成我的路线」已经在服务端按勾选类别查过候选并逐条核实，
-          明细在「高德核验路线」面板的折叠项里；想只看飞猪原始返回，就点「重新发现」。
+          尚未单独发现候选。可以直接点「生成我的路线」完成发现与核验；
+          想先看飞猪原始返回，再点「重新发现」。切换类别本身不会发起查询。
         </p>
       )}
 

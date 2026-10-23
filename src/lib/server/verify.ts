@@ -1,4 +1,5 @@
 import { haversineMeters, wgs84ToGcj02 } from "@/lib/geo";
+import { HANGZHOU_TIME_LABEL } from "@/lib/hangzhou-time";
 import type {
   AmapCallLogEntry,
   AmapPoi,
@@ -22,7 +23,6 @@ import {
   DATUM_DECISIVE_METERS,
   DEFAULT_VERIFY_CATEGORIES,
   DEVIATION_SUSPECT_METERS,
-  MAX_STOPS,
   MAX_STRAIGHT_LINE_METERS,
   MIN_STOPS,
   SHORTLIST_SIZE,
@@ -44,6 +44,11 @@ import {
 import { discoverCity } from "./discover";
 import { buildFactSet, mintFactsId, putFactSet } from "./facts";
 import { composeItinerary, toLeg } from "@/lib/itinerary-compose";
+import {
+  analyzeVerifiedChains,
+  describeVerifiedChainFailure,
+  type VerifiedChain,
+} from "@/lib/verified-chain";
 import type { FlyAiPoiCategory } from "@/lib/discovery";
 
 if (typeof window !== "undefined") {
@@ -220,7 +225,7 @@ async function runPipeline(
     const position = match.routablePosition as LatLng;
     const straight = haversineMeters(start.position, position);
     if (straight > MAX_STRAIGHT_LINE_METERS) {
-      return { match, leg: null, skipped: `直线距离 ${(straight / 1000).toFixed(1)} 公里，超过 ${MAX_STRAIGHT_LINE_METERS / 1000} 公里上限，四小时往返不可能，未消耗路径规划调用` };
+      return { match, leg: null, skipped: `直线距离 ${(straight / 1000).toFixed(1)} 公里，超过当前 ${MAX_STRAIGHT_LINE_METERS / 1000} 公里步行候选范围，未消耗路径规划调用；未实测，不断言实际步行耗时` };
     }
     const result = await planWalking(start.position, position);
     log.push(result.entry);
@@ -331,7 +336,8 @@ async function runPipeline(
   }
 
   /* 9. 穷举 3~4 站的有序组合，用真实步行耗时挑出四小时内最充实的一条。 */
-  const chosen = pickBestChain(pool, pairLegs);
+  const chainAnalysis = analyzeVerifiedChains(pool, pairLegs);
+  const chosen = chainAnalysis.best;
   if (!chosen) {
     return {
       ...base,
@@ -346,7 +352,7 @@ async function runPipeline(
       unverifiedCount,
       routableCount: routable.length,
       itinerary: null,
-      insufficiency: `${pool.length} 个已核验地点的所有 ${MIN_STOPS}~${MAX_STOPS} 站组合，加上模拟停留 ${SIMULATED_STAY_MINUTES} 分钟/站与 ${BUFFER_MINUTES} 分钟余量后都超过 ${BUDGET_MINUTES} 分钟。这里不会缩短真实步行时间来凑数。`,
+      insufficiency: describeVerifiedChainFailure(chainAnalysis, pool.length),
       rejections,
       amap: usage(log),
       flyaiProofs,
@@ -808,10 +814,10 @@ function evaluateOpening(
   if (isWindowClosed(windows, startMinutes, endMinutes)) {
     return {
       status: "conflict",
-      note: `确认冲突：高德营业时间「${match.amap?.opentime}」，而假定行程窗口是 ${formatMinutes(startMinutes)}–${formatMinutes(endMinutes)}，整段都在营业时间外`,
+      note: `确认冲突：高德营业时间「${match.amap?.opentime}」，而假定行程窗口是 ${formatMinutes(startMinutes)}–${formatMinutes(endMinutes)}（${HANGZHOU_TIME_LABEL}），整段都在营业时间外`,
     };
   }
-  return { status: "no-conflict", note: `高德：${match.amap?.opentime}，与假定行程窗口 ${formatMinutes(startMinutes)}–${formatMinutes(endMinutes)} 有交集` };
+  return { status: "no-conflict", note: `高德：${match.amap?.opentime}，与假定行程窗口 ${formatMinutes(startMinutes)}–${formatMinutes(endMinutes)}（${HANGZHOU_TIME_LABEL}）有交集` };
 }
 
 function formatMinutes(minutes: number): string {
@@ -827,64 +833,8 @@ interface ShortlistItem {
   skipped: null;
 }
 
-interface Chain {
-  items: ShortlistItem[];
-  legs: WalkingLeg[];
-  totalMinutes: number;
-}
-
-function pickBestChain(pool: ShortlistItem[], pairLegs: Map<string, WalkingLeg>): Chain | null {
-  let best: Chain | null = null;
-  for (let size = MAX_STOPS; size >= MIN_STOPS; size -= 1) {
-    for (const combo of permutations(pool, size)) {
-      const legs: WalkingLeg[] = [];
-      let walkMinutes = 0;
-      let previous = START_KEY;
-      let complete = true;
-      for (const item of combo) {
-        const leg = pairLegs.get(`${previous}->${item.match.flyaiId}`);
-        if (!leg) {
-          complete = false;
-          break;
-        }
-        legs.push(leg);
-        walkMinutes += leg.durationMinutes;
-        previous = item.match.flyaiId;
-      }
-      if (!complete) continue;
-
-      const totalMinutes =
-        walkMinutes + combo.length * SIMULATED_STAY_MINUTES + BUFFER_MINUTES;
-      if (totalMinutes > BUDGET_MINUTES) continue;
-
-      const chain: Chain = { items: combo, legs, totalMinutes };
-      // 站数多的优先；站数相同再比总耗时
-      if (!best || combo.length > best.items.length || totalMinutes < best.totalMinutes) {
-        best = chain;
-      }
-    }
-    if (best && best.items.length === size) return best;
-  }
-  return best;
-}
-
-function permutations<T>(items: T[], size: number): T[][] {
-  const output: T[][] = [];
-  const walk = (picked: T[], remaining: T[]) => {
-    if (picked.length === size) {
-      output.push([...picked]);
-      return;
-    }
-    for (let index = 0; index < remaining.length; index += 1) {
-      walk([...picked, remaining[index]], [...remaining.slice(0, index), ...remaining.slice(index + 1)]);
-    }
-  };
-  walk([], items);
-  return output;
-}
-
 function buildItinerary(
-  chain: Chain,
+  chain: VerifiedChain<ShortlistItem>,
   start: RouteStart,
   assumedStart: Date,
 ): VerifiedItinerary {

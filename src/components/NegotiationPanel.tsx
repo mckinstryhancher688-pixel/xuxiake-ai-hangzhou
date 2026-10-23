@@ -281,7 +281,7 @@ export function NegotiationPanel({ plan, factsId }: { plan: PlanController; fact
         <p className="mt-1 text-ink-500">{gate?.reason}</p>
         {gate?.allowed ? (
           <p className="mt-1 text-ink-500">
-            地图与行程面板已经切到 v{snapshot?.officialRevision}，走的就是这一份双方确认的路线；
+            正式行程已锁定为 v{snapshot?.officialRevision}，以这一份双方确认的路线执行；
             折线仍来自这一版的高德实测段，没有退回更早的城市/类别结果。
           </p>
         ) : null}

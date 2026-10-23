@@ -135,6 +135,30 @@ async function runPhase(phase) {
     say("过期场景的快照写入成功", saved.ok, saved.error);
   }
 
+  if (phase === "poll-expiry") {
+    const handoff = JSON.parse(fs.readFileSync(HANDOFF, "utf8"));
+    const originalNow = Date.now;
+    const originalMeasuredAt = snapshot.loadSnapshot().plans.find((item) => item.planId === handoff.planId).facts.measuredAt;
+    let clock = Date.parse(originalMeasuredAt);
+    Date.now = () => clock;
+    try {
+      const initial = store.planSnapshot(handoff.planId, "B");
+      clock += 5 * 60 * 60 * 1000 + 59 * 60 * 1000;
+      const stillLive = store.planSnapshot(handoff.planId, "B");
+      say("持续读取到原采集时间5小时59分时，正式版本仍可用", initial?.canExecute.allowed && stillLive?.canExecute.allowed);
+      // 上一次 GET 刚刚触碰过内存 TTL。再过两分钟，必须按原采集时间关门，不能续到下一轮6小时。
+      clock += 2 * 60 * 1000;
+      const expired = store.planSnapshot(handoff.planId, "B");
+      say("轮询不续期：原事实超过6小时后，角色页快照门禁关闭", expired?.canExecute.allowed === false, expired?.canExecute);
+      say("快照明确说明事实过期且需要重新核验", /事实.*过期/.test(expired?.canExecute.reason ?? "") && /重新核验/.test(expired?.canExecute.reason ?? ""));
+      say("过期快照与执行入口判定一致", store.planExecutionJourney(handoff.planId) === null && store.factsStillLive(handoff.planId) === false);
+      say("过期不伪造新版本或删掉历史确认", expired?.headRevision === handoff.headRevision && expired?.officialRevision === handoff.headRevision && Boolean(expired?.official?.confirmations.A && expired?.official?.confirmations.B));
+      say("轮询不改写原始事实采集时间", expired?.facts.measuredAt === originalMeasuredAt);
+    } finally {
+      Date.now = originalNow;
+    }
+  }
+
   if (phase === "stale-read") {
     const handoff = JSON.parse(fs.readFileSync(HANDOFF, "utf8"));
     const live = store.factsStillLive(handoff.planId);
@@ -143,6 +167,9 @@ async function runPhase(phase) {
     say("事实过期后不再当作可用", live === false, { live });
     say("事实过期时执行入口直接关闭，不静默重跑核验", journey === null, { reason });
     say("给出的原因是可读的失效说明", /过期|失效/.test(reason), { reason });
+    const expiredSnapshot = store.planSnapshot(handoff.planId, "A");
+    say("恢复过期事实后角色页也不会宣称正式可执行", expiredSnapshot?.canExecute.allowed === false && /过期/.test(expiredSnapshot?.canExecute.reason ?? ""), expiredSnapshot?.canExecute);
+    say("恢复过期事实不会改动已确认版本号", expiredSnapshot?.headRevision === handoff.headRevision && expiredSnapshot?.officialRevision === handoff.headRevision);
   }
 
   if (phase === "corrupt") {
@@ -168,7 +195,7 @@ async function runPhase(phase) {
 /* ── 主进程：按顺序起子进程并汇总 ───────────────────────────────── */
 
 async function orchestrate() {
-  const phases = ["write", "read", "stale-write", "stale-read", "corrupt", "corrupt-read"];
+  const phases = ["write", "read", "poll-expiry", "stale-write", "stale-read", "corrupt", "corrupt-read"];
   for (const phase of phases) {
     const child = spawnSync(
       process.execPath,

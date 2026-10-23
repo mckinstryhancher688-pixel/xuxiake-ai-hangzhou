@@ -7,6 +7,7 @@ import {
   DISCOVER_ENDPOINT,
   FLYAI_POI_CATEGORIES,
   MAX_CATEGORIES_PER_CALL,
+  parseCategories,
   type FlyAiPoiCategory,
   type FlyAiServerStatus,
 } from "@/lib/discovery";
@@ -60,6 +61,12 @@ export function useDiscover(cityName: string) {
     });
   }, []);
 
+  /** 只改选择，不自动触发飞猪或高德请求。 */
+  const selectCategories = useCallback((next: FlyAiPoiCategory[]) => {
+    const picked = parseCategories(next);
+    if (picked.length) setSelected(picked);
+  }, []);
+
   const rediscover = useCallback(async () => {
     setPhase("loading");
     setError(null);
@@ -67,7 +74,7 @@ export function useDiscover(cityName: string) {
       const result = await flyai.searchPoi({ cityName, categories: selected });
       setBatch(result);
       if (result.ok) {
-        setPhase("live");
+        setPhase(result.origin === "mock-fallback" ? "mock" : "live");
       } else {
         setPhase("failed");
         setError(result.error ?? "飞猪没有返回可用数据。");
@@ -94,6 +101,7 @@ export function useDiscover(cityName: string) {
     maxCategories: MAX_CATEGORIES_PER_CALL,
     selected,
     toggleCategory,
+    selectCategories,
     phase,
     batch,
     error,

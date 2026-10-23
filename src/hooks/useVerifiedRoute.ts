@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createAmapClient } from "@/lib/adapters";
 import type { FlyAiPoiCategory } from "@/lib/discovery";
 import {
@@ -14,6 +14,10 @@ import {
   type AmapServerStatus,
 } from "@/lib/verification";
 import type { VerifyReport } from "@/lib/types";
+import {
+  beginVerification, canApplyVerification, categoriesForReport, createVerificationScope, reportForCity,
+  type RouteSnapshot, type VerificationScope,
+} from "@/lib/verification-view";
 
 /**
  * idle   还没点过
@@ -25,10 +29,17 @@ export type VerifyPhase = "idle" | "loading" | "done" | "failed";
 
 const amap = createAmapClient();
 
-interface RouteSnapshot {
+interface VerificationView {
   cityName: string;
-  report: VerifyReport;
-  usedCategories: FlyAiPoiCategory[];
+  owner: object;
+  rawPhase: VerifyPhase;
+  override: VerifyReport | null;
+  error: string | null;
+  requestedCategories: FlyAiPoiCategory[];
+}
+
+function emptyView(cityName: string, owner: object): VerificationView {
+  return { cityName, owner, rawPhase: "idle", override: null, error: null, requestedCategories: [...DEFAULT_VERIFY_CATEGORIES] };
 }
 
 /**
@@ -36,24 +47,28 @@ interface RouteSnapshot {
  * 核验产出的行程由 JourneyApp 交给地图渲染；这里不碰地图状态。
  */
 export function useVerifiedRoute(cityName: string) {
-  const [rawPhase, setRawPhase] = useState<VerifyPhase>("idle");
-  /** 这一轮点出来的报告；还没点过时为 null，此时用快照里那一份 */
-  const [override, setOverride] = useState<VerifyReport | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // 同一城市离开后再回来也是新作用域，不能恢复上次已取消请求的 loading/error。
+  const owner = useMemo(() => ({ cityName }), [cityName]);
+  const [view, setView] = useState<VerificationView>(() => emptyView(cityName, owner));
+  const blank = useMemo(() => emptyView(cityName, owner), [cityName, owner]);
+  const current = view.owner === owner ? view : blank;
+  const { rawPhase, override, error, requestedCategories } = current;
   const [status, setStatus] = useState<AmapServerStatus | null>(null);
-  /** 这次核验实际用的类别：界面上勾了哪几个，核验就用哪几个，不再各算一套。 */
-  const [categories, setCategories] = useState<FlyAiPoiCategory[]>([
-    ...DEFAULT_VERIFY_CATEGORIES,
-  ]);
+  const scopeRef = useRef<VerificationScope | null>(null);
+  const statusSequence = useRef(0);
+
+  useLayoutEffect(() => {
+    const scope = createVerificationScope(cityName);
+    scopeRef.current = scope;
+    return () => { scope.closed = true; };
+  }, [cityName]);
 
   // 快照走 useSyncExternalStore：服务端渲染拿到 null，水合完成后 React 自己换成本标签页的值，
   // 不需要「挂载后再 setState」，也不会出现首屏对不上再闪一下。
   const snapshot = useSessionSnapshot<RouteSnapshot>(ROUTE_SNAPSHOT_KEY);
-  const usable =
-    snapshot && snapshot.cityName === cityName && snapshot.report.itinerary ? snapshot : null;
-  const report = override ?? usable?.report ?? null;
-  const usedCategories = override ? categories : (usable?.usedCategories ?? categories);
-  const restored = override === null && usable !== null;
+  const report = reportForCity(cityName, override, snapshot);
+  const usedCategories = useMemo(() => categoriesForReport(report, requestedCategories), [report, requestedCategories]);
+  const restored = report !== null && report !== override;
   const phase: VerifyPhase = restored && rawPhase === "idle" ? "done" : rawPhase;
 
   useEffect(() => {
@@ -63,7 +78,7 @@ export function useVerifiedRoute(cityName: string) {
 
   const fetchStatus = useCallback(async (): Promise<AmapServerStatus | null> => {
     try {
-      const response = await fetch(VERIFY_ENDPOINT);
+      const response = await fetch(VERIFY_ENDPOINT, { cache: "no-store" });
       return response.ok ? ((await response.json()) as AmapServerStatus) : null;
     } catch {
       return null;
@@ -72,8 +87,9 @@ export function useVerifiedRoute(cityName: string) {
 
   useEffect(() => {
     let cancelled = false;
+    const sequence = ++statusSequence.current;
     void fetchStatus().then((next) => {
-      if (!cancelled) setStatus(next);
+      if (!cancelled && sequence === statusSequence.current) setStatus(next);
     });
     return () => {
       cancelled = true;
@@ -82,27 +98,36 @@ export function useVerifiedRoute(cityName: string) {
 
   const verify = useCallback(
     async (next?: FlyAiPoiCategory[]) => {
-      const picked = next?.length ? next : [...DEFAULT_VERIFY_CATEGORIES];
-      setCategories(picked);
-      setRawPhase("loading");
-      setError(null);
+      const scope = scopeRef.current;
+      if (!scope || scope.cityName !== cityName) return;
+      const request = beginVerification(scope);
+      if (!request) return;
+      const picked = [...(next?.length ? next : DEFAULT_VERIFY_CATEGORIES)];
+      setView((previous) => canApplyVerification(scopeRef.current, request)
+        ? { ...(previous.owner === owner ? previous : emptyView(cityName, owner)), requestedCategories: picked, rawPhase: "loading", error: null }
+        : previous);
       try {
-        setOverride(await amap.verifyRoute(cityName, picked));
-        setRawPhase("done");
+        const received = await amap.verifyRoute(cityName, picked);
+        if (received.cityName !== cityName) throw new Error("核验返回的城市与本次请求不一致，已保留上一份报告。");
+        setView((previous) => canApplyVerification(scopeRef.current, request)
+          ? { ...previous, override: received, rawPhase: "done", error: null } : previous);
       } catch (caught) {
         // 这一次没跑成：不覆盖上一份成功的结果，页面继续显示已知路线，错误照样如实列出来
-        setOverride(null);
-        setRawPhase("failed");
-        setError(caught instanceof Error ? caught.message : String(caught));
+        setView((previous) => canApplyVerification(scopeRef.current, request)
+          ? { ...previous, rawPhase: "failed", error: caught instanceof Error ? caught.message : String(caught) } : previous);
       } finally {
         // 跑完后刷新服务端计数，页面上能直接看到这次真实消耗了多少高德调用
-        setStatus(await fetchStatus());
+        if (canApplyVerification(scopeRef.current, request)) {
+          const sequence = ++statusSequence.current;
+          const nextStatus = await fetchStatus();
+          if (canApplyVerification(scopeRef.current, request) && sequence === statusSequence.current) setStatus(nextStatus);
+        }
       }
     },
-    [cityName, fetchStatus],
+    [cityName, owner, fetchStatus],
   );
 
-  return { phase, report, error, status, verify, usedCategories, restored };
+  return { phase, report, error, status, verify, usedCategories, requestedCategories, restored };
 }
 
 export type VerifiedRoute = ReturnType<typeof useVerifiedRoute>;

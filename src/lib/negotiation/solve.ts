@@ -1,10 +1,12 @@
 import type { VerifiedStop, WalkingLeg } from "@/lib/types";
 import { haversineMeters } from "../geo.ts";
+import { HANGZHOU_TIME_LABEL } from "../hangzhou-time.ts";
 import {
   BUFFER_MINUTES,
   BUDGET_MINUTES,
   MATCH_STATUS_LABELS,
   OPENING_STATUS_LABELS,
+  assumedTripWindow,
 } from "../verification.ts";
 import { composeItinerary, legKey } from "../itinerary-compose.ts";
 import {
@@ -133,10 +135,12 @@ export function solveJoint(
   facts: FactSet,
   a: PartyConditions,
   b: PartyConditions | null,
-  assumedStart: Date,
+  tripDate: Date,
 ): JointSolve {
   const parties: PartyConditions[] = b ? [a, b] : [a];
-  const startMinutes = assumedStart.getHours() * 60 + assumedStart.getMinutes();
+  // 调用方可能传入真实当前时刻；仍按该上海日期的 13:00 出发，不能把
+  // 正确的 UTC instant 再用服务器 getHours() 误读为用户的出发分钟。
+  const { startAt: assumedStart, startMinutes } = assumedTripWindow(tripDate);
 
   const missing = new Map<string, MissingEdge>();
   const rememberMissing = (fromId: string, toId: string) => {
@@ -318,7 +322,7 @@ export function solveJoint(
         blocked.push({
           role: party.role,
           kind: "hard",
-          text: `最快结束的一轮也要到 ${minutesOfDay(startMinutes + soonest.totalMinutes)}，晚于本方上限 ${minutesOfDay(limit)}`,
+          text: `最快结束的一轮也要到 ${minutesOfDay(startMinutes + soonest.totalMinutes)}，晚于本方上限 ${minutesOfDay(limit)}（${HANGZHOU_TIME_LABEL}）`,
         });
       }
     }
@@ -371,7 +375,7 @@ export function solveJoint(
       satisfied.push({
         role: party.role,
         kind: "hard",
-        text: `预计 ${minutesOfDay(startMinutes + best.totalMinutes)} 结束，不晚于本方上限 ${minutesOfDay(party.hard.latestEndMinutes)}`,
+        text: `预计 ${minutesOfDay(startMinutes + best.totalMinutes)} 结束，不晚于本方上限 ${minutesOfDay(party.hard.latestEndMinutes)}（${HANGZHOU_TIME_LABEL}）`,
       });
     }
     for (const id of party.hard.mustVisit) {

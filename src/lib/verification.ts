@@ -1,5 +1,6 @@
 import type { FlyAiPoiCategory } from "@/lib/discovery";
 import type { MatchStatus, OpeningStatus } from "@/lib/types";
+import { hangzhouDateKey } from "./hangzhou-time.ts";
 
 /** 浏览器只调这一个站内地址；高德 key 与所有请求都留在服务端。 */
 export const VERIFY_ENDPOINT = "/api/verify";
@@ -70,8 +71,9 @@ export interface TripWindow {
 }
 
 export function assumedTripWindow(now: Date): TripWindow {
-  const startAt = new Date(now);
-  startAt.setHours(ASSUMED_START_HOUR, 0, 0, 0);
+  // 当前杭州场景固定 UTC+08:00；日期按 Asia/Shanghai 取，构造时明确偏移，
+  // 不受部署在 UTC 或美西服务器上的 setHours()/默认时区影响。
+  const startAt = new Date(`${hangzhouDateKey(now)}T${String(ASSUMED_START_HOUR).padStart(2, "0")}:00:00+08:00`);
   const startMinutes = ASSUMED_START_HOUR * 60;
   return { startAt, startMinutes, endMinutes: startMinutes + BUDGET_MINUTES };
 }

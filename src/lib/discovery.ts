@@ -13,7 +13,7 @@ export const FLYAI_POI_CATEGORIES = ["自然风光", "文创街区", "城市观�
 export type FlyAiPoiCategory = (typeof FLYAI_POI_CATEGORIES)[number];
 
 /** 默认只查一个类别：每多选一个类别，服务端就多一次真实 CLI 调用。 */
-export const DEFAULT_DISCOVER_CATEGORIES: FlyAiPoiCategory[] = ["自然风光"];
+export const DEFAULT_DISCOVER_CATEGORIES: FlyAiPoiCategory[] = ["文创街区"];
 
 /** 单次「重新发现」最多查几个类别，用来控制调用量与费用。 */
 export const MAX_CATEGORIES_PER_CALL = 2;
@@ -64,4 +64,11 @@ export function parseCategories(input: unknown): FlyAiPoiCategory[] {
     if (picked.length >= MAX_CATEGORIES_PER_CALL) break;
   }
   return picked;
+}
+
+/** 类别是集合；勾选顺序变化不应把同一份结果标成过期。 */
+export function sameCategories(left: readonly string[], right: readonly string[]): boolean {
+  const a = new Set(left);
+  const b = new Set(right);
+  return a.size === b.size && [...a].every((category) => b.has(category));
 }

@@ -1,5 +1,5 @@
 import { amapCounters, planWalking } from "./amap";
-import { getFactSet, restoreFactSet, type FactSummary } from "./facts";
+import { factsStoreStatus, getFactSet, restoreFactSet, type FactSummary } from "./facts";
 import { mintPlanId, mintRoleToken, hashCredential, credentialMatches } from "./plan-tickets";
 import {
   loadSnapshot,
@@ -202,6 +202,10 @@ export function authorize(planId: string, role: Role, token: string | null): Aut
 
 /** 读事实集：plan 还在但事实已过期时返回 null，由端点如实报失效。 */
 function liveFacts(record: PlanRecord): FactSet | null {
+  // getFactSet 会刷新内存访问时间；轮询不能因此延长原始实测事实的有效期。
+  const measuredAt = Date.parse(record.facts.measuredAt);
+  const ttlMs = factsStoreStatus().ttlSeconds * 1000;
+  if (!Number.isFinite(measuredAt) || Date.now() - measuredAt >= ttlMs) return null;
   return getFactSet(record.facts.factsId);
 }
 
@@ -305,13 +309,16 @@ export function planSnapshot(planId: string, role: Role) {
   const record = recordOf(planId);
   if (!record) return null;
   const { state, facts } = record;
+  const execution = liveFacts(record)
+    ? canExecute(state, new Date())
+    : { allowed: false, reason: "已核验事实已过期或在本实例上不可用，请重新核验后再协商确认；这里不会自动调用高德。" };
   return {
     planId,
     role,
     status: state.status,
     headRevision: state.headRevision,
     officialRevision: state.officialRevision,
-    canExecute: canExecute(state, new Date()),
+    canExecute: execution,
     head: revisionView(headRevisionOf(state)),
     official: revisionView(officialRevisionOf(state)),
     attempts: state.attempts.slice(-6).map((attempt: Attempt) => ({
@@ -450,7 +457,7 @@ export interface PlanJourney {
 export function planExecutionJourney(planId: string): PlanJourney | null {
   const record = recordOf(planId);
   if (!record) return null;
-  const facts = getFactSet(record.facts.factsId);
+  const facts = liveFacts(record);
   if (!facts) return null;
   const itinerary = executionRoute(record.state, new Date());
   if (!itinerary || record.state.officialRevision === null) return null;
@@ -461,7 +468,7 @@ export function planExecutionJourney(planId: string): PlanJourney | null {
 export function executionBlockReason(planId: string): string {
   const record = recordOf(planId);
   if (!record) return "方案已失效（服务重启、已撤销或超出保留期）。";
-  if (!getFactSet(record.facts.factsId)) return "事实层已过期，需要重新核验后才能继续这条协商。";
+  if (!liveFacts(record)) return "事实层已过期，需要重新核验后才能继续这条协商。";
   return canExecute(record.state, new Date()).reason;
 }
 
@@ -469,7 +476,7 @@ export function executionBlockReason(planId: string): string {
 export function planForBrief(planId: string): { state: PlanState; facts: FactSet } | null {
   const record = recordOf(planId);
   if (!record) return null;
-  const facts = getFactSet(record.facts.factsId);
+  const facts = liveFacts(record);
   if (!facts) return null;
   return { state: record.state, facts };
 }

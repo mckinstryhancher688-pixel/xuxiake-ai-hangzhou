@@ -1,4 +1,5 @@
 import { estimateMissingEdges, metersText } from "./solve";
+import { HANGZHOU_TIME_LABEL } from "../hangzhou-time";
 import { COST_SCOPE_NOTICE, type FactSet, type PartyConditions, type Role } from "./types";
 import type { PlanState, Revision } from "./plan-state";
 import { headRevisionOf } from "./plan-state";
@@ -70,7 +71,7 @@ function partyLine(facts: FactSet, party: PartyConditions | null): string {
     party.hard.neverAccept.length
       ? `绝不接受 ${party.hard.neverAccept.map((id) => nameOf(facts, id)).join("、")}`
       : "未设置绝不接受",
-    party.hard.latestEndMinutes === null ? null : `最晚 ${String(Math.floor(party.hard.latestEndMinutes / 60)).padStart(2, "0")}:${String(party.hard.latestEndMinutes % 60).padStart(2, "0")} 结束`,
+    party.hard.latestEndMinutes === null ? null : `最晚 ${String(Math.floor(party.hard.latestEndMinutes / 60)).padStart(2, "0")}:${String(party.hard.latestEndMinutes % 60).padStart(2, "0")} 结束（${HANGZHOU_TIME_LABEL}）`,
   ]
     .filter(Boolean)
     .join("｜");

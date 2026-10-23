@@ -2,7 +2,7 @@
 
 import type { AgentController } from "@/hooks/useAgent";
 import type { VerifiedRoute } from "@/hooks/useVerifiedRoute";
-import type { FlyAiPoiCategory } from "@/lib/discovery";
+import { sameCategories, type FlyAiPoiCategory } from "@/lib/discovery";
 
 /**
  * 首屏就固定钉在底部的一条主流程按钮，手机上也一直可见：
@@ -14,12 +14,14 @@ export function PlanActionBar({
   agent,
   categories,
   jointLocked = false,
+  itineraryCategories,
 }: {
   route: VerifiedRoute;
   agent: AgentController;
   categories: FlyAiPoiCategory[];
   /** 双方已经确认了正式版本：单人「少走一点」不能绕过确认流程替换它 */
   jointLocked?: boolean;
+  itineraryCategories: FlyAiPoiCategory[];
 }) {
   const itinerary = agent.activeItinerary;
   const stops = itinerary?.stops ?? [];
@@ -42,7 +44,7 @@ export function PlanActionBar({
         </button>
         <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
           {verifying
-            ? "服务端正在逐段请求高德步行路径，通常需要十几到几十秒，结果会整体缓存，重复点击不再产生调用。"
+            ? `正在核验「${route.requestedCategories.join(" + ")}」，请等待结果。成功结果会缓存，失败重试或缓存过期可能新增调用。`
             : `按「${categories.join(" + ")}」的飞猪候选，用高德逐段实测距离与耗时，挑出四小时内走得完的一条。`}
         </p>
       </Bar>
@@ -51,6 +53,10 @@ export function PlanActionBar({
 
   return (
     <Bar>
+      {!sameCategories(itineraryCategories, categories) && <p className="mb-2 rounded-lg bg-paper px-2 py-1.5 text-[11px] leading-relaxed text-ink-500">
+        当前路线来自「{itineraryCategories.join(" + ")}」；已改选「{categories.join(" + ")}」。
+        {jointLocked ? "改选不会修改双方确认版本。" : "新类别尚未生成，当前仍使用原路线。"}
+      </p>}
       <div className="flex items-center gap-2">
         <button
           type="button"

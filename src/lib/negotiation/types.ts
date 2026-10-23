@@ -55,7 +55,7 @@ export interface FactSet {
 }
 
 export interface HardConstraints {
-  /** 各自的最晚结束时刻（本地分钟数，0~1439）；null 表示没提这个要求 */
+  /** 各自的最晚结束时刻（Asia/Shanghai 当日分钟数，0~1439）；null 表示没提这个要求 */
   latestEndMinutes: number | null;
   /** 本方接受的总步行上限（米）；统计口径见 COST_SCOPE_NOTICE */
   maxWalkMeters: number | null;

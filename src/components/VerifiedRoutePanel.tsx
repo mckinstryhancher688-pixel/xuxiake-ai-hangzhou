@@ -1,5 +1,6 @@
 import { formatDistance, formatMinutes } from "@/lib/format";
-import type { FlyAiPoiCategory } from "@/lib/discovery";
+import { formatHangzhouDateTime } from "@/lib/hangzhou-time";
+import { sameCategories, type FlyAiPoiCategory } from "@/lib/discovery";
 import type { VerifiedRoute, VerifyPhase } from "@/hooks/useVerifiedRoute";
 import {
   MATCH_STATUS_LABELS,
@@ -57,6 +58,8 @@ export function VerifiedRoutePanel({
   activeItinerary,
   routeAdjusted,
   jointRevision = null,
+  itineraryCategories,
+  onSelectCategories,
   selectedStopId,
   arrivedStopIds,
   onSelectStop,
@@ -69,15 +72,24 @@ export function VerifiedRoutePanel({
   routeAdjusted: boolean;
   /** 双方确认的正式版本号；非空时屏幕上这一份就是它，不再是单人调整结果 */
   jointRevision?: number | null;
+  itineraryCategories: FlyAiPoiCategory[];
+  onSelectCategories: (categories: FlyAiPoiCategory[]) => void;
   selectedStopId: string | null;
   arrivedStopIds: string[];
   onSelectStop: (id: string) => void;
 }) {
-  const badge = PHASE_BADGE[route.phase];
   const loading = route.phase === "loading";
   const report = route.report;
   // 主界面只有一份「当前生效路线」：智能体调整过就显示调整后的，与左侧地图完全一致。
   const shownItinerary = activeItinerary ?? report?.itinerary ?? null;
+  const official = jointRevision !== null && shownItinerary !== null;
+  const stale = report !== null && !sameCategories(report.categories, categories);
+  const badge = official
+    ? { label: `双方确认 · v${jointRevision}`, className: "bg-brand-600/15 text-brand-700" }
+    : loading ? PHASE_BADGE.loading
+    : stale ? { label: "待按新类别核验", className: "bg-accent-500/15 text-accent-600" }
+    : report && !report.ok ? { label: "未找到可行路线", className: "bg-accent-500/15 text-accent-600" }
+    : PHASE_BADGE[route.phase];
 
   return (
     <section className="rounded-2xl border border-line bg-card p-4 shadow-sm">
@@ -88,9 +100,8 @@ export function VerifiedRoutePanel({
             四小时可行性
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-ink-500">
-            候选池跟着「重新发现」的勾选：
-            <span className="ml-1 font-medium text-brand-700">{categories.join(" + ")}</span>
-            。这里把这些候选的真实位置核清楚，再按高德实测的步行耗时，挑出四小时内走得完的一段路。
+            {official ? `正式路线来自「${itineraryCategories.join(" + ")}」的已核验事实，改选类别不会修改双方确认版本。`
+              : `下一次核验类别：「${categories.join(" + ")}」。先核实地点身份，再按高德步行数据筛选四小时路线。`}
           </p>
         </div>
         <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-medium ${badge.className}`}>
@@ -99,7 +110,7 @@ export function VerifiedRoutePanel({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
+        {!official && <button
           type="button"
           onClick={() => {
             void route.verify(categories);
@@ -108,7 +119,7 @@ export function VerifiedRoutePanel({
           className="rounded-lg bg-brand-700 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? "核验中，服务端正在真实请求高德…" : "开始核验（真实调用高德）"}
-        </button>
+        </button>}
 
         <span className="flex items-center gap-1.5 text-[10px] text-ink-300">
           <SourceTag kind="flyai" /> 地点信息
@@ -118,22 +129,29 @@ export function VerifiedRoutePanel({
       </div>
 
       <p className="mt-2 text-[10px] leading-relaxed text-ink-300">
-        一次核验按勾选的类别数量真实请求高德约 36 次（单类）～62 次（双类），结果整体缓存{" "}
-        {route.status ? route.status.pipelineCacheTtlSeconds / 60 : 30} 分钟，重复点击不再产生新调用。
+        {official ? "这里直接复用正式行程，不需要重新发现或冷核验。"
+          : `核验可能产生数十次真实请求。成功结果整体缓存约 ${route.status ? route.status.pipelineCacheTtlSeconds / 60 : 30} 分钟；失败重试、补测或缓存过期可能新增调用。`}
       </p>
 
-      {route.restored && report && (
+      {!official && stale && (
+        <p className="mt-2 rounded-lg bg-accent-50 p-2 text-[11px] leading-relaxed text-accent-700">
+          以下核验记录来自「{report.categories.join(" + ")}」；已改选「{categories.join(" + ")}」，新类别尚未完成核验。
+        </p>
+      )}
+      {!official && loading && <p className="mt-2 text-[11px] text-ink-500">正在核验「{route.requestedCategories.join(" + ")}」；下方已有记录仍属于原类别。</p>}
+
+      {!official && route.restored && report && (
         <p className="mt-2 rounded-lg bg-paper px-2.5 py-2 text-[11px] leading-relaxed text-ink-500 ring-1 ring-line">
           这一份是刷新前本标签页已经核验过的结果（
-          {new Date(report.generatedAt).toLocaleString("zh-CN", { hour12: false })}
+          {formatHangzhouDateTime(report.generatedAt)}
           ），原样恢复出来接着走；点「开始核验」会重新走一遍真实核验。
         </p>
       )}
 
-      {route.error && (
+      {!official && route.error && (
         <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/5 p-3">
           <p className="text-[11px] font-semibold text-red-600">
-            核验失败 · 以下是服务端返回的真实错误
+            「{route.requestedCategories.join(" + ")}」核验失败 · 已有记录继续保留
           </p>
           <p className="mt-1 break-words font-mono text-[11px] leading-relaxed text-ink-700">
             {route.error}
@@ -141,15 +159,43 @@ export function VerifiedRoutePanel({
         </div>
       )}
 
-      {route.phase === "idle" && (
+      {!shownItinerary && route.phase === "idle" && (
         <p className="mt-3 rounded-lg bg-paper px-2.5 py-2 text-[11px] leading-relaxed text-ink-300 ring-1 ring-line">
           还没有发起核验。地图与行程仍是<strong className="font-semibold text-accent-600">演示数据（Mock）</strong>，
           未经高德验证；点「开始核验」后这里会给出真实路线。
         </p>
       )}
 
+      {shownItinerary && (
+        <>
+          {official ? (
+            <p className="mt-3 rounded-lg bg-emerald-50 px-2.5 py-2 text-[11px] leading-relaxed text-emerald-800 ring-1 ring-emerald-200">
+              这里列出<strong className="font-semibold">双方确认的正式路线 v{jointRevision}</strong>，地图与时间合计都以它为准。
+              调整请在「双人协商」中提出，并等待双方确认新版本。
+            </p>
+          ) : routeAdjusted ? (
+            <p className="mt-3 rounded-lg bg-accent-500/10 px-2.5 py-2 text-[11px] leading-relaxed text-accent-700">
+              以下是「少走一点」后的当前生效路线，与地图一致；原始核验记录保留在下方。
+            </p>
+          ) : null}
+          <Itinerary itinerary={shownItinerary} selectedStopId={selectedStopId} arrivedStopIds={arrivedStopIds} onSelectStop={onSelectStop} />
+        </>
+      )}
+
+      {!official && report && !report.itinerary && !sameCategories(categories, ["文创街区"]) && (
+        <div className="mt-3 rounded-lg bg-paper p-3 text-[11px] leading-relaxed ring-1 ring-line">
+          <p>可改选文创街区再尝试。市内街区通常更集中，但仍须真实核验，不能保证一定有解。</p>
+          <button type="button" disabled={loading} onClick={() => onSelectCategories(["文创街区"])} className="mt-2 rounded-lg border border-line bg-card px-2.5 py-1.5 font-medium text-brand-700 disabled:opacity-50">
+            改选文创街区（仅切换类别）
+          </button>
+          <p className="mt-1 text-ink-500">只修改勾选；确认类别后再手动生成，不会自动发起请求。</p>
+        </div>
+      )}
+
       {report && (
         <>
+          <p className="mt-3 text-[11px] font-medium text-ink-500">原始核验记录 · {report.categories.join(" + ")} · {formatHangzhouDateTime(report.generatedAt)}</p>
+          {report.amap && <p className="mt-1 text-[10px] text-ink-500">本次记录：地点请求 {report.amap.placeCalls} 次 · 步行请求 {report.amap.walkingCalls} 次 · 缓存命中 {report.amap.cacheHits} 次 · 失败 {report.amap.failedCalls} 次。</p>}
           <CountLine report={report} />
 
           {report.start && <StartLine start={report.start} />}
@@ -166,35 +212,12 @@ export function VerifiedRoutePanel({
           {report.insufficiency && (
             <div className="mt-3 rounded-xl border border-accent-500/40 bg-accent-50 p-3">
               <p className="text-[11px] font-semibold text-accent-600">
-                候选不足 · 不会用假地点凑数
+                未生成可行路线
               </p>
               <p className="mt-1 text-[11px] leading-relaxed text-ink-700">
                 {report.insufficiency}
               </p>
             </div>
-          )}
-
-          {shownItinerary && (
-            <>
-              {jointRevision !== null ? (
-                <p className="mt-3 rounded-lg bg-emerald-50 px-2.5 py-2 text-[11px] leading-relaxed text-emerald-800 ring-1 ring-emerald-200">
-                  这里列出的是<strong className="font-semibold">双方确认的正式路线 v{jointRevision}</strong>，
-                  地图与时间合计都以它为准。要再少走一点，请在下方「双人协商」里提提案并等对方确认——
-                  单人那一侧不会再自动替换这一版。
-                </p>
-              ) : routeAdjusted ? (
-                <p className="mt-3 rounded-lg bg-accent-500/10 px-2.5 py-2 text-[11px] leading-relaxed text-accent-700">
-                  这里列出「少走一点」调整后的<strong className="font-semibold">当前生效路线</strong>，
-                  地图与时间合计都以它为准；调整前的原始核验记录保留在「开发调试」面板里。
-                </p>
-              ) : null}
-              <Itinerary
-                itinerary={shownItinerary}
-                selectedStopId={selectedStopId}
-                arrivedStopIds={arrivedStopIds}
-                onSelectStop={onSelectStop}
-              />
-            </>
           )}
 
           <details className="mt-3 rounded-lg bg-paper ring-1 ring-line">
@@ -300,7 +323,6 @@ function Itinerary({
   arrivedStopIds: string[];
   onSelectStop: (id: string) => void;
 }) {
-  const assumedStart = new Date(itinerary.assumedStartAt);
   const arrived = new Set(arrivedStopIds);
   return (
     <div className="mt-3 rounded-xl border border-brand-600/30 bg-brand-50/40 p-3">
@@ -329,9 +351,7 @@ function Itinerary({
       <p className="mt-2 text-[10px] leading-relaxed text-ink-500">
         假定出发时间{" "}
         <span className="font-medium text-ink-700">
-          {Number.isNaN(assumedStart.getTime())
-            ? itinerary.assumedStartAt
-            : assumedStart.toLocaleString("zh-CN", { hour12: false })}
+          {formatHangzhouDateTime(itinerary.assumedStartAt)}
         </span>
         （产品设定，用于判断营业时间冲突；不是实测时间）。步行数值全部来自高德路径规划，
         不是直线距离换算。

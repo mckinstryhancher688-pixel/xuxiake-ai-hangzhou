@@ -1,0 +1,109 @@
+{
+  "fixture": true,
+  "browserChecks": [
+    {
+      "name": "首访默认单文创，仍明确未核验",
+      "pass": true
+    },
+    {
+      "name": "A主界面无单人报告也显示正式路线且不出现冷核验按钮",
+      "pass": true
+    },
+    {
+      "name": "B正式页直接显示起点、逐段米/分钟、模拟停留与回程边界",
+      "pass": true
+    },
+    {
+      "name": "曾使用A的主界面，经B页返回后仍为B，且不冷核验",
+      "pass": true
+    },
+    {
+      "name": "无单人报告的正式主界面显示13点杭州时间而非Mock提示",
+      "pass": true
+    },
+    {
+      "name": "自然无解报告不再显示LIVE可行，给出恢复入口",
+      "pass": true
+    },
+    {
+      "name": "恢复后旧自然报告保留原类别并标明新类别待核验",
+      "pass": true
+    },
+    {
+      "name": "类别切换同时标记旧发现批次、旧核验和当前路线来源",
+      "pass": true
+    },
+    {
+      "name": "新城市观光请求HTTP500后保留文创行程与原始类别，明确失败归属",
+      "pass": true
+    },
+    {
+      "name": "发现接口明确返回演示来源时不显示LIVE",
+      "pass": true
+    },
+    {
+      "name": "生产构建：刷新保留B身份，正式行程无需单人报告且不出现冷核验入口",
+      "pass": true
+    },
+    {
+      "name": "生产构建：无fragment角色页从同标签恢复B及正式清单",
+      "pass": true
+    },
+    {
+      "name": "生产构建：新类别失败保留恢复的文创路线并标明待新核验",
+      "pass": true
+    },
+    {
+      "name": "生产构建：B收紧底线产生v3，旧正式卡立即隐藏",
+      "pass": true
+    },
+    {
+      "name": "生产构建：新底线未双确认时主界面隐藏旧路线和付费执行按钮",
+      "pass": true
+    },
+    {
+      "name": "最终几何修复构建：B正式卡与当前正式版本一致",
+      "pass": true
+    },
+    {
+      "name": "最终几何修复构建：实际主界面只读正式折线，缺失不补测且保持B身份",
+      "pass": true
+    }
+  ],
+  "recoveryNoAutoQuery": {
+    "test": "category recovery does not auto query",
+    "pass": true,
+    "recorded": [
+      {
+        "path": "/api/verify",
+        "categories": [
+          "自然风光"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  "conditionChangeCounters": {
+    "fixture": true,
+    "head": 3,
+    "canExecute": false,
+    "place": 0,
+    "walk": 0,
+    "logical": 0,
+    "retry": 0
+  },
+  "finalGeometryApi": {
+    "fixture": true,
+    "validStatus": 200,
+    "missingGeometryExplicit": true,
+    "newCalls": 0,
+    "staleStatus": 409,
+    "staleNewCalls": 0,
+    "place": 0,
+    "walk": 0,
+    "logical": 0,
+    "retry": 0,
+    "pass": true
+  },
+  "notice": "模拟数据与本地代理验证，不是真实路线验收"
+}

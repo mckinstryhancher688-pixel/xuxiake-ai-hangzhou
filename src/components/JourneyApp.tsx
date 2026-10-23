@@ -22,6 +22,8 @@ import { useRouteGeometry } from "@/hooks/useRouteGeometry";
 import { useVerifiedRoute } from "@/hooks/useVerifiedRoute";
 import { buildVerifiedScene } from "@/lib/map/verified-scene";
 import type { MapFeature, MapRouteLine } from "@/components/map/types";
+import { executableOfficial } from "@/lib/negotiation/official-view";
+import { parseCategories } from "@/lib/discovery";
 
 type MobileTab = "map" | "plan";
 
@@ -40,7 +42,9 @@ export function JourneyApp() {
   const plan = usePlan();
   // 只有服务端判定「双方确认了同一个版本」时，这一版才成为正式执行路线。
   // 读的是服务端返回的 official 那一版，不退回更早的城市/类别结果，浏览器也不自行判定。
-  const jointRoute = !plan.busy && !plan.syncError && plan.snapshot?.canExecute.allowed ? (plan.snapshot.official?.itinerary ?? null) : null;
+  const official = executableOfficial(plan.snapshot, plan.busy, plan.syncError);
+  const jointRoute = official?.itinerary ?? null;
+  const itineraryCategories = jointRoute ? parseCategories(plan.snapshot?.facts.categories) : verifiedRoute.usedCategories;
   const jointMode = plan.identity !== null || (plan.exited && plan.error !== null);
   const jointBlocked = jointMode && jointRoute === null;
   const jointBlockReason = plan.busy ? "正在保存协商结果，完成前暂停执行。"
@@ -72,7 +76,9 @@ export function JourneyApp() {
   // 调整过之后，核验面板显示的就是这一份；原始核验结果只在开发调试面板里保留。
   const routeAdjusted = activeItinerary !== null && activeItinerary !== (verifiedRoute.report?.itinerary ?? null);
   const scene: "verified" | "demo" = activeItinerary ? "verified" : "demo";
-  const geometry = useRouteGeometry(activeItinerary);
+  const geometry = useRouteGeometry(activeItinerary, jointRoute && plan.identity && official
+    ? { planId: plan.identity.planId, token: plan.identity.token, officialRevision: official.revision }
+    : null, jointMode);
   const verifiedScene = useMemo(
     () =>
       activeItinerary
@@ -165,7 +171,7 @@ export function JourneyApp() {
                 <p className="mt-1 text-ink-500">{jointBlockReason}</p>
                 <a href="#joint-negotiation" onClick={() => setTab("plan")} className="mt-2 inline-block text-brand-700 underline">查看双方条件并确认</a>
               </div>
-            ) : <PlanActionBar route={verifiedRoute} agent={agent} categories={discover.selected} jointLocked={jointRoute !== null} />}
+            ) : <PlanActionBar route={verifiedRoute} agent={agent} categories={discover.selected} itineraryCategories={itineraryCategories} jointLocked={jointRoute !== null} />}
           </div>
 
           <div
@@ -180,6 +186,8 @@ export function JourneyApp() {
               activeItinerary={activeItinerary}
               routeAdjusted={jointRoute ? false : routeAdjusted}
               jointRevision={jointRoute ? (plan.snapshot?.officialRevision ?? null) : null}
+              itineraryCategories={itineraryCategories}
+              onSelectCategories={discover.selectCategories}
               selectedStopId={agent.selectedStopId}
               arrivedStopIds={agent.arrivedStopIds}
               onSelectStop={agent.selectStop}
