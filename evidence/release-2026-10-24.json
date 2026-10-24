@@ -1,0 +1,79 @@
+{
+  "checkedAt": "2026-10-24T10:00:20.1150877Z",
+  "url": "http://travel.peiqirui.com/",
+  "runtimeCommit": "c906649bbdd80bfd393ebe99d55ac8e6b4fe4259",
+  "buildId": "azpwDSqhVqw1g8u6H2kpb",
+  "artifactSha256": "b957e8bfe8fe8a63e72490b3d9c357e4b4f41d5cc8b8622df67ed81ecb4e3678",
+  "homeStatus": 200,
+  "newDefaultCopy": true,
+  "staticAssets": [
+    {
+      "path": "/_next/static/chunks/0cz1d0mv5g_q7.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/0m4q7i41p8qp0.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/0mmc0lftwb171.css",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/1j_b1xq_woyiy.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/1tq6ppe__m8m-.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/1vo0wohvofgd7.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/3bdzmh0fvcjyb.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/3cfn99dbrcvvp.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/3ks-tz3_j5zmf.js",
+      "status": 200
+    },
+    {
+      "path": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js",
+      "status": 200
+    }
+  ],
+  "planEntries": 1,
+  "factsEntries": 0,
+  "persist": {
+    "file": ".data/plan-snapshot.json",
+    "exists": true,
+    "bytes": 435839,
+    "writtenAt": "2026-10-22T16:12:40.377Z",
+    "plans": 1,
+    "restored": {
+      "status": "loaded",
+      "detail": null,
+      "loaded": 1,
+      "skipped": {
+        "expiredPlan": 0,
+        "corrupt": 0
+      }
+    }
+  },
+  "amapCounters": {
+    "walking": 0,
+    "place": 0
+  },
+  "serverConfigUnchanged": true,
+  "snapshotUnchanged": true,
+  "volumeWritable": true,
+  "browserWarningOrErrorCount": 0,
+  "validationScope": "Read-only release smoke; no paid provider business requests; real route and Bailian negotiation not rerun.",
+  "runtimeEnvironmentEqual": true
+}

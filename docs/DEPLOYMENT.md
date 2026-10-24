@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-10-24 生产发布
+
+当前入口为 [travel.peiqirui.com](http://travel.peiqirui.com/)，采用 ECS 常驻 Docker 应用与 Nginx 反向代理。
+本次发布代码为 `c906649`，前后端来自同一份本地生产构建；沿用已有依赖、服务配置与 `xuxiake-data` 持久化卷。
+页面、构建身份与快照恢复检查通过，未重跑付费业务闭环。具体证据和回退点见[发布记录](release-2026-10-24.md)。
+
 ## 结论先说
 
 **推荐：常驻单进程 Node.js 主机（自己跑 `next build` + `next start`，或用 Docker）。**
