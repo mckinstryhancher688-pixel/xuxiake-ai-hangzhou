@@ -1,0 +1,309 @@
+2026-10-24 release re-verification; application source commits: 0733b9f + adf88e8; competition materials merged from codex/submission-packaging.
+258 offline checks/scenarios, including 15 timezone cases across 3 timezones. Fixtures, fake keys and fetch stubs; not live-provider acceptance.
+
+
+> xuxiake-ai-hangzhou@0.1.0 test:offline
+> node evidence/negotiation-unit.mjs && node evidence/negotiation-rules.mjs && node --import ./evidence/register-alias.mjs evidence/plan-ai.mjs && node evidence/plan-persistence.mjs && node evidence/negotiation-editor.mjs && node evidence/hangzhou-timezone.mjs && node evidence/official-view-unit.mjs && node evidence/verify-chain-unit.mjs && node evidence/verification-view.mjs && node evidence/geometry-state-unit.mjs && node --import ./evidence/register-alias.mjs evidence/plan-geometry.mjs
+
+(node:26928) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///<PROJECT_ROOT>/src/lib/geo.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\<PROJECT_ROOT>\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS S1 单人无附加条件时双人求解给出最长可行组合 :: {"kind":"found","stops":["集贤亭","湖滨步行街","圣塘景区","断桥残雪"],"meters":2400,"minutes":170}
+PASS S1b 无自环的完整图：未入选站有真实可行走法，不能归因为缺实测段 :: {"未入选":[{"id":"c5","name":"雷峰塔","status":"dropped-soft","text":"有含该站的已实测可行走法，但本版按双方条件与偏好取 4 站、2.40 公里，未选用该站"}]}
+PASS S1c 两个未入选站之间缺边，不是与当前路线缺连接的证据 :: {"入选":["c1","c2","c3"],"未入选":{"id":"c5","name":"雷峰塔","status":"rejected-hard","text":"已实测组合中未找到满足当前双方条件的含该站走法，未入选；未测组合不作可行性判断"}}
+PASS S1d 反向已测不能冒充正向已测：逐条说明真正缺少的入站方向 :: {"id":"c2","name":"湖滨步行街","status":"not-measured","text":"与当前路线相关的有向步行段尚未实测：湖滨公园（夹具起点） → 湖滨步行街、集贤亭 → 湖滨步行街；含该站的走法仍需核验（不是「不去」，也不代表没有任何连接）"}
+PASS S1e 已有可行访问方式时，某个替换方向缺测不应抹掉已核验依据 :: {"id":"c2","name":"湖滨步行街","status":"dropped-soft","text":"有含该站的已实测可行走法，但本版按双方条件与偏好取 1 站、320 米，未选用该站"}
+PASS S2 收紧步行上限后差异保留负号 :: {"from":2400,"to":1440,"delta":-960}
+PASS S2b 差异文案使用「少走」而不是绝对值掩盖 :: {"line":"v1 → v2：总步行 2.40 公里 → 1.44 公里（少走 960 米，−960 米）"}
+PASS S3 加入更远的必须去后差异保留正号（不钳位成 0） :: {"delta":1120,"line":"v1 → v2：总步行 2.40 公里 → 3.52 公里（多走 1.12 公里，+1.12 公里）"}
+PASS S3b 必须去真正进入方案 :: {"stops":["集贤亭","湖滨步行街","圣塘景区","雷峰塔"]}
+PASS S4 全部相关段已实测时才允许「已证实不可行」 :: {"kind":"hard-conflict","evidence":["含「断桥残雪」的全部实测组合里，步行最短的一条是 1.60 公里，比本方上限 1.00 公里 多 600 米"]}
+PASS S4b 不可行结论带实测数字证据 :: {"evidence":["含「断桥残雪」的全部实测组合里，步行最短的一条是 1.60 公里，比本方上限 1.00 公里 多 600 米"]}
+PASS S5 缺实测段时只说「尚未核验」，不宣称不可行 :: {"kind":"not-measured"}
+PASS S5b 补测报价等于去重后的实际缺边（与状态机同一口径） :: {"needed":14,"keys":["s8->s7","s7->s8","c4->s7","s7->c4","c3->s7","s7->c3","c2->s7","s7->c2","c4->s8","s8->c4","c3->s8","s8->c3","c2->s8","s8->c2"]}
+PASS S5c 单站补测不超过每站 9 段上界 :: {"one":8}
+PASS S5d 起点→断桥残雪 这类「高德明确无路线」不计入待补测 :: {"missing":["s8->s7","s7->s8","c4->s7","s7->c4","c3->s7","s7->c3","c2->s7","s7->c2","c4->s8","s8->c4","c3->s8","s8->c3","c2->s8","s8->c2"]}
+PASS S5e 短名单外的候选被标为尚未核验而不是「已排除」 :: {"id":"s7","name":"岳王庙（夹具：短名单外）","status":"not-measured","text":"与已实测的站之间缺少步行段，尚未核验——是「没测到」，不是「不去」，也不是「走不到」"}
+PASS S5f 能实测出的方案照给，但同时说明搜索空间被缺边截断 :: {"stops":["岳王庙（夹具：短名单外）"],"quote":8}
+PASS S6 一方强偏好全落空时仍出方案，并标为需双方协商（软偏好） :: {"kind":"soft-imbalanced","note":"本方案只是已实测范围内的最优：另有 8 条有向段从未实测（曲院风荷（夹具：短名单"}
+PASS S6b 落空的是无法满足的那一方（B），且没有为了「差距为零」把 A 的也扔掉 :: {"unmet":[{"role":"B","kind":"soft","text":"本方特别想去「岳王庙（夹具：短名单外）」未排入（不是绝不接受，可以再谈）"}],"stops":["集贤亭","湖滨步行街","圣塘景区","断桥残雪"]}
+PASS S6c 软偏好落空写清角色且不写成硬冲突 :: {"note":"，本项目没有任何来自数据的门票/价格字段，因此不构成预算保证。营业时间只按假定出发时间判定冲突，不是完整开放时间的保证。"}
+PASS S7 愿意跟随既不计满足度也不记落空 :: {"b":[]}
+PASS S8 不太想去只是扣分，不等同于绝不接受 :: {"role":"B","kind":"soft","text":"本方不太想去「湖滨步行街」仍被排入（不太想去不等于绝不接受）"}
+PASS S9 特别想去可以被舍弃（与必须去区分开） :: {"kind":"found"}
+PASS S10 双人允许 1~2 站 :: {"stops":["断桥残雪","雷峰塔"]}
+PASS S11「已排除」只用于绝不接受，不用于软偏好落空 :: {"offenders":[]}
+PASS S12 成本口径四项标注（不含回程/站内/模拟停留/不含门票）+ 开放时间非保证
+PASS S13 版本指纹覆盖段实测值与站点顺序 :: {"hashA":"d43ff2b82a5d57c2-2bc00ddb","hashMutated":"b3830b6d3f442751-4c7cf410"}
+PASS S14 版本指纹覆盖双方硬条件
+PASS G1-pre 双方确认同一版本后可正式执行 :: {"allowed":true,"reason":"v2 已双方确认、事实核验完成且满足双方现行硬条件。"}
+PASS 门1 硬条件先落定：失败后 B 的要求仍然生效 :: {"code":"measurement-failed"}
+PASS 门1 补测失败后旧确认仍保持挂起、不复活 :: {"status":"paused","official":null}
+PASS 门1 超限的旧方案被禁止执行 :: {"allowed":false,"reason":"有硬性条件更新后旧方案已被挂起，双方确认新版本之前不得正式执行。"}
+PASS 门1 失败不产生新版本 :: {"head":2}
+PASS 门1 失败尝试在双方可见且标注为模拟失败 :: "高德补测失败：高德 direction/walking 无返回（夹具注入）。（夹具注入的模拟失败，非真实返回）"
+PASS 门1 已消耗额度如实记账，逻辑请求与重试分开 :: {"perResolveHardMax":9,"perPlanHardMax":18,"approvalThreshold":6,"hourlyHeadroomWalking":80,"spentThisPlan":8,"spentThisResolve":8,"logicalRequests":8,"httpRetries":2,"edges":8}
+PASS 门1 待协商状态下不能确认 :: "待协商或待成本批准时不能确认，也不能执行。"
+PASS 门1 同 attemptId 重放不重复消耗额度 :: {"code":"idempotent-replay","attempts":1}
+PASS 门1b 过期版本提交在花钱之前就被拒绝 :: {"code":"stale-revision","head":2}
+PASS 门1c CAS 拒绝时不覆盖条件也不额外挂起确认
+PASS 门2 单方确认不产生新版本，也不能执行 :: {"status":"awaiting-confirmation","revisions":2}
+PASS 门2 双方确认同一 revision 才允许正式执行 :: {"allowed":true,"reason":"v2 已双方确认、事实核验完成且满足双方现行硬条件。"}
+PASS 门2b 少走一点只生成待确认提案 :: {"kind":"proposal","head":3,"official":2}
+PASS 门2c 提案未确认前正式执行的仍是上一份双方确认过的版本
+PASS 门2d 只能确认当前版本，旧版本的确认入口已关闭 :: "当前版本是 v3，v2 已不是最新方案。"
+PASS 门2e 提案被双方确认后才替换正式路线 :: {"official":3}
+PASS 门2f 内容指纹不符的确认被拒绝 :: "你看到的版本已经变了，请刷新后重新确认。"
+PASS 门2g 已撤销的方案不能执行也不回退到城市/类别路线 :: {"allowed":false,"reason":"方案已被撤销，两个角色链接都立即失效。"}
+PASS 门3 报价落在阈值与硬上限之间（夹具前提） :: {"oneTarget":8,"twoTargets":14}
+PASS 门3a 超过建议支出阈值时先报价再执行，未批准一分不花 :: {"code":"cost-approval-needed","need":8}
+PASS 门3a2 待成本批准时不能确认，也不能执行
+PASS 门3b 批准后在硬上限内才真正补测，逻辑请求与 HTTP 重试分开记账 :: {"code":"ok","logical":8,"retries":3}
+PASS 门3b2 补测之后必须去真的进了新方案 :: {"stops":["集贤亭","湖滨步行街","岳王庙（夹具：短名单外）","曲院风荷（夹具：短名单外）"]}
+PASS 门3c confirmCost 越不过单轮硬上限，且在花钱之前就拒绝 :: {"code":"quota","need":14}
+PASS 门3c confirmCost 越不过单方案硬上限，且一分不花 :: {"code":"quota","spent":17}
+PASS 门3d 额度不足时留在原方案说明缺什么，不建议撤销重建重置计数 :: "额度不足：本方案缺 8 条实测段（曲院风荷（夹具：短名单外） → 岳王庙（夹具：短名单外）、岳王庙（夹具：短名单外） → 曲院风荷（夹具：短名单外）、断桥残雪 → 岳王庙（夹具：短名单外）、岳王庙（夹具：短名单外） → 断桥残雪、圣塘景区 → 岳王庙（夹具：短名单外）、岳王庙（夹具：短名单外） → 圣塘景区、湖滨步行街 → 岳王庙（夹具：短名单外）、岳王庙（夹具：短名单外） → 湖滨步行街）。条件已记下，方案保持待协商；这里不建议撤销重建来重置计数。"
+PASS 门3e 小时余量同样是硬上限 :: {"caps":[9,18,6]}
+PASS 门3f 本小时余量不足时直接拒绝，不退化成「先试一下」 :: "额度不足：本方案缺 8 条实测段（曲院风荷（夹具：短名单外） → 岳王庙（夹具：短名单外）、岳王庙（夹具：短名单外） → 曲院风荷（夹具：短名单外）、断桥残雪 → 岳王庙（夹具：短名单外）、岳王庙（夹具：短名单外） → 断桥残雪、圣塘景区 → 岳王庙（夹具：短名单外）、岳王庙（夹具：短名单外） → 圣塘景区、湖滨步行街 → 岳王庙（夹具：短名单外）、岳王庙（夹具：短名单外） → 湖滨步行街）。条件已记下，方案保持待协商；这里不建议撤销重建来重置计数。"
+PASS 门3CAS 缺少报价指纹不补测、不覆盖底线、不挂起原正式路线 :: {"code":"stale-revision","calls":0}
+PASS 门3CAS 错误报价指纹不补测、不覆盖底线、不挂起原正式路线 :: {"code":"stale-revision","calls":0}
+PASS 门3CAS 正确报价指纹也不能夹带另一份本人条件 :: {"quote":"cost-approval-needed","code":"stale-revision"}
+PASS 门3CAS 对方条件更新失败未升版时，旧报价仍在付费前拒绝 :: {"peerUpdate":"quota","head":2,"code":"stale-revision"}
+PASS 门4 会话去重键含 planId 与角色，同源行程不再并成一个上下文
+PASS 门4b 回合去重键含角色，同一秒同一意图不会互串结果
+PASS 门4c 作用域键不是凭据：由公开字段拼出来的 planId|role|行程 冒充角色令牌一定被拒
+PASS 门4d 角色令牌高熵、服务端只存哈希、比对可用 timingSafeEqual
+PASS 门4e 令牌哈希可验证、错值不可验证
+PASS V1 合法条件被接受且角色由服务端赋值 :: {"ok":true,"conditions":{"role":"B","hard":{"latestEndMinutes":null,"maxWalkMeters":6000,"mustVisit":["c1"],"neverAccept":[]},"soft":{"c2":"prefer"},"bias":"walk_less"}}
+PASS V2 不认识的顶层字段 被拒绝（不静默替换、不补默认值） :: "conditions 里出现了不认识的字段「role」。"
+PASS V2 不认识的 hard 字段 被拒绝（不静默替换、不补默认值） :: "hard 里出现了不认识的字段「maxMeters」。"
+PASS V2 步行上限不是整数 被拒绝（不静默替换、不补默认值） :: "步行上限必须是 200~40000 之间的整数米（统计口径见成本说明）。"
+PASS V2 步行上限低于下限 被拒绝（不静默替换、不补默认值） :: "步行上限必须是 200~40000 之间的整数米（统计口径见成本说明）。"
+PASS V2 最晚结束超出当天分钟范围 被拒绝（不静默替换、不补默认值） :: "最晚结束时刻必须是 0~1439 之间的整数（当天分钟数）。"
+PASS V2 软偏好档位不在白名单 被拒绝（不静默替换、不补默认值） :: "「c1」的态度只能是 特别想去 / 可以去 / 不太想去 / 愿意跟随。"
+PASS V2 整体倾向不在白名单 被拒绝（不静默替换、不补默认值） :: "整体倾向只能是 多看几个 / 少走路 / 无所谓。"
+PASS V2 站点数量超上限 被拒绝（不静默替换、不补默认值） :: "必须去 mustVisit 最多 12 项。"
+PASS V2b 空条件合法（不提任何硬约束也是一种表态）
+
+76/76 通过（夹具数据，零高德/飞猪/百炼调用）
+(node:4160) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///<PROJECT_ROOT>/src/lib/negotiation/plan-state.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\<PROJECT_ROOT>\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS R1 需要补测的条件确实触发了补测（夹具注入失败） :: {"code":"measurement-failed","补测次数":1}
+PASS R1b 新硬条件已经落下，没有因为失败被回退 :: {"cap":2399,"status":"paused"}
+PASS R1c 旧确认仍然挂起，超限的旧路线不能恢复为正式路线 :: {"曾经是":1,"reason":"有硬性条件更新后旧方案已被挂起，双方确认新版本之前不得正式执行。"}
+PASS R2 提案这一步不挂起旧确认 :: {"code":"ok","official":1}
+PASS R2b 提案求解失败时正式版本与执行入口都不受影响 :: {"code":"no-solution","official":1,"gate":"v1 已双方确认、事实核验完成且满足双方现行硬条件。"}
+PASS R3 A 确认过 v1、B 确认 v2 不构成双方确认 :: {"message":"已记录 B 的确认，等待 A 确认 v2。"}
+PASS R3b 旧版本的确认在新版本出现后立刻不可用 :: {"code":"not-confirmable"}
+PASS R3c 两人都确认 v2 之后才正式生效 :: {"official":2}
+PASS R4 撤回条件后仍是新版本，旧确认不跟着走 :: {"v3":3,"status":"pending-review","official":null}
+PASS R4b 恢复相同内容也产生新 revision，并且如实标成 rolled-back-content :: {"v4":4,"同内容":true,"status":"rolled-back-content"}
+PASS R4c 新版本的确认是空的，正式执行入口仍然关着 :: {"reason":"还没有双方确认过的版本。"}
+PASS R5 过期请求先被版本检查挡下 :: {"code":"stale-revision"}
+PASS R5b 挡下之前一次补测都没发生，额度一分没动 :: {"补测调用批次":1,"spentThisPlan":8}
+PASS R5c 过期请求留下了一条可读的尝试记录
+PASS R6 confirmCost 越不过本方案硬上限 :: {"code":"quota"}
+PASS R6b 拒绝发生在花钱之前 :: {"spent":17}
+PASS R7 仍然出方案，且状态不是硬冲突 :: {"kind":"found"}
+PASS R7b 界面文案里没有「不可行」这种越界结论 :: {"note":"步行上限只统计「起点→站1→……→最后站」这段高德实测链条，不含回程；景区内部的步行量高德不提供，我们也没有数据。每站停留 30 分钟是模拟值、全程余量 20 "}
+PASS R8 路线真的变长了 :: {"前":800,"后":2400}
+PASS R8b 变长时差异写「多走」并带正号，不假装省了 :: {"差异行":"v1 → v2：总步行 800 米 → 2.40 公里（多走 1.60 公里，+1.60 公里）"}
+PASS R9 撤销后写操作全部拒绝 :: {"dead":"plan-dead","confirm":"plan-dead"}
+PASS R9b 撤销后执行门禁关闭
+
+22/22 通过（夹具数据，零高德/飞猪/百炼调用）
+PASS 1 事实块里两边条件都在（含步行上限与倾向） :: {"条件行":["【双方条件】A：未提步行上限｜未设置必须去｜未设置绝不接受｜倾向 无特定倾向（不代表无异议）｜偏好 尚未填写逐站","【双方条件】B：步行≤3.00 公里｜未设置必须去｜未设置绝不接受｜倾向 无特定倾向（不代表无异议）｜偏好 尚未"]}
+PASS 2 事实块带服务端判定与当前版本
+PASS 2b 空条件明确标成未设置，不把默认值写成用户无所谓或无异议 :: {"A":"【双方条件】A：未提步行上限｜未设置必须去｜未设置绝不接受｜倾向 无特定倾向（不代表无异议）｜偏好 尚未填写逐站偏好（不代表没有反对意见）"}
+PASS 2c 完整图未入选站的真实可行依据进入 AI 事实块，不输入虚假的缺连接理由
+PASS 2d 显式可以去与未评价分开表达，不能在压缩事实时丢失当事人评价
+PASS 3 差异行同时给出前后两个数字，方向词与真实变化一致（不隐藏增加） :: {"差异行":"v1 → v2：总步行 2.40 公里 → 2.40 公里（步行不变 0 米，+0 米）；步行耗时 30 分钟 → 30 分钟（+0 分钟）；总时长 170 分钟 → 170 分钟（总耗时不变 0 分钟）；保留：集贤亭、","diffFrom":2400,"diffTo":2400}
+PASS 4 口径说明原文进了事实块
+PASS 5 块里出现的每个数字都在对账清单里（模型照抄就不会误判） :: {"漏网":[]}
+PASS 6 事实块不编造任何价格：没有一项带数字的门票/花费
+PASS 7 下一步选项都由服务端生成且带真实补测报价 :: {"选项":["confirm-current:0","alternative-1:0","alternative-2:0","must-visit-c5:0","relax-cap-B:null"]}
+PASS 8 有步行上限时给出「由本人调整」这一类选项
+PASS 9 未确认状态下选项不说成已生效，且要求当事人自己确认
+PASS 3b 路线真的变短时差异写出「少走」与负号 :: {"tightV1":2400,"now":1440,"tightDiff":"v1 → v2：总步行 2.40 公里 → 1.44 公里（少走 960 米，−960 米）"}
+PASS 10 未双方确认时执行行程是空的 :: {"reason":"还没有双方确认过的版本。"}
+PASS 11 未确认时双人「我到了」被服务端拒绝，且没有拿单人路线顶数 :: {"error":"这条协商现在没有可正式执行的版本：还没有双方确认过的版本。"}
+PASS 11b 这一步没有新增任何外部请求 :: {"added":[]}
+PASS 12 AI 解释失败时如实返回错误，不返回固定文案 :: {"error":"本套件不允许真实外部调用：https://ws-fake.cn-beijing.maas.aliyuncs.com/api/v1/agentstu"}
+PASS 12b 失败的解释只带出脱敏作用域哈希，两角色的不同，也不含方案编号 :: {"A":"65b47bc83ed9","B":"79f6ccd831e3"}
+PASS 13 全程没有发出过高德请求 :: {"高德":[]}
+PASS 14 双方确认后执行行程出现，且与快照里的正式版本同源 :: {"revision":2,"meters":2400}
+PASS 15 确认后 AI 读的就是这一版：失败点已经不在行程解析上 :: {"error":"本套件不允许真实外部调用：https://ws-fake.cn-beijing.maas.aliyuncs.com/api/v1/agentstu"}
+PASS 15b 双人「我到了」不把服务端作用域键回传给浏览器 :: {"token":null}
+PASS 16 这一步只撞到百炼边界，仍然没有高德请求 :: {"新增":["https://ws-fake.cn-beijing.maas.al"]}
+PASS 17 会话作用域按角色分开
+PASS 18 回合去重键按角色与票据分开，A 的在飞回合不会被 B 复用
+PASS 19 凭据只认角色令牌：B 的令牌只指向 B，公开字段拼出来的作用域键与 planId 本身都进不来 :: {"B":{"role":"B"},"作用域键":{"error":"bad-token"},"planId":{"error":"bad-token"}}
+PASS 19b 对外的解释响应里没有任何会话键，只有 12 位截断哈希
+PASS 20 待成本批准仍保留旧 head 时，解释在付费前拒绝且外部请求为零 :: {"code":"cost-approval-needed","headRevision":1,"error":"当前条件尚未完成求解，旧版本已挂起，不能用旧方案解释新的条件。请先完成当前条件的求解或补测成本批准，再解释有效版本；本次没有调用百炼。","addedRequests":0}
+PASS 21 条件已保存但补测失败、head 未升版时，不把新条件与旧求解结果送给百炼 :: {"code":"measurement-failed","status":"paused","headRevision":1,"error":"当前条件尚未完成求解，旧版本已挂起，不能用旧方案解释新的条件。请先完成当前条件的求解或补测成本批准，再解释有效版本；本次没有调用百炼。","addedRequests":0}
+
+29/29 通过（夹具事实 + 假密钥 + fetch 桩，零高德/飞猪/百炼真实调用）
+PASS [write] 写入阶段：双方确认同一版本 :: {"code":"ok"}
+PASS [write] 本阶段没有发出任何外部请求（write） :: {"outbound":[]}
+PASS [read] 重启后 A 的链接仍然认得（服务端只存哈希） :: {"role":"A"}
+PASS [read] 重启后 B 的链接仍然认得 :: {"role":"B"}
+PASS [read] 错令牌仍然不认 :: {"error":"bad-token"}
+PASS [read] 恢复出的版本号与确认状态一致 :: {"official":2,"head":2,"want":2}
+PASS [read] 恢复出的正式版本仍是双方确认 :: {"reason":"v2 已双方确认、事实核验完成且满足双方现行硬条件。"}
+PASS [read] 恢复出的步行数字与写入时同源 :: {"restored":2400,"written":2400}
+PASS [read] 重启后双人执行入口读到的就是那一版 :: {"revision":2}
+PASS [read] 快照状态如实报告恢复了多少条 :: {"status":"loaded","detail":null,"loaded":1,"skipped":{"expiredPlan":0,"corrupt":0}}
+PASS [read] 快照文件落在被忽略的目录里 :: {"file":"plan-snapshot.json"}
+PASS [read] 快照里没有角色令牌明文
+PASS [read] 快照里没有密钥形状的内容 :: {"命中":[]}
+PASS [read] 本阶段没有发出任何外部请求（read） :: {"outbound":[]}
+PASS [poll-expiry] 持续读取到原采集时间5小时59分时，正式版本仍可用
+PASS [poll-expiry] 轮询不续期：原事实超过6小时后，角色页快照门禁关闭 :: {"allowed":false,"reason":"已核验事实已过期或在本实例上不可用，请重新核验后再协商确认；这里不会自动调用高德。"}
+PASS [poll-expiry] 快照明确说明事实过期且需要重新核验
+PASS [poll-expiry] 过期快照与执行入口判定一致
+PASS [poll-expiry] 过期不伪造新版本或删掉历史确认
+PASS [poll-expiry] 轮询不改写原始事实采集时间
+PASS [poll-expiry] 本阶段没有发出任何外部请求（poll-expiry） :: {"outbound":[]}
+PASS [stale-write] 过期场景的快照写入成功 :: null
+PASS [stale-write] 本阶段没有发出任何外部请求（stale-write） :: {"outbound":[]}
+PASS [stale-read] 事实过期后不再当作可用 :: {"live":false}
+PASS [stale-read] 事实过期时执行入口直接关闭，不静默重跑核验 :: {"reason":"事实层已过期，需要重新核验后才能继续这条协商。"}
+PASS [stale-read] 给出的原因是可读的失效说明 :: {"reason":"事实层已过期，需要重新核验后才能继续这条协商。"}
+PASS [stale-read] 恢复过期事实后角色页也不会宣称正式可执行 :: {"allowed":false,"reason":"已核验事实已过期或在本实例上不可用，请重新核验后再协商确认；这里不会自动调用高德。"}
+PASS [stale-read] 恢复过期事实不会改动已确认版本号
+PASS [stale-read] 本阶段没有发出任何外部请求（stale-read） :: {"outbound":[]}
+PASS [corrupt] 已构造一个被改坏的快照
+PASS [corrupt] 本阶段没有发出任何外部请求（corrupt） :: {"outbound":[]}
+PASS [corrupt-read] 校验不过时整份拒绝恢复 :: {"error":"unknown-plan"}
+PASS [corrupt-read] 拒绝恢复的原因如实可查 :: {"status":"corrupt","detail":"快照文件的校验和不匹配（内容被改动或写入不完整），已拒绝恢复。","loaded":0,"skipped":{"expiredPlan":0,"corrupt":0}}
+PASS [corrupt-read] 本阶段没有发出任何外部请求（corrupt-read） :: {"outbound":[]}
+
+34/34 通过（夹具数据 + 真实文件读写，零高德/飞猪/百炼调用）
+(node:17000) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///<PROJECT_ROOT>/src/lib/negotiation/editor.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\<PROJECT_ROOT>\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 刷新回填完整硬条件与全部已表达软偏好
+PASS 只改整体倾向仍保留3000米、必须去、绝不接受及结束时刻
+PASS 必须去主动降为特别想去时只改变该站，不删除其它底线
+PASS 明确选择可以去仍是已表达评价，不与未填写混淆
+PASS 草稿不会修改服务器快照或共用偏好对象
+PASS 条件key不因无关对象顺序变动，实际硬底线变化会被发现
+PASS 旧报价绑定版本和双方条件，失败未升版的底线修改也会使其失效
+
+7/7 编辑条件回归通过（零真实 API 调用）
+(node:39564) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///<PROJECT_ROOT>/src/lib/verification.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\<PROJECT_ROOT>\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS TZ=UTC：5 个相同 instant，上海日界线/13:00出发/17:00边界/UI标注一致
+PASS TZ=Asia/Shanghai：5 个相同 instant，上海日界线/13:00出发/17:00边界/UI标注一致
+PASS TZ=America/Los_Angeles：5 个相同 instant，上海日界线/13:00出发/17:00边界/UI标注一致
+3/3 时区通过，15 个日期与行程边界场景（纯函数夹具，零真实调用）
+(node:15300) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///<PROJECT_ROOT>/src/lib/negotiation/official-view.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\<PROJECT_ROOT>\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 读不到方案时不显示正式路线
+PASS 保存条件或确认在途时隐藏旧正式路线
+PASS 状态同步失败时不把旧快照当作可执行
+PASS 服务端未放行时不显示已挂起的官方记录
+PASS 正式版本缺失时不能用待确认版本顶替
+PASS 明确挂起或已被取代的版本不显示
+PASS 正式版本编号不一致时拒绝展示
+PASS 有效正式版直接复用服务端起点、顺序和每段数字，不重新生成路线
+PASS 待确认的新提案不替代仍有效的上一正式版
+
+9/9 正式行程展示门禁回归通过（纯夹具，零真实 API 调用）
+(node:38672) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///<PROJECT_ROOT>/src/lib/verified-chain.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\<PROJECT_ROOT>\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 只有起点腿且站间全缺段：不误称全部超过240分钟
+PASS 所有组合有完整实测段但确实超时：给出最短总时长与模拟项
+PASS 完整超时与缺段混合：分别计数，不断言缺段组合也超时
+PASS 只存在一条可行有向链：照常返回该链及已有实测段
+PASS 反向实测段不替代缺少的正向段
+PASS 成功排序保持4站优先，即使3站总耗时更短
+PASS 同站数比较真实路段总耗时，选择最短有序组合
+PASS 完全同分时维持原枚举顺序，不反转或随机重排
+PASS 240分钟恰好可行，241分钟仍拒绝，不放宽预算
+PASS 不足3站仍不成线，不把1至2站当作初始核验成功
+PASS 分析不修改候选、路段内容或Map
+
+11/11 单人组合与无解归因回归通过（人工夹具，零真实 API 调用）
+(node:8028) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///<PROJECT_ROOT>/src/lib/discovery.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\<PROJECT_ROOT>\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 保留 API 旧的双类别 fallback，UI 默认单文创互不混淆
+PASS 同类别比较不依赖勾选顺序，双类不能冒充单类
+PASS 新类别请求在途或失败时，旧报告仍使用报告自己的真实类别
+PASS 旧快照 usedCategories 即使已被污染，也以 report.categories 为准
+PASS 空类别报告不静默借用当前勾选类别冒充来源
+PASS 切换城市不显示前城 override，也不接受内外城市不一致的快照
+PASS 同城的新失败报告仍是本轮真实报告，不偷偷恢复上一份可行路线
+PASS 新请求开始后，旧成功/失败/计数回包均失去写回资格
+PASS 离开城市后关闭作用域，再回同城也不能复活旧请求
+PASS 不同城市同一请求序号不能互相写回
+10/10 通过（纯报告投影与请求作用域，零真实调用）
+(node:37348) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///<PROJECT_ROOT>/src/lib/map/geometry-state.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\<PROJECT_ROOT>\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 联合凭据缺失/无效时禁止生成单人补测请求
+PASS 正式请求把令牌放请求头，正文只含planId/revision/legs
+PASS 单人请求保留原坐标接口，不夹带联合身份
+PASS 模式/计划/正式版本/角色令牌分别隔离缓存
+PASS 同版轮询的新对象得到稳定pending，已有折线不会重复请求
+PASS StrictMode重新订阅在途Promise，不提前标完成，也不丢最终折线
+PASS 旧作用域迟到只填自己的缓存，不能覆盖新版本折线
+PASS 失败结果保留缺几何状态，不因轮询自动重试或走另一loader
+8/8 通过（纯作用域/在途缓存/请求契约，零真实调用）
+PASS 双方未确认不能读正式几何
+PASS B 可读同版正式路线已有折线且零新增
+PASS 正式几何原样返回且附保存的真实距离
+PASS 请求子集按请求顺序对齐下标
+PASS 缺折线明确留空报错而不补查
+PASS 单段缺几何不抹掉其余已有几何
+PASS 错误角色凭据拒绝且不补查
+PASS 缺失角色凭据拒绝且不补查
+PASS 未知方案不落回单人入口
+PASS 旧正式版本拒绝
+PASS 任意合法坐标不能借联合入口补测
+PASS 反向坐标不能冒充正式路段
+PASS 微小偏移也不能变成新增测量
+PASS 事实池其它已测段也不能越过正式路线范围
+PASS null方案ID仍强制只读拒绝
+PASS 空方案ID仍强制只读拒绝
+PASS 数字方案ID仍强制只读拒绝
+PASS 超长方案ID仍强制只读拒绝
+PASS null版本号仍强制只读拒绝
+PASS 字符串版本号仍强制只读拒绝
+PASS 零版本号仍强制只读拒绝
+PASS 只有planId也不回退单人付费
+PASS 只有officialRevision也不回退单人付费
+PASS 非法坐标返回统一几何错误结构
+PASS 过多请求段拒绝
+PASS 缺legs拒绝
+PASS 坏JSON保持几何错误结构
+PASS 非对象JSON拒绝
+PASS 超大请求体拒绝
+PASS 无联合字段的空单人请求仍兼容
+PASS 更高未确认提案不替换旧正式版几何
+PASS 未确认head不能冒充正式版
+PASS 违反现行底线挂起后旧正式几何不可读
+PASS 事实过期时即便已确认也拒绝且提示重新核验
+PASS 撤销链接后读几何被拒绝
+PASS 全部成功和拒绝路径fetch为0（使用非空假高德key）
+PASS 全部路径高德walkingCalls仍为0
+
+37/37 passed; external fetch=0; walkingCalls=0
+(node:18092) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///<PROJECT_ROOT>/evidence/negotiation-fixture.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\<PROJECT_ROOT>\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
