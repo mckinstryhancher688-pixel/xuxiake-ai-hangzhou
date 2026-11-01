@@ -11,6 +11,7 @@ import { LIMITS, type PoiCandidate, type TripJob, type TripWorkspace, type Verif
 import type { AmapPoi, CandidateMatch, LatLng, DiscoverBatch } from "@/lib/types";
 import { charge, evidence, hash, id, loadTrip, mutate, putEvidence, TripError } from "./db";
 import { factsFresh, solveTrip, suspend } from "./store";
+import { candidateSelection, candidateLimitMessage, selectedCandidates } from "@/lib/trips/candidates";
 
 const TTL = 6 * 3600000;
 export interface RouteProviders {
@@ -26,19 +27,14 @@ function signature(trip: TripWorkspace): string {
     trip.candidates.filter((c) => c.selected).map((c) => [c.id, c.name, c.amap?.id]), trip.plan?.headRevision]));
 }
 function workingCandidates(trip: TripWorkspace): PoiCandidate[] {
-  const ids = new Set(trip.candidates.filter((c) => c.selected).map((c) => c.id));
-  for (const party of [trip.conditions.A, trip.conditions.B]) {
-    if (!party) continue;
-    for (const key of party.hard.mustVisit) ids.add(key);
-    for (const [key, rank] of Object.entries(party.soft)) if (rank === "prefer") ids.add(key);
-  }
-  if (!ids.size) throw new TripError(400, "请先挑选要比较的地点。");
-  if (ids.size > LIMITS.candidates) throw new TripError(422, "本轮最多比较六个地点；请保留双方必须去和特别想去的地点后主动缩减。");
+  const selection = candidateSelection(trip);
+  if (!selection.ids.length) throw new TripError(400, "请先挑选要规划的候选地点。");
+  if (selection.ids.length > LIMITS.candidates) throw new TripError(422, candidateLimitMessage(selection));
   const must = new Set([trip.conditions.A, trip.conditions.B].flatMap((c) => c?.hard.mustVisit ?? []));
   const never = new Set([trip.conditions.A, trip.conditions.B].flatMap((c) => c?.hard.neverAccept ?? []));
   if ([...must].some((key) => never.has(key))) throw new TripError(422, "一方必须去与另一方绝不接受发生冲突，请各自先协商底线；本次没有发起外部查询。");
   if (must.size > 4) throw new TripError(422, "双方必须去合计超过四站，与当前半日最多四站的范围冲突；本次没有发起查询。");
-  return trip.candidates.filter((c) => ids.has(c.id));
+  return selectedCandidates(trip.candidates, selection);
 }
 export function makeQuote(tripId: string, expected: number): VerifyQuote {
   let quote!: VerifyQuote;

@@ -24,7 +24,7 @@ export function TripConditions({ role, initial, candidates, busy, onSave }: {
         onChange={(e) => { const [h, m] = e.target.value.split(":").map(Number); setDraft((d) => ({ ...d, hard: { ...d.hard, latestEndMinutes: e.target.value ? h * 60 + m : null } })); }} className="mt-2 w-full rounded-lg border border-line p-2.5" /></label>
       <label className="text-sm">游玩倾向<select value={draft.bias} onChange={(e) => setDraft((d) => ({ ...d, bias: e.target.value as PartyConditions["bias"] }))} className="mt-2 w-full rounded-lg border border-line p-2.5"><option value="neutral">没有特定倾向</option><option value="see_more">尽量多看几个</option><option value="walk_less">尽量少走路</option></select></label>
     </div>
-    {candidates.map((c) => <fieldset key={c.id} className="rounded-lg border border-line p-3">
+    {candidates.map((c) => <fieldset key={c.id} id={"trip-condition-" + c.id} className="scroll-mt-6 rounded-lg border border-line p-3">
       <legend className="px-1 text-sm font-medium">{c.name}</legend>
       <label className="text-sm">我的偏好<select value={draft.soft[c.id] ?? ""} onChange={(e) => setDraft((d) => { const soft = { ...d.soft }; if (e.target.value) soft[c.id] = e.target.value as "prefer" | "ok" | "avoid" | "follow"; else delete soft[c.id]; return { ...d, soft }; })} className="ml-2 rounded border border-line p-2">
         <option value="">尚未评价</option><option value="prefer">特别想去</option><option value="ok">可以去</option><option value="avoid">不太想去</option><option value="follow">愿意跟随</option>

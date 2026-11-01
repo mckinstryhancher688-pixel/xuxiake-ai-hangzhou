@@ -6,10 +6,12 @@ import { useTripWorkspace } from "@/hooks/useTripWorkspace";
 import { TripMaterials, PrivateImage } from "./TripMaterials";
 import { TripConditions } from "./TripConditions";
 import { TripRouteMap } from "./TripRouteMap";
+import { TripCandidateSummary } from "./TripCandidateSummary";
 import { emptyConditions, type PartyConditions } from "@/lib/negotiation/types";
 import { stopIdOf } from "@/lib/types";
-import type { TripAnswer, TripSnapshot, TripExplanation } from "@/lib/trips/types";
+import { LIMITS, type TripAnswer, type TripSnapshot, type TripExplanation } from "@/lib/trips/types";
 import { independentSourceCount } from "@/lib/trips/sources";
+import { candidateSelection, candidateReasonText } from "@/lib/trips/candidates";
 
 const steps = ["收集资料", "挑选地点", "调整路线", "确认行程"] as const;
 export function TripWorkspaceClient({ tripId }: { tripId: string }) {
@@ -45,6 +47,8 @@ export function TripWorkspaceClient({ tripId }: { tripId: string }) {
   const explanation = snapshot.jobs.find((job) => job.kind === "explain" && job.status === "ready" && (job.result as TripExplanation)?.revision === head?.revision && (job.result as TripExplanation)?.contentHash === head?.contentHash && (job.result as TripExplanation)?.knowledgeVersion === trip.knowledgeVersion)?.result as TripExplanation | undefined;
   const recovery = typeof window === "undefined" ? "" : window.location.origin + "/trips/" + tripId + "#token=" + encodeURIComponent(workspace.credential);
   const myConditions = trip.conditions[role] ?? emptyConditions(role);
+  const candidateScope = candidateSelection({ ...trip, candidates: trip.candidates.map((c) => ({ ...c, selected: selection[c.id] ?? c.selected })) });
+  const tooManyCandidates = candidateScope.ids.length > LIMITS.candidates;
   return <main className="mx-auto max-w-5xl space-y-6 px-4 py-7 sm:px-6">
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div><Link href="/" className="text-xs text-brand-700">徐霞客 AI</Link><h1 className="mt-2 text-2xl font-bold">{trip.title}</h1>
@@ -76,15 +80,19 @@ export function TripWorkspaceClient({ tripId }: { tripId: string }) {
     {step === 0 ? <TripMaterials materials={trip.materials} role={role} tripId={tripId} credential={workspace.credential} busy={busy} act={act} /> : null}
     {step === 1 ? <div className="space-y-6">
       <section className="space-y-4 rounded-xl border border-line bg-white p-5">
-        <h2 className="text-lg font-semibold">挑选要比较的地点</h2><p className="text-sm leading-7 text-ink-500">资料提及不等于你想去。勾选本轮要比较的地点，再分别填写偏好；双方必须去和特别想去的地点也会纳入本轮比较。首轮最多六个候选，路线最多四站。</p>
+        <h2 className="text-lg font-semibold">挑选本轮路线候选</h2><p className="text-sm leading-7 text-ink-500">从这些候选中计算“去哪些、按什么顺序走”，比较能否满足步行、时间和双方选择。每轮最多 6 个候选，最终路线最多 4 站；加入候选不代表最后一定去。</p>
+        <TripCandidateSummary selection={candidateScope} />
         <div className="flex flex-wrap gap-3">{["城市观光", "自然风光", "文创街区"].map((category) => <button disabled={busy} key={category}
           onClick={() => void act("enrich", { category })} className="rounded-lg border border-brand-700 px-3 py-2 text-sm text-brand-700 disabled:opacity-50">用飞猪补充{category}</button>)}</div>
         <p className="text-xs text-ink-500">点击以上按钮才会查询飞猪，并受缓存与额度限制。</p>
         {trip.candidates.map((candidate) => {
           const sources = trip.materials.filter((m) => candidate.materialIds.includes(m.id) && !m.deletedAt);
           const count = independentSourceCount(trip.materials, candidate.materialIds);
+          const reasons = candidateScope.reasons[candidate.id] ?? [];
+          const protectedChoice = reasons.length > 0;
           return <article key={candidate.id} className="space-y-2 rounded-lg border border-line p-4">
-            <label className="font-medium"><input type="checkbox" disabled={busy} checked={selection[candidate.id] ?? candidate.selected} onChange={(e) => void selectCandidate(candidate.id, e.target.checked)} className="mr-2" />{candidate.name}</label>
+            <label className="font-medium"><input type="checkbox" disabled={busy || protectedChoice} aria-describedby={protectedChoice ? "trip-candidate-reason-" + candidate.id : undefined} checked={protectedChoice || (selection[candidate.id] ?? candidate.selected)} onChange={(e) => void selectCandidate(candidate.id, e.target.checked)} className="mr-2" />{candidate.name}</label>
+            {protectedChoice ? <p id={"trip-candidate-reason-" + candidate.id} className="text-xs leading-6 text-brand-700">已加入本轮候选：{candidateReasonText(reasons)}。{reasons.some((r) => r.role === role) ? <><a href={"#trip-condition-" + candidate.id} className="underline">修改并提交我的选择</a>；{reasons.some((r) => r.role !== role) ? "对方也保留了此地点，需双方分别调整后才能移出。" : "解除保留后可取消勾选。"}</> : "需由对方修改自己的选择后才能移出。"}</p> : null}
             <p className="text-xs leading-6 text-ink-500">{count ? count + " 份资料提及 · " : ""}{candidate.flyai ? "已关联飞猪信息" : "攻略来源，未关联飞猪数据"} · {candidate.identity === "verified" ? "高德身份已核实" : candidate.identity === "ambiguous" ? "需确认具体地点" : "尚未核验身份"}</p>
             {candidate.flyaiMeasuredAt ? <p className="text-xs text-ink-500">飞猪信息采集于 {new Date(candidate.flyaiMeasuredAt).toLocaleString("zh-CN")}</p> : null}
             {candidate.crossCheck ? <p className="text-xs leading-6 text-amber-800">跨平台比对：{candidate.crossCheck.reason}</p> : null}
@@ -109,12 +117,13 @@ export function TripWorkspaceClient({ tripId }: { tripId: string }) {
       <section className="space-y-4 rounded-xl border border-line bg-white p-5">
         <h2 className="text-lg font-semibold">{step === 2 ? "把选择变成真实路线" : "分别确认这份具体安排"}</h2>
         <p className="text-sm leading-7 text-ink-500">{snapshot.execution.allowed ? (trip.members.B ? "双方已确认" : "个人已确认") + " v" + trip.plan?.officialRevision : snapshot.execution.reason}</p>
+        <TripCandidateSummary selection={candidateScope} onEdit={() => setStep(1)} />
         <div className="flex flex-wrap gap-3">
-          <button disabled={busy} onClick={() => void act("quote")} className="rounded-lg border border-brand-700 px-4 py-2 text-sm text-brand-700">查看核验报价</button>
+          <button disabled={busy || tooManyCandidates || !candidateScope.ids.length} onClick={() => void act("quote")} className="rounded-lg border border-brand-700 px-4 py-2 text-sm text-brand-700 disabled:opacity-50">查看核验报价</button>
           <button disabled={busy || !trip.facts} onClick={() => void act("resolve")} className="rounded-lg border border-line px-4 py-2 text-sm">用已有数据重算</button>
           <button disabled={busy || !head} onClick={() => void act("shorten")} className="rounded-lg border border-line px-4 py-2 text-sm">提出少走一点的方案</button>
         </div>
-        {trip.quote ? <div className="space-y-3 rounded-lg bg-amber-50 p-4 text-sm text-amber-900">
+        {trip.quote && !tooManyCandidates ? <div className="space-y-3 rounded-lg bg-amber-50 p-4 text-sm text-amber-900">
           <p>本次上界：地点查询 {trip.quote.placeUpperBound} 次，步行路段 {trip.quote.walkingUpperBound} 段。缓存命中会更少，HTTP 重试另受小时额度限制。</p>
           <p>这是查询范围，不保证一定能找到满足条件的方案。后续新增路段超过六段时需要发起人批准。</p>
           <button disabled={busy || (!trip.quote.initial && trip.quote.walkingUpperBound > 6 && role !== "A")} onClick={() => void act("verify", { quoteId: trip.quote!.id, approveCost: role === "A" })}

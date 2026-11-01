@@ -19,6 +19,7 @@ const { emptyConditions } = await import("../src/lib/negotiation/types.ts");
 const { stopIdOf } = await import("../src/lib/types.ts");
 const { explanationIssue } = await import("../src/lib/trips/explanation.ts");
 const { compareVerifiedPoiPairs } = await import("../src/lib/server/verify.ts");
+const { candidateSelection, candidateLimitMessage } = await import("../src/lib/trips/candidates.ts");
 const api = await import("../src/app/api/trips/[[...path]]/route.ts");
 let passed = 0;
 function check(name, work) { work(); passed++; console.log("PASS " + name); }
@@ -345,5 +346,33 @@ check("较旧的在途核验任务不能被新任务挤出确认门禁", () => {
   for (let i = 0; i < 25; i++) storage.enqueue(t.id, "A", "ask", { question: String(i) }, "later-question-" + i);
   assert.ok(storage.jobsFor(t.id).some((j) => j.id === job.id));
   assert.throws(() => store.confirmTrip(t.id, "A", 1, "hash", storage.loadTrip(t.id).version), /处理中/);
+});
+check("六个手动勾选加一个未勾选的特别想去，明确指出实际七个与额外地点", () => {
+  const t = store.createTrip("候选计数夹具").trip;
+  storage.mutate(t.id, (trip) => {
+    trip.candidates = ["断桥", "白堤", "曲院风荷", "三潭印月", "雷峰塔", "南宋御街", "乌龟潭"].map((name, i) => ({ id: "count-" + i, name, selected: i < 6 }));
+    trip.conditions.A.soft = { "count-0": "prefer", "count-6": "prefer" };
+  });
+  const trip = storage.loadTrip(t.id), before = JSON.stringify(trip), scope = candidateSelection(trip);
+  assert.equal(scope.manualCount, 6); assert.equal(scope.ids.length, 7);
+  assert.deepEqual(scope.automatic.map((c) => c.name), ["乌龟潭"]);
+  assert.match(candidateLimitMessage(scope), /实际待规划 7 个.*手动勾选 6 个.*乌龟潭/);
+  assert.throws(() => routing.makeQuote(t.id, trip.version), /乌龟潭/);
+  assert.equal(JSON.stringify(storage.loadTrip(t.id)), before);
+});
+check("本人解除额外偏好后恢复六候选，不能靠取消手动勾选抹掉对方的必须去", () => {
+  const t = { candidates: Array.from({ length: 7 }, (_, i) => ({ id: "p" + i, name: "候选" + i, selected: i < 6 })), conditions: { A: emptyConditions("A"), B: emptyConditions("B") } };
+  t.conditions.A.soft.p6 = "prefer"; assert.equal(candidateSelection(t).ids.length, 7);
+  t.conditions.A.soft.p6 = "ok"; assert.equal(candidateSelection(t).ids.length, 6);
+  t.conditions.B.hard.mustVisit = ["p6"];
+  const scope = candidateSelection(t);
+  assert.equal(scope.ids.length, 7); assert.deepEqual(scope.reasons.p6, [{ role: "B", kind: "must" }]);
+});
+check("手动选择与双方多个保留原因按同一地点去重，不把同一候选重复计数", () => {
+  const t = { candidates: [{ id: "same", name: "同一候选", selected: true }], conditions: { A: emptyConditions("A"), B: emptyConditions("B") } };
+  t.conditions.A.soft.same = "prefer"; t.conditions.A.hard.mustVisit = ["same"]; t.conditions.B.soft.same = "prefer";
+  const scope = candidateSelection(t);
+  assert.equal(scope.ids.length, 1); assert.equal(scope.automatic.length, 0);
+  assert.deepEqual(scope.reasons.same, [{ role: "A", kind: "must" }, { role: "B", kind: "prefer" }]);
 });
 console.log(passed + "/" + passed + " workspace checks passed; fetch=" + networkCalls + "; fixtures are NOT live Amap evidence.");
