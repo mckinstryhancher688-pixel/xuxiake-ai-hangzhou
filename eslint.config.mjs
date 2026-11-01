@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local runtime and browser artifacts are not application source.
+    ".data/**",
+    ".playwright-cli/**",
+    "output/playwright/**",
   ]),
 ]);
 

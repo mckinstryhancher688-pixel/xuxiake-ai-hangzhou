@@ -1,5 +1,8 @@
 "use client";
 
+import { stopIdOf } from "@/lib/types";
+
+
 import type { AgentController } from "@/hooks/useAgent";
 import type { VerifiedRoute } from "@/hooks/useVerifiedRoute";
 import { sameCategories, type FlyAiPoiCategory } from "@/lib/discovery";
@@ -28,7 +31,7 @@ export function PlanActionBar({
   const hasRoute = stops.length > 0;
   const verifying = route.phase === "loading";
   const agentBusy = agent.arrived.phase === "loading" || agent.adjusted.phase === "loading";
-  const currentIndex = stops.findIndex((stop) => stop.flyaiId === agent.selectedStopId);
+  const currentIndex = stops.findIndex((stop) => stopIdOf(stop) === agent.selectedStopId);
   const current = currentIndex >= 0 ? stops[currentIndex] : null;
 
   if (!hasRoute) {

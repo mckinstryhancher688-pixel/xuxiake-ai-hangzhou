@@ -1,5 +1,8 @@
 "use client";
 
+import { stopIdOf } from "@/lib/types";
+
+
 import type { AgentController, LiveTurn } from "@/hooks/useAgent";
 import { AGENT_SOURCE_LABEL, ARRIVAL_MODE_LABEL } from "@/lib/agent";
 import { formatDistance, formatMinutes } from "@/lib/format";
@@ -48,12 +51,12 @@ export function AgentPanel({
         <>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {stops.map((stop, index) => {
-              const active = stop.flyaiId === agent.selectedStopId;
+              const active = stopIdOf(stop) === agent.selectedStopId;
               return (
                 <button
-                  key={stop.flyaiId}
+                  key={stopIdOf(stop)}
                   type="button"
-                  onClick={() => agent.selectStop(stop.flyaiId)}
+                  onClick={() => agent.selectStop(stopIdOf(stop))}
                   disabled={loading}
                   aria-pressed={active}
                   className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium ring-1 transition disabled:cursor-not-allowed disabled:opacity-40 ${

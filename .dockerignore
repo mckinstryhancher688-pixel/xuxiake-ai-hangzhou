@@ -1,0 +1,12 @@
+.git
+.next
+node_modules
+.data
+.env*
+!.env.example
+.playwright-cli
+output
+evidence
+scripts/agent-v1-backup.json
+*.log
+*.tsbuildinfo

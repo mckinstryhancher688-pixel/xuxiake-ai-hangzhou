@@ -1,3 +1,4 @@
+import { stopIdOf } from "../types.ts";
 import type { MapFeature, MapFeatureState, MapRouteLine } from "@/components/map/types";
 import type { LatLng, VerifiedItinerary, WalkingLeg } from "@/lib/types";
 
@@ -40,13 +41,13 @@ export function buildVerifiedScene(
     },
     ...itinerary.stops.map<MapFeature>((stop, index) => {
       const state: MapFeatureState =
-        stop.flyaiId === activeStopId
+        stopIdOf(stop) === activeStopId
           ? "active"
-          : arrived.has(stop.flyaiId)
+          : arrived.has(stopIdOf(stop))
             ? "visited"
             : "upcoming";
       return {
-        id: stop.flyaiId,
+        id: stopIdOf(stop),
         name: stop.name,
         kind: "poi",
         position: stop.position,
@@ -71,9 +72,9 @@ export function buildVerifiedScene(
       return;
     }
     routeLines.push({
-      id: `${START_FEATURE_ID}->${stop.flyaiId}-${index}`,
+      id: `${START_FEATURE_ID}->${stopIdOf(stop)}-${index}`,
       points: path,
-      state: arrived.has(stop.flyaiId) ? "walked" : "upcoming",
+      state: arrived.has(stopIdOf(stop)) ? "walked" : "upcoming",
     });
   });
 

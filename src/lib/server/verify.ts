@@ -503,7 +503,7 @@ function extractDistrict(text: string | null): string | null {
  */
 const PLACE_TYPECODE_PREFIXES = ["06", "08", "11", "12", "14", "19", "20"];
 
-function isPlausiblePlace(poi: AmapPoi): boolean {
+export function isPlausiblePlace(poi: AmapPoi): boolean {
   if (!poi.typecode) return false;
   return poi.typecode
     .split("|")
@@ -639,6 +639,13 @@ function compareCandidate(
   };
 
   return { match, nameExact, offType, asGcj02Meters, asWgs84Meters };
+}
+
+/** Reuse the exact legacy identity / datum rules for user-selected pairs without external calls. */
+export function compareVerifiedPoiPairs(pairs: { flyai: DiscoveredPoi; amap: AmapPoi }[]): CandidateMatch[] {
+  const preliminary = pairs.map(({ flyai, amap }) => compareCandidate(flyai, [amap], null));
+  const datum = concludeDatum(preliminary);
+  return preliminary.map((item) => applyDatum(item, datum));
 }
 
 function compareAddress(flyaiAddress: string | null, amapAddress: string | null): boolean | null {
@@ -794,7 +801,7 @@ function pickStart(pois: AmapPoi[]): RouteStart | null {
   };
 }
 
-function evaluateOpening(
+export function evaluateOpening(
   match: CandidateMatch,
   startMinutes: number,
   endMinutes: number,

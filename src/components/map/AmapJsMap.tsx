@@ -211,12 +211,14 @@ export function AmapJsMap({
         if (disposed) return;
         // 高德 loader 在脚本请求失败时 reject 的是原生 Event（不是 Error），
         // 直接 String() 只会得到「[object Event]」这种用户读不懂的碎片。
-        const detail =
+        const code = caught && typeof caught === "object" && "info" in caught && typeof caught.info === "string" && /^[A-Z0-9_]{1,80}$/.test(caught.info) ? caught.info : null;
+        const detail = code === "INVALID_USER_DOMAIN" ? "当前访问域名未获高德 JS Key 授权（INVALID_USER_DOMAIN），请在已配置的生产域名复核"
+          : code ?? (
           caught instanceof Error
             ? caught.message
             : caught instanceof Event
               ? "脚本请求没有成功（网络不通，或 Key 与安全密钥不匹配被平台拒绝）"
-              : String(caught);
+              : (typeof caught === "string" && caught.trim() ? caught : "SDK 未返回可用错误说明，请检查网络与平台授权"));
         fail(`高德地图 JS API 加载失败：${detail.slice(0, 160)}。已退回手绘示意底图，上面不画伪造的真实路线。`);
       });
 

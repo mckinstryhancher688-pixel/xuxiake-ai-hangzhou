@@ -1,3 +1,4 @@
+import { stopIdOf } from "../types.ts";
 import type { VerifiedItinerary } from "@/lib/types";
 import { diffItineraries } from "./diff.ts";
 import { estimateMissingEdges, solveJoint } from "./solve.ts";
@@ -58,6 +59,7 @@ export interface Confirmation {
 
 export interface Revision {
   revision: number;
+  requiredConfirmers?: Role[];
   contentHash: string;
   /** proposal = 「少走一点」这类不改条件的提案；committed = 条件变更后的新求解 */
   kind: "proposal" | "committed";
@@ -100,6 +102,8 @@ export interface Budget {
 
 export interface PlanState {
   planId: string;
+  /** Absent on legacy plans: confirmation still requires both A and B. */
+  requiredConfirmers?: Role[];
   factsId: string;
   status: PlanStatus;
   /** 最新已提交版本；双方必须确认的就是它 */
@@ -153,7 +157,7 @@ function canonicalParts(itinerary: VerifiedItinerary, factsId: string, a: PartyC
   return [
     `parties:${a.role}${b ? `,${b.role}` : ""}`,
     factsId,
-    itinerary.stops.map((stop) => stop.flyaiId).join(","),
+    itinerary.stops.map((stop) => stopIdOf(stop)).join(","),
     legs,
     hard(a),
     hard(b ?? a),
@@ -258,9 +262,11 @@ function commitRevision(
   const previous = headRevisionOf(state);
   const itinerary = solve.best!;
   const revisionNumber = (state.headRevision ?? 0) + 1;
-  const contentHash = contentFingerprint(itinerary, facts.factsId, state.conditions.A, state.conditions.B);
+  const baseHash = contentFingerprint(itinerary, facts.factsId, state.conditions.A, state.conditions.B);
+  const contentHash = state.requiredConfirmers ? baseHash + ":" + state.requiredConfirmers.join("") : baseHash;
   const revision: Revision = {
     revision: revisionNumber,
+    ...(state.requiredConfirmers ? { requiredConfirmers: [...state.requiredConfirmers] } : {}),
     contentHash,
     kind,
     itinerary,
@@ -503,6 +509,16 @@ export async function proposeRoute(
 }
 
 /** 确认。待协商 / 求解中 / 失败态下不允许确认，确认永不产生新版本。 */
+export function commitMeasuredPlan(state: PlanState, facts: FactSet, role: Role, now: Date): MutationResult {
+  const solve = solveJoint(facts, state.conditions.A, state.conditions.B, now);
+  if (!solve.best) {
+    state.status = "paused"; state.officialRevision = null;
+    return { code: "no-solution", message: solve.note || "当前组合尚不能形成可核验方案。", revision: null, solve, diff: null, missingEdges: solve.missingEdges };
+  }
+  const revision = commitRevision(state, facts, solve, "committed", role, now);
+  return { code: "ok", message: "新版本已生成，请各自审阅并确认。", revision, solve, diff: revision.diff, missingEdges: solve.missingEdges };
+}
+
 export function confirmRevision(
   state: PlanState,
   input: { role: Role; revision: number; contentHash: string; now: Date },
@@ -526,12 +542,16 @@ export function confirmRevision(
       "not-confirmable", "你看到的版本已经变了，请刷新后重新确认。");
   }
 
+  const required = target.requiredConfirmers ?? ["A", "B"];
+  if (!required.includes(input.role)) return { code: "not-confirmable", message: "你不属于这个版本的确认方。", revision: null, solve: null, diff: null, missingEdges: [] };
+  if (state.requiredConfirmers && required.includes("B") && !state.conditions.B) return { code: "not-confirmable", message: "搭子尚未提交个人条件或明确无附加条件。", revision: null, solve: null, diff: null, missingEdges: [] };
+
   target.confirmations[input.role] = { contentHash: input.contentHash, at: input.now.toISOString() };
   const other: Role = input.role === "A" ? "B" : "A";
   const peer = target.confirmations[other];
   const singleParty = state.conditions.B === null;
 
-  if (peer && peer.contentHash === input.contentHash) {
+  if ((required.length === 1 && required[0] === input.role) || (peer && peer.contentHash === input.contentHash)) {
     target.status = "jointly-confirmed";
     state.officialRevision = target.revision;
     state.status = "jointly-confirmed";
@@ -542,7 +562,7 @@ export function confirmRevision(
       other.status = "superseded";
       other.suspended = { at: input.now.toISOString(), reason: `A、B 已共同确认 v${target.revision}` };
     }
-    return { code: "ok", message: `A、B 已确认同一个 v${target.revision}，方案正式生效。`, revision: target, solve: target.solve, diff: target.diff, missingEdges: [] };
+    return { code: "ok", message: required.length === 1 ? `已确认个人方案 v${target.revision}。` : `A、B 已确认同一个 v${target.revision}，方案正式生效。`, revision: target, solve: target.solve, diff: target.diff, missingEdges: [] };
   }
   if (singleParty && input.role === "A") {
     // B 还没表态：不能算双方确认
@@ -571,6 +591,8 @@ export function canExecute(state: PlanState, now: Date): { allowed: boolean; rea
   if (official.status !== "jointly-confirmed") {
     return { allowed: false, reason: `v${official.revision} 的确认状态是 ${official.status}，不是双方确认。` };
   }
+  const required = state.requiredConfirmers ?? ["A", "B"];
+  if (required.some((role) => official.confirmations[role]?.contentHash !== official.contentHash)) return { allowed: false, reason: "当前参与者尚未确认同一版本。" };
   // 更新的提案可以悬在头上等待确认，但它不会自动替换正式执行的版本
   for (const stop of official.itinerary.stops) {
     if (stop.matchStatus === "unverified") {
@@ -588,12 +610,12 @@ export function canExecute(state: PlanState, now: Date): { allowed: boolean; rea
       return { allowed: false, reason: `v${official.revision} 步行 ${meters} 米，已违反 ${party.role} 现行上限 ${party.hard.maxWalkMeters} 米。` };
     }
     for (const id of party.hard.mustVisit) {
-      if (!official.itinerary.stops.some((stop) => stop.flyaiId === id)) {
+      if (!official.itinerary.stops.some((stop) => stopIdOf(stop) === id)) {
         return { allowed: false, reason: `v${official.revision} 缺少 ${party.role} 的必须去站点 ${id}。` };
       }
     }
     for (const id of party.hard.neverAccept) {
-      if (official.itinerary.stops.some((stop) => stop.flyaiId === id)) {
+      if (official.itinerary.stops.some((stop) => stopIdOf(stop) === id)) {
         return { allowed: false, reason: `v${official.revision} 含 ${party.role} 绝不接受的站点 ${id}。` };
       }
     }

@@ -1,5 +1,12 @@
 import type { AmapCallLogEntry, AmapPoi, LatLng } from "@/lib/types";
 import { parseAmapLocation } from "@/lib/geo";
+import { AsyncLocalStorage } from "node:async_hooks";
+
+const requestBudget = new AsyncLocalStorage<(api: string) => void>();
+/** Trip callers persistently charge every HTTP attempt, including retries. Legacy callers keep their interface. */
+export function withAmapBudget<T>(beforeRequest: (api: string) => void, work: () => Promise<T>): Promise<T> {
+  return requestBudget.run(beforeRequest, work);
+}
 
 if (typeof window !== "undefined") {
   throw new Error("lib/server/amap 只能在 Next.js 服务端加载。");
@@ -35,6 +42,7 @@ const HOUR_MS = 60 * 60 * 1000;
 
 export interface AmapCallResult<T> {
   ok: boolean;
+  measuredAt?: string;
   data: T | null;
   error: string | null;
   entry: AmapCallLogEntry;
@@ -186,7 +194,7 @@ async function request(
 ): Promise<RawResponse & { retries: number }> {
   let last: RawResponse = { ok: false, envelope: null, httpStatus: null, error: "未发起请求" };
   for (let attempt = 0; ; attempt += 1) {
-    last = await schedule(() => fetchOnce(path, params, key));
+    last = await schedule(() => { requestBudget.getStore()?.(path); return fetchOnce(path, params, key); });
     // 10021 是「每秒请求数超限」，属于可恢复的瞬时限流，退避后重试；
     // 日配额超限(10003)之类的硬失败不重试，直接如实上报。
     if (last.ok || last.envelope?.infocode !== RATE_LIMIT_INFOCODE) {
@@ -281,6 +289,7 @@ export async function searchPlace(
       data: hit.value,
       error: null,
       entry: makeEntry("place/text", params, true),
+      measuredAt: new Date(hit.at).toISOString(),
     };
   }
 
@@ -335,7 +344,7 @@ async function runPlace(
     return poi ? [poi] : [];
   });
   placeCache.set(cacheKey, { at: Date.now(), value: pois });
-  return { ok: true, data: pois, error: null, entry };
+  return { ok: true, data: pois, error: null, entry, measuredAt: entry.at };
 }
 
 function toText(value: unknown): string | null {
@@ -391,7 +400,7 @@ export async function planWalking(
   // 旧缓存条目可能只有距离耗时。缺几何时宁可重查一次高德，也不在客户端拿直线补。
   if (hit && hit.value.polyline.length > 0) {
     cacheHits += 1;
-    return { ok: true, data: hit.value, error: null, entry: makeEntry("direction/walking", params, true) };
+    return { ok: true, data: hit.value, error: null, entry: makeEntry("direction/walking", params, true), measuredAt: new Date(hit.at).toISOString() };
   }
 
   const pending = walkingInflight.get(cacheKey);
@@ -465,7 +474,7 @@ async function runWalking(
     polyline: mergeStepPolylines(steps),
   };
   walkingCache.set(cacheKey, { at: Date.now(), value: data });
-  return { ok: true, data, error: null, entry };
+  return { ok: true, data, error: null, entry, measuredAt: entry.at };
 }
 
 /**

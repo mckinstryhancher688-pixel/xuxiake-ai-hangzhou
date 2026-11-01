@@ -1,0 +1,269 @@
+{
+  "at": "2026-11-01T05:40:13.665Z",
+  "model": "text-embedding-v4",
+  "dimensions": 512,
+  "corpus": "10 authored fixture passages, not live travel recommendations",
+  "hits": 19,
+  "total": 20,
+  "acceptance": true,
+  "results": [
+    {
+      "query": "哪里适合独处放空？",
+      "target": "quiet",
+      "retrieved": [
+        "quiet",
+        "coffee",
+        "night",
+        "sunset",
+        "access",
+        "museum"
+      ],
+      "hit": true
+    },
+    {
+      "query": "不喜欢嘈杂拥挤，有什么建议？",
+      "target": "quiet",
+      "retrieved": [
+        "avoid",
+        "coffee",
+        "night",
+        "access",
+        "museum",
+        "rain"
+      ],
+      "hit": false
+    },
+    {
+      "query": "想看落日晚霞选什么？",
+      "target": "sunset",
+      "retrieved": [
+        "sunset",
+        "night",
+        "coffee",
+        "rain",
+        "avoid",
+        "access"
+      ],
+      "hit": true
+    },
+    {
+      "query": "拍黄昏剪影去哪里？",
+      "target": "sunset",
+      "retrieved": [
+        "sunset",
+        "avoid",
+        "night",
+        "quiet",
+        "coffee",
+        "rain"
+      ],
+      "hit": true
+    },
+    {
+      "query": "下雨了，有没有室内安排？",
+      "target": "rain",
+      "retrieved": [
+        "rain",
+        "coffee",
+        "quiet",
+        "history",
+        "museum",
+        "food"
+      ],
+      "hit": true
+    },
+    {
+      "query": "不想淋雨但仍想参观，有什么选择？",
+      "target": "rain",
+      "retrieved": [
+        "rain",
+        "coffee",
+        "food",
+        "museum",
+        "night",
+        "avoid"
+      ],
+      "hit": true
+    },
+    {
+      "query": "有方便轮椅通行的地方吗？",
+      "target": "access",
+      "retrieved": [
+        "access",
+        "coffee",
+        "rain",
+        "museum",
+        "quiet",
+        "food"
+      ],
+      "hit": true
+    },
+    {
+      "query": "带婴儿车，不想爬楼梯去哪？",
+      "target": "access",
+      "retrieved": [
+        "access",
+        "avoid",
+        "museum",
+        "coffee",
+        "night",
+        "rain"
+      ],
+      "hit": true
+    },
+    {
+      "query": "想尝本地小吃有什么线索？",
+      "target": "food",
+      "retrieved": [
+        "food",
+        "coffee",
+        "museum",
+        "rain",
+        "quiet",
+        "night"
+      ],
+      "hit": true
+    },
+    {
+      "query": "哪里可以逛夜市找地方风味？",
+      "target": "food",
+      "retrieved": [
+        "food",
+        "coffee",
+        "quiet",
+        "sunset",
+        "rain",
+        "night"
+      ],
+      "hit": true
+    },
+    {
+      "query": "走累后想坐下休息喝点东西。",
+      "target": "coffee",
+      "retrieved": [
+        "coffee",
+        "food",
+        "night",
+        "avoid"
+      ],
+      "hit": true
+    },
+    {
+      "query": "有适合喝咖啡聊天的休息点吗？",
+      "target": "coffee",
+      "retrieved": [
+        "coffee",
+        "sunset",
+        "quiet",
+        "food",
+        "night",
+        "access"
+      ],
+      "hit": true
+    },
+    {
+      "query": "想看老建筑和文化遗存。",
+      "target": "history",
+      "retrieved": [
+        "history",
+        "night",
+        "food",
+        "museum",
+        "sunset",
+        "rain"
+      ],
+      "hit": true
+    },
+    {
+      "query": "对传统木结构建筑感兴趣，资料推荐了什么？",
+      "target": "history",
+      "retrieved": [
+        "history",
+        "avoid",
+        "rain",
+        "night",
+        "food",
+        "quiet"
+      ],
+      "hit": true
+    },
+    {
+      "query": "哪里适合天黑后拍霓虹夜景？",
+      "target": "night",
+      "retrieved": [
+        "night",
+        "sunset",
+        "quiet",
+        "coffee",
+        "access",
+        "museum"
+      ],
+      "hit": true
+    },
+    {
+      "query": "想看夜间灯光，哪个资料相关？",
+      "target": "night",
+      "retrieved": [
+        "night",
+        "coffee",
+        "access",
+        "rain",
+        "sunset",
+        "quiet"
+      ],
+      "hit": true
+    },
+    {
+      "query": "带孩子，想找动手实验和科普活动。",
+      "target": "museum",
+      "retrieved": [
+        "museum",
+        "night",
+        "food",
+        "history",
+        "access",
+        "coffee"
+      ],
+      "hit": true
+    },
+    {
+      "query": "有什么适合亲子边玩边学的体验？",
+      "target": "museum",
+      "retrieved": [
+        "museum",
+        "night",
+        "coffee",
+        "access",
+        "rain",
+        "food"
+      ],
+      "hit": true
+    },
+    {
+      "query": "哪条攻略明确不推荐周末午后去？",
+      "target": "avoid",
+      "retrieved": [
+        "avoid",
+        "access",
+        "night",
+        "coffee",
+        "sunset",
+        "quiet"
+      ],
+      "hit": true
+    },
+    {
+      "query": "有没有关于排长队和人太多的避坑提醒？",
+      "target": "avoid",
+      "retrieved": [
+        "avoid",
+        "quiet",
+        "access",
+        "night",
+        "coffee",
+        "food"
+      ],
+      "hit": true
+    }
+  ]
+}

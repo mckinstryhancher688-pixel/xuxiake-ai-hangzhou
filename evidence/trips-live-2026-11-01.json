@@ -1,0 +1,128 @@
+{
+  "recordedAt": "2026-11-01T06:25:55.992Z",
+  "environment": "Local Next production build, Node 24.20.0, two independent Chromium sessions controlled by the developer agent; not an external user study",
+  "fixtures": "Guide text and screenshot were authored test fixtures, not scraped travel recommendations. OCR and embeddings were real model calls. Route distances, durations and polylines were returned by Amap; no real walking trial.",
+  "measuredAt": "2026-11-01T05:38:58.620Z",
+  "initialBWalkCapMeters": 6000,
+  "revisedBWalkCapMeters": 800,
+  "revisions": [
+    {
+      "revision": 1,
+      "stops": [
+        {
+          "name": "湖滨步行街",
+          "flyaiId": null,
+          "amapId": "B0FFL9RQ5O"
+        },
+        {
+          "name": "集贤亭",
+          "flyaiId": null,
+          "amapId": "B023B18SMY"
+        }
+      ],
+      "walkMeters": 1032,
+      "walkingMinutes": 14,
+      "totalMinutesIncludingSimulatedStayAndBuffer": 94,
+      "confirmedRoles": [
+        "A"
+      ],
+      "legs": [
+        {
+          "from": "杭州西湖风景名胜区-湖滨公园",
+          "to": "湖滨步行街",
+          "distanceMeters": 571,
+          "durationMinutes": 8,
+          "polylinePoints": 26,
+          "polylineSha256": "7a86da1dbd169a543661daa9b589be831b232dbb0eeb71630fac80f00db369b3"
+        },
+        {
+          "from": "湖滨步行街",
+          "to": "集贤亭",
+          "distanceMeters": 461,
+          "durationMinutes": 6,
+          "polylinePoints": 26,
+          "polylineSha256": "9423aa95c9f92854d732f7b44a0933abd599577d714f0f21bb3520ad102d0b53"
+        }
+      ]
+    },
+    {
+      "revision": 2,
+      "stops": [
+        {
+          "name": "湖滨步行街",
+          "flyaiId": null,
+          "amapId": "B0FFL9RQ5O"
+        }
+      ],
+      "walkMeters": 571,
+      "walkingMinutes": 8,
+      "totalMinutesIncludingSimulatedStayAndBuffer": 58,
+      "confirmedRoles": [
+        "A",
+        "B"
+      ],
+      "legs": [
+        {
+          "from": "杭州西湖风景名胜区-湖滨公园",
+          "to": "湖滨步行街",
+          "distanceMeters": 571,
+          "durationMinutes": 8,
+          "polylinePoints": 26,
+          "polylineSha256": "7a86da1dbd169a543661daa9b589be831b232dbb0eeb71630fac80f00db369b3"
+        }
+      ]
+    }
+  ],
+  "routeAdjustmentAdditionalAmapRequests": 0,
+  "finalOfficialRevision": 2,
+  "requestsForThisTrip": [
+    {
+      "kind": "amap-place-http",
+      "requests": 3
+    },
+    {
+      "kind": "amap-walking-http",
+      "requests": 4
+    },
+    {
+      "kind": "flyai",
+      "requests": 1
+    },
+    {
+      "kind": "material-process",
+      "requests": 2
+    },
+    {
+      "kind": "rag-ai",
+      "requests": 10
+    },
+    {
+      "kind": "rag-ask",
+      "requests": 5
+    }
+  ],
+  "flyaiSupplement": {
+    "returnedCandidates": 10,
+    "changedConfirmedRoute": false
+  },
+  "guideQA": {
+    "recommendationVsAvoid": "Correctly cited the screenshot title, original paragraph and author warning; uploader preference not inferred",
+    "unsupportedQuestion": "Hotel inventory question returned no supporting evidence",
+    "externalSearchTriggered": false
+  },
+  "agentExplanation": {
+    "displayed": "Server fact summary after semantic boundary guard rejected an unsupported model claim",
+    "notice": "智能体说明把软偏好或有限候选比较夸大成完全满足、唯一或全局最短，已改为服务端事实摘要。"
+  },
+  "map": {
+    "localSdkResult": "INVALID_USER_DOMAIN (10006)",
+    "schematicFallbackLabeled": true,
+    "fakeRoadGeometryDrawn": false,
+    "productionDomainVerified": false
+  },
+  "deployment": {
+    "published": false,
+    "dockerImageBuilt": false,
+    "externalUserPairsTested": 0
+  }
+}

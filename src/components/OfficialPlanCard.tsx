@@ -1,3 +1,4 @@
+import { stopIdOf } from "@/lib/types";
 import { formatMinutes } from "@/lib/format";
 import type { RevisionView } from "@/lib/plan-api";
 
@@ -29,7 +30,7 @@ export function OfficialPlanCard({ revision, headRevision }: { revision: Revisio
         {itinerary.stops.map((stop, index) => {
           const leg = itinerary.legs[index];
           return (
-            <li key={`${index}-${stop.flyaiId}`} className="rounded-lg border border-line p-3 text-xs">
+            <li key={`${index}-${stopIdOf(stop)}`} className="rounded-lg border border-line p-3 text-xs">
               {leg ? (
                 <p className="leading-5 text-ink-500">步行：{leg.fromName} → {leg.toName} · {leg.distanceMeters} 米 / {leg.durationMinutes} 分钟（高德实测）</p>
               ) : <p className="text-amber-800">这一段的实测数据暂不可读，请刷新协商状态。</p>}

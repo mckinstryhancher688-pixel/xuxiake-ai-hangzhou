@@ -1,3 +1,4 @@
+import { stopIdOf } from "@/lib/types";
 import { createHash, randomUUID } from "node:crypto";
 import { pickCity, type FlyAiPoiCategory } from "@/lib/discovery";
 import { ARRIVAL_MODE } from "@/lib/agent";
@@ -238,7 +239,7 @@ function shapeJourney(input: {
 }): ResolvedJourney {
   const { itinerary, stopId } = input;
   const { stops, legs } = itinerary;
-  const requested = stops.findIndex((stop) => stop.flyaiId === stopId);
+  const requested = stops.findIndex((stop) => stopIdOf(stop) === stopId);
   if (requested === -1 && stopId) {
     throw new AgentRefused(
       input.notInRouteMessage ??
@@ -271,7 +272,7 @@ function shapeJourney(input: {
 }
 
 async function resolveJourney(intent: JourneyIntent): Promise<ResolvedJourney> {
-  const keyOf = (stops: VerifiedStop[]) => stops.map((stop) => stop.flyaiId).join(",");
+  const keyOf = (stops: VerifiedStop[]) => stops.map((stop) => stopIdOf(stop)).join(",");
 
   /* 双人：只读这条协商双方确认的正式版本。门禁没开就直接拒绝，绝不拿单人路线顶数。 */
   if (intent.plan) {
@@ -375,8 +376,8 @@ function buildContext(journey: ResolvedJourney): AgentContext {
   const factMeters: number[] = [];
   const factMinutes: number[] = [BUDGET_MINUTES, journey.elapsedMinutes, journey.remainingMinutes];
 
-  const walked = journey.visited.filter((stop) => stop.flyaiId !== journey.current.flyaiId);
-  const currentIndex = journey.stops.findIndex((stop) => stop.flyaiId === journey.current.flyaiId);
+  const walked = journey.visited.filter((stop) => stopIdOf(stop) !== stopIdOf(journey.current));
+  const currentIndex = journey.stops.findIndex((stop) => stopIdOf(stop) === stopIdOf(journey.current));
 
   /** 只给「从当前位置往后还会走」的实测段；起点段与已走过的段对本轮决策没有用 */
   const futureLegs = journey.legs.slice(currentIndex + 1);
@@ -387,7 +388,7 @@ function buildContext(journey: ResolvedJourney): AgentContext {
   });
 
   const candidateLines = journey.remaining.map((stop) => {
-    const match = matchById.get(stop.flyaiId) ?? null;
+    const match = matchById.get(stopIdOf(stop)) ?? null;
     const bits = [
       stop.name,
       match?.category ?? null,
@@ -406,7 +407,7 @@ function buildContext(journey: ResolvedJourney): AgentContext {
     `【兴趣】${journey.interests.join("、") || "未填写"}`,
     `【旅行状态】预算 ${BUDGET_MINUTES} 分钟，已用约 ${journey.elapsedMinutes} 分钟，剩余 ${journey.remainingMinutes} 分钟`,
     `【已走过】${walked.map((stop) => stop.name).join("、") || "（还没有）"}`,
-    currentStopBlock(journey.current, matchById.get(journey.current.flyaiId) ?? null),
+    currentStopBlock(journey.current, matchById.get(stopIdOf(journey.current)) ?? null),
     `【还没走的站】${candidateLines.join("；") || "（全部走完）"}`,
     legLines.length ? `【高德步行实测，只能照抄这些数字】${legLines.join("；")}` : "【高德步行实测】后面没有步行段了",
   ].join("\n");
@@ -623,7 +624,7 @@ async function replan(journey: ResolvedJourney, proposedNames: string[]): Promis
         error: `智能体给出的「${name.slice(0, 30)}」不在已核实行程里，无法核验，已拒绝采用。`,
       };
     }
-    if (!chosen.some((stop) => stop.flyaiId === hit.flyaiId)) chosen.push(hit);
+    if (!chosen.some((stop) => stopIdOf(stop) === stopIdOf(hit))) chosen.push(hit);
   }
 
   if (chosen.length === 0) return { itinerary: null, error: "智能体没有给出任何有效站点。" };
@@ -788,7 +789,7 @@ export function shortenWithAgent(
       }
 
       const ok = Boolean(replanResult?.itinerary) && !failure;
-      const kept = new Set((replanResult?.itinerary?.stops ?? []).map((stop) => stop.flyaiId));
+      const kept = new Set((replanResult?.itinerary?.stops ?? []).map((stop) => stopIdOf(stop)));
       return {
         ...base,
         ok,
@@ -797,7 +798,7 @@ export function shortenWithAgent(
         proposedNames: names,
         agentReason: reason,
         droppedNames: journey.remaining
-          .filter((stop) => !kept.has(stop.flyaiId))
+          .filter((stop) => !kept.has(stopIdOf(stop)))
           .map((stop) => stop.name),
         unverifiedNotes: ok ? unverifiedNotesOf(replanResult!.itinerary) : [],
         itinerary: replanResult?.itinerary ?? null,

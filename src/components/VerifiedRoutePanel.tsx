@@ -1,3 +1,4 @@
+import { stopIdOf } from "@/lib/types";
 import { formatDistance, formatMinutes } from "@/lib/format";
 import { formatHangzhouDateTime } from "@/lib/hangzhou-time";
 import { sameCategories, type FlyAiPoiCategory } from "@/lib/discovery";
@@ -375,9 +376,9 @@ function Itinerary({
 
         {itinerary.stops.map((stop, index) => {
           const leg = itinerary.legs[index];
-          const isActive = stop.flyaiId === selectedStopId;
+          const isActive = stopIdOf(stop) === selectedStopId;
           return (
-            <li key={stop.amapId || stop.flyaiId}>
+            <li key={stop.amapId || stopIdOf(stop)}>
               {leg && (
                 <div className="ml-2.5 flex items-center gap-2 py-1.5 pl-3">
                   <span className="w-px shrink-0 self-stretch bg-line" aria-hidden />
@@ -400,10 +401,10 @@ function Itinerary({
               >
                 <span
                   className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full text-[10px] font-semibold text-white ${
-                    arrived.has(stop.flyaiId) ? "bg-brand-700" : "bg-accent-500"
+                    arrived.has(stopIdOf(stop)) ? "bg-brand-700" : "bg-accent-500"
                   }`}
                 >
-                  {arrived.has(stop.flyaiId) ? "✓" : index + 1}
+                  {arrived.has(stopIdOf(stop)) ? "✓" : index + 1}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
@@ -414,14 +415,14 @@ function Itinerary({
                     <span className={`rounded px-1 py-px text-[9px] ${OPENING_BADGE[stop.openingStatus]}`}>
                       {OPENING_STATUS_LABELS[stop.openingStatus]}
                     </span>
-                    {arrived.has(stop.flyaiId) && (
+                    {arrived.has(stopIdOf(stop)) && (
                       <span className="rounded bg-brand-700 px-1 py-px text-[9px] text-white">
                         已到达（手动模拟）
                       </span>
                     )}
                     <button
                       type="button"
-                      onClick={() => onSelectStop(stop.flyaiId)}
+                      onClick={() => onSelectStop(stopIdOf(stop))}
                       aria-pressed={isActive}
                       className={`ml-auto rounded px-1.5 py-0.5 text-[9px] font-medium ring-1 transition ${
                         isActive
