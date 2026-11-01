@@ -1,5 +1,8 @@
 "use client";
 
+import { stopIdOf } from "@/lib/types";
+
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchAgentStatus, requestAgent } from "@/lib/agent-client";
 import { parseCategories } from "@/lib/discovery";
@@ -92,7 +95,7 @@ export function useAgent(
   const token = tokenOverride ?? snapshot?.token ?? null;
   const pickedStopId = pickedOverride ?? snapshot?.pickedStopId ?? null;
 
-  const reportKey = report?.itinerary?.stops.map((stop) => stop.flyaiId).join(",") ?? "";
+  const reportKey = report?.itinerary?.stops.map((stop) => stopIdOf(stop)).join(",") ?? "";
   const anyAdjustment = adjustmentOverride ?? (snapshot?.adjustment?.ok ? snapshot.adjustment : null);
   // 重新核验得到的是另一条路线时，旧路线上的调整与讲解都不再对应屏幕上的站，整组当没有
   const stale = Boolean(anyAdjustment?.baseItineraryKey) && reportKey !== "" && anyAdjustment?.baseItineraryKey !== reportKey;
@@ -107,7 +110,7 @@ export function useAgent(
       : null;
   const arrivedStopIds = useMemo(() => {
     const all = arrivedOverride.length ? arrivedOverride : (snapshot?.arrivedStopIds ?? []);
-    const ids = new Set((activeItinerary?.stops ?? []).map((stop) => stop.flyaiId));
+    const ids = new Set((activeItinerary?.stops ?? []).map((stop) => stopIdOf(stop)));
     return all.filter((id) => ids.has(id));
   }, [activeItinerary, arrivedOverride, snapshot]);
   /** 屏幕上这一段是本标签页刷新前跑出来的，不是这次点的 */
@@ -121,9 +124,9 @@ export function useAgent(
     const parsed = parseCategories(report?.categories ?? []);
     return parsed.length ? parsed : [...DEFAULT_VERIFY_CATEGORIES];
   }, [report]);
-  const selectedStopId = stops.some((stop) => stop.flyaiId === pickedStopId)
+  const selectedStopId = stops.some((stop) => stopIdOf(stop) === pickedStopId)
     ? pickedStopId
-    : (stops[0]?.flyaiId ?? null);
+    : ((stops[0] ? stopIdOf(stops[0]) : null) ?? null);
 
   // 到达过的站列表每次渲染都是新数组，所以用内容当依赖，避免写入效果每帧都跑一遍
   const arrivedKey = arrivedStopIds.join(",");

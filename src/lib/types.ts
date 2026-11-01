@@ -271,7 +271,9 @@ export interface WalkingLeg {
 /** 行程里的一站：地点信息来自飞猪+高德，停留时间是模拟值。 */
 export interface VerifiedStop {
   name: string;
-  flyaiId: string;
+  /** Legacy records omit stopId; their genuine FlyAI ID remains the stable key. */
+  stopId?: string;
+  flyaiId: string | null;
   amapId: string;
   address: string | null;
   position: LatLng;
@@ -284,6 +286,12 @@ export interface VerifiedStop {
   jumpUrl: string | null;
   /** 飞猪给的简介文本（未经核实的事实性文字），只作为智能体的语料，不在前端当结论展示 */
   flyaiDescription: string | null;
+}
+
+export function stopIdOf(stop: Pick<VerifiedStop, "stopId" | "flyaiId">): string {
+  const value = stop.stopId ?? stop.flyaiId;
+  if (!value) throw new Error("已核验站点缺少内部标识");
+  return value;
 }
 
 export interface VerifiedItinerary {

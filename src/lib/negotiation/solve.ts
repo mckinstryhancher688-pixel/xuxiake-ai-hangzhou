@@ -51,7 +51,8 @@ function toStop(facts: FactSet, id: string): VerifiedStop {
   if (!stop) throw new Error(`事实集里缺少站点 ${id}`);
   return {
     name: stop.name,
-    flyaiId: stop.id,
+    ...(stop.flyaiId !== undefined ? { stopId: stop.id } : {}),
+    flyaiId: stop.flyaiId === undefined ? stop.id : stop.flyaiId,
     amapId: stop.amapId ?? "",
     address: stop.address ?? null,
     position: stop.position,

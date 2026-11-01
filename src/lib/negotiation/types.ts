@@ -23,6 +23,8 @@ export interface FactEntry {
 /** 可点选的候选：身份已核验且有高德坐标，包含「最近 6 个」之外的候选。 */
 export interface FactStop {
   id: string;
+  /** Undefined means a legacy genuine FlyAI identifier; null explicitly means no FlyAI match. */
+  flyaiId?: string | null;
   name: string;
   position: LatLng;
   matchStatus: MatchStatus;

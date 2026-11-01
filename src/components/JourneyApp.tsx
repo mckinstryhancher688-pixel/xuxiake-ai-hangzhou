@@ -1,5 +1,8 @@
 "use client";
 
+import { stopIdOf } from "@/lib/types";
+
+
 import { useCallback, useMemo, useState } from "react";
 import { AgentPanel } from "@/components/AgentPanel";
 import { DataSourcePanel } from "@/components/DataSourcePanel";
@@ -65,7 +68,7 @@ export function JourneyApp() {
     jointBlocked,
   );
   const verifiedStops = (agent.activeItinerary?.stops ?? []).map((stop) => ({
-    flyaiId: stop.flyaiId,
+    flyaiId: stopIdOf(stop),
     name: stop.name,
     matchStatus: stop.matchStatus,
   }));

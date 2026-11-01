@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=24.20.0 <25"
   },
   "scripts": {
     "dev": "next dev",
@@ -11,6 +11,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:accept": "node evidence/phase6-accept.mjs",
+    "test:trips": "node --import ./evidence/register-alias.mjs evidence/trips-workspace.mjs",
+    "test:rag:live": "node --env-file=.env.local --import ./evidence/register-alias.mjs evidence/trips-rag-live.mjs --live",
     "test:negotiation": "node evidence/negotiation-unit.mjs",
     "test:rules": "node evidence/negotiation-rules.mjs",
     "test:plan-ai": "node --import ./evidence/register-alias.mjs evidence/plan-ai.mjs",
@@ -37,7 +39,7 @@
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
-    "@types/node": "^20",
+    "@types/node": "24.19.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

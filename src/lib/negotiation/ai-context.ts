@@ -81,7 +81,7 @@ function partyLine(facts: FactSet, party: PartyConditions | null): string {
   return `${party.role}：${hard}｜倾向 ${BIAS_LABEL[party.bias]}｜偏好 ${soft || "尚未填写逐站偏好（不代表没有反对意见）"}`;
 }
 
-function chainLine(facts: FactSet, stops: { flyaiId: string; name: string }[]): string {
+function chainLine(facts: FactSet, stops: { name: string }[]): string {
   return [facts.start.name, ...stops.map((stop) => stop.name)].join(" → ");
 }
 
