@@ -24,6 +24,7 @@
 | 求解、版本规则、角色隔离、快照恢复 | [离线日志](../evidence/offline-accept-2026-10-22.log)，139 项夹具/桩 + 12 项本机端点守卫 | 合计 151 项，本轮外部调用为 0；不等于 151 项真实端到端验收 |
 | 当前可靠性、时区、报告来源、过期与只读几何 | [2026-10-24 离线复验](../evidence/offline-accept-2026-10-24.log)、[修复交接](route-experience-followup-2026-10-23.md) | 258 个离线检查/场景通过，含非空假 Key 与 fetch 桩的零补测验证；不是真实路线验收 |
 | 当前 A/B 身份、正式卡、类别切换及失败保留 | [17 项浏览器记录与计数](../evidence/route-experience-followup-ui.json) | 本地开发/生产构建、模拟数据；B 正式卡截图不得用作真实高德结果的证据 |
+| 来源证据标注（飞猪优化① B1/C） | [20 项离线夹具](../evidence/source-evidence-unit.mjs)、[14 项浏览器回归](../evidence/source-evidence-ui.json)、[桌面](../evidence/source-evidence-desktop.png)/[手机](../evidence/source-evidence-mobile.png)截图 | 每站标来源 FlyAI＋查询时间＋✓已校验（仅来源校验通过才亮）；id/链接对不上本次候选集合即标未校验；旧快照如实写未记录。浏览器注入夹具行程、零 POST，不代表真实路线验收；本 Demo 无价格字段，清单 B2 总价校验不适用 |
 | 双人百炼“解释这次取舍” | [接口](../src/app/api/plan/[planId]/explain/route.ts)、[事实块](../src/lib/negotiation/ai-context.ts)、[桩测试](../evidence/plan-ai.mjs) | 接口与角色隔离、门禁、失败处理已实现并用离线测试验证；**真实百炼解释回合尚待实测** |
 | 公开体验 | [travel.peiqirui.com](http://travel.peiqirui.com/)，[2026-10-24 发布记录](release-2026-10-24.md)、[实际首页](../evidence/release-2026-10-24-home.jpg)、[只读检查](../evidence/release-2026-10-24.json) | 已发布 `c906649`；首页 HTTP 200、新默认类别生效、1 份快照恢复；未重跑真实路线与百炼闭环 |
 | 演示视频 | 暂无 | 不虚构视频链接；源码公开不等于完整演示已验收 |

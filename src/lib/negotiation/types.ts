@@ -39,6 +39,10 @@ export interface FactStop {
   /** 飞猪给的类别与高德给的评分：都是这一轮已经付过费拿到的字段，缺失就是 null */
   category?: string | null;
   rating?: string | null;
+  /** 飞猪返回该候选数据的时间；早期事实集没有这个字段 */
+  flyaiCollectedAt?: string | null;
+  /** id 是否飞猪原样返回；undefined = 早期记录未留存校验信息 */
+  flyaiIdFromSource?: boolean;
 }
 
 export interface FactSet {

@@ -1,4 +1,5 @@
 import { formatMinutes } from "@/lib/format";
+import { EvidenceBar } from "@/components/EvidenceBar";
 import type { RevisionView } from "@/lib/plan-api";
 
 /** 纯展示服务端正式版本：不加载地图，不发现地点，不请求路线或讲解。 */
@@ -36,6 +37,7 @@ export function OfficialPlanCard({ revision, headRevision }: { revision: Revisio
               <p className="mt-2 font-medium">第 {index + 1} 站 · {stop.name}</p>
               {stop.address ? <p className="mt-1 text-ink-500">{stop.address}</p> : null}
               <p className="mt-1 text-ink-500">建议停留 {stop.stayMinutes} 分钟（模拟值）</p>
+              <EvidenceBar stop={stop} />
             </li>
           );
         })}

@@ -82,6 +82,8 @@ export function buildFactSet(input: {
     flyaiDescription: match.flyaiDescription,
     category: match.category ?? null,
     rating: match.amap?.rating ?? null,
+    flyaiCollectedAt: match.flyaiCollectedAt ?? null,
+    flyaiIdFromSource: match.flyaiIdFromSource,
   }));
 
   const legs: Record<string, FactEntry> = {};

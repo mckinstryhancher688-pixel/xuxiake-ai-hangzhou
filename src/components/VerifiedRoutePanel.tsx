@@ -1,5 +1,6 @@
 import { formatDistance, formatMinutes } from "@/lib/format";
 import { formatHangzhouDateTime } from "@/lib/hangzhou-time";
+import { EvidenceBar } from "@/components/EvidenceBar";
 import { sameCategories, type FlyAiPoiCategory } from "@/lib/discovery";
 import type { VerifiedRoute, VerifyPhase } from "@/hooks/useVerifiedRoute";
 import {
@@ -458,6 +459,7 @@ function Itinerary({
                   <span className="mt-1 block text-[10px] leading-relaxed text-ink-300">
                     {stop.openingNote}
                   </span>
+                  <EvidenceBar stop={stop} />
                 </span>
               </div>
             </li>

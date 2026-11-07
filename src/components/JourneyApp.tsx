@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { AgentPanel } from "@/components/AgentPanel";
 import { DataSourcePanel } from "@/components/DataSourcePanel";
+import { DataTrustNote } from "@/components/DataTrustNote";
 import { DebugPanel } from "@/components/DebugPanel";
 import { DiscoverPanel } from "@/components/DiscoverPanel";
 import { ExplorePanel } from "@/components/ExplorePanel";
@@ -173,6 +174,9 @@ export function JourneyApp() {
               </div>
             ) : <PlanActionBar route={verifiedRoute} agent={agent} categories={discover.selected} itineraryCategories={itineraryCategories} jointLocked={jointRoute !== null} />}
           </div>
+
+          {/* 数据可信说明不折叠：桌面在右栏顶部、手机在「行程与探索」页顶部，一眼能看到 */}
+          <DataTrustNote />
 
           <div
             className={`${tab === "plan" ? "flex" : "hidden"} flex-col gap-4 lg:flex lg:overflow-y-auto lg:pr-1`}

@@ -11,6 +11,8 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    // 本机一次性产物（Playwright 截图、PR 草稿、评测 JSON），不是应用源码，不参与 lint
+    "output/**",
     "next-env.d.ts",
   ]),
 ]);

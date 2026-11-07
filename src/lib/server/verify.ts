@@ -44,6 +44,7 @@ import {
 import { discoverCity } from "./discover";
 import { buildFactSet, mintFactsId, putFactSet } from "./facts";
 import { composeItinerary, toLeg } from "@/lib/itinerary-compose";
+import { auditStopSources, flyaiIdFromSourceOf } from "@/lib/source-evidence";
 import {
   analyzeVerifiedChains,
   describeVerifiedChainFailure,
@@ -366,7 +367,13 @@ async function runPipeline(
     });
   }
 
-  const itinerary = buildItinerary(chosen, start, tripWindow.startAt);
+  const rawItinerary = buildItinerary(chosen, start, tripWindow.startAt);
+  // B1 来源校验：每一站的 id 与原始链接必须能对回本次飞猪候选；对不上就标未校验并留痕
+  const sourceAudit = auditStopSources(rawItinerary, matches);
+  if (sourceAudit.flagged.length) {
+    console.warn(`[verify] 来源校验未通过的站点：${sourceAudit.flagged.join("、")}（已标未校验，仍保留实测链条）`);
+  }
+  const itinerary = sourceAudit.itinerary;
 
   /* 事实层入库：把这次已经付费测出的全部有向段留下，供双人协商本地重解。 */
   const measuredLegs = new Map(pairLegs);
@@ -534,6 +541,8 @@ function compareCandidate(
     flyaiPosition: candidate.position,
     jumpUrl: candidate.jumpUrl,
     flyaiDescription: candidate.description ?? null,
+    flyaiCollectedAt: candidate.collectedAt ?? null,
+    flyaiIdFromSource: flyaiIdFromSourceOf(candidate),
     deviationMeters: null,
     routablePosition: null,
     nameAgrees: null,
@@ -851,6 +860,8 @@ function buildItinerary(
     openingNote: item.match.openingNote,
     jumpUrl: item.match.jumpUrl,
     flyaiDescription: item.match.flyaiDescription,
+    flyaiCollectedAt: item.match.flyaiCollectedAt ?? null,
+    flyaiIdFromSource: item.match.flyaiIdFromSource,
   }));
 
   return composeItinerary(start, stops, chain.legs, assumedStart);

@@ -1,0 +1,70 @@
+{
+  "checkedAt": "2026-11-07T12:21:12.507Z",
+  "baseUrl": "http://localhost:3000",
+  "fixture": true,
+  "fixtureNotice": "注入夹具行程（名称带「夹具」、折线为两点直线占位），地图外部请求被拦截回退手绘底图；仅验证证据条/说明块 UI 与手机布局，不代表高德真实路线验收。",
+  "paidPosts": 0,
+  "blockedExternalRequests": 1,
+  "continuedExternalRequests": 0,
+  "dialogs": 0,
+  "total": 14,
+  "passed": 14,
+  "checks": [
+    {
+      "name": "数据可信说明块在桌面端可见（不折叠）",
+      "pass": true
+    },
+    {
+      "name": "说明块明说没有价格、不构成预算保证",
+      "pass": true
+    },
+    {
+      "name": "说明块明说查不到就明说、绝不用常识补数字",
+      "pass": true
+    },
+    {
+      "name": "每张行程卡都有证据条（来源 FlyAI 标签 ≥ 3）",
+      "pass": true
+    },
+    {
+      "name": "✓已校验 只在通过站点亮",
+      "pass": true
+    },
+    {
+      "name": "id 对不上的站如实写「未校验·id 未通过来源校验」",
+      "pass": true
+    },
+    {
+      "name": "早期记录站如实写「未校验·早期记录未留存来源校验」",
+      "pass": true
+    },
+    {
+      "name": "通过站显示紧凑查询时间（查询于 …14:30）",
+      "pass": true
+    },
+    {
+      "name": "早期记录站显示「查询时间未记录」",
+      "pass": true
+    },
+    {
+      "name": "手机端切到行程页后证据条可见且每条都不横向溢出（flex-wrap 生效）",
+      "pass": true
+    },
+    {
+      "name": "手机端页面整体无横向滚动",
+      "pass": true
+    },
+    {
+      "name": "探针没有发出任何 POST（0 次核验/几何补查/百炼回合）",
+      "pass": true
+    },
+    {
+      "name": "外部请求一律拦截、0 次放行（高德 SDK/瓦片/代理均未触达）",
+      "pass": true
+    },
+    {
+      "name": "全程没有弹窗",
+      "pass": true
+    }
+  ]
+}

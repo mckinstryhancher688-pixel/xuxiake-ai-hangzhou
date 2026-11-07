@@ -192,7 +192,7 @@ npm run dev                  # http://localhost:3000
 
 ## 验收
 
-先看[证据索引](docs/EVIDENCE.md)：当前 `npm run test:offline` 包含 **258 个离线检查/场景**，另有 **17 项本地浏览器回归**。
+先看[证据索引](docs/EVIDENCE.md)：当前 `npm run test:offline` 包含 **278 个离线检查/场景**（含 2026-11-07 新增的来源证据 20 项），另有 **17 项本地浏览器回归**与 **14 项来源证据浏览器回归**（夹具注入、零付费）。
 这些使用夹具与请求桩，不代表真实高德或百炼端到端验收。2026-10-22 的 151 项记录作为历史证据保留。
 
 纯离线套件（不需要启动服务）：
@@ -219,6 +219,7 @@ npm run test:verify-chain    # 单人求解排序与无解归因，11 项
 npm run test:verification-view # 报告来源与请求作用域，10 项
 npm run test:geometry-state  # 前端几何请求隔离与在途复用，8 项
 npm run test:plan-geometry   # 正式版几何鉴权、版本与零补测，37 项
+npm run test:source-evidence # 来源真实性／采集时间／证据三态／快照兼容，20 项（飞猪优化① B1）
 
 # —— 真实服务：会产生调用，跑之前先看清成本 ——
 node evidence/plan-api-smoke.mjs          # 双人协商完整闭环（真实 HTTP），30 项
@@ -253,7 +254,8 @@ node evidence/phase6-accept.mjs           # 真实地图与同步链路，25 项
 2026-10-22 **零付费全量**（151 项）的历史独立日志在
 [evidence/offline-accept-2026-10-22.log](evidence/offline-accept-2026-10-22.log)，里面写清了代码版本、
 测试时间、哪些数字来自夹具、以及当轮真实新增调用量＝0；失败历史留在各自原来的时间戳文件里，不混写。
-当前 258 项于 2026-10-24 的重新运行记录见[离线日志](evidence/offline-accept-2026-10-24.log)，17 项浏览器回归见[结果 JSON](evidence/route-experience-followup-ui.json)。
+258 项于 2026-10-24 的重新运行记录见[离线日志](evidence/offline-accept-2026-10-24.log)，17 项浏览器回归见[结果 JSON](evidence/route-experience-followup-ui.json)。
+2026-11-07 加入来源证据 20 项后离线共 278 项；来源证据的浏览器回归（证据条三态、数据可信说明、手机不溢出、零 POST）见[结果 JSON](evidence/source-evidence-ui.json)与桌面/手机截图，注入的是夹具行程，不代表真实路线验收。
 演示台词、固定演示案例、电脑＋手机手工核对清单、视频分镜与待确认清单，写在 [docs/DEMO.md](docs/DEMO.md)。
 
 ## 安全

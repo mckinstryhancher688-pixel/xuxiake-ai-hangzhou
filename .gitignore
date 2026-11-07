@@ -20,6 +20,9 @@
 # production
 /build
 
+# 本机一次性产物：Playwright 截图/捕获脚本、PR 草稿、评测 JSON，不入库
+/output/
+
 # misc
 .DS_Store
 *.pem

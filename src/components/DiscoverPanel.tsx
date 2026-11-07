@@ -1,4 +1,5 @@
 import { MISSING_FIELD_LABELS, sameCategories } from "@/lib/discovery";
+import { formatHangzhouShort } from "@/lib/hangzhou-time";
 import type { Discover } from "@/hooks/useDiscover";
 import type {
   DiscoverCategoryResult,
@@ -157,6 +158,12 @@ function CategoryResult({ result }: { result: DiscoverCategoryResult }) {
         <h3 className="text-xs font-semibold text-ink-700">{result.category}</h3>
         <span className="text-[10px] text-ink-300">{result.items.length} 个候选</span>
       </div>
+      {result.proof && !result.error && (
+        <p className="mt-0.5 text-[10px] text-ink-300">
+          来源 FlyAI · 查询于 {formatHangzhouShort(result.proof.invokedAt)}
+          {result.proof.cacheHit ? "（复用缓存，仍为原采集时间）" : ""}
+        </p>
+      )}
 
       {result.error && (
         <p className="mt-1.5 break-words rounded-lg border border-red-500/30 bg-red-500/5 px-2.5 py-2 font-mono text-[10px] leading-relaxed text-red-600">

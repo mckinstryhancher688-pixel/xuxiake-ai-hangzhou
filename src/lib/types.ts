@@ -94,6 +94,8 @@ export interface DiscoveredPoi {
   description: string | null;
   source: DataSource;
   missingFields: DiscoveredPoiMissingField[];
+  /** 飞猪返回这批数据的时间（调用凭证的 invokedAt）；缓存复用时保留原采集时间。早期记录与演示数据没有这个字段。 */
+  collectedAt?: string;
 }
 
 /** 一次真实 CLI 调用的凭证，用于在服务端之外也能核对调用确实发生过。 */
@@ -199,6 +201,10 @@ export interface CandidateMatch {
   /** 可疑但身份可确认（仅飞猪标点偏移）时仍允许参与路径规划，理由写在这里 */
   routable: boolean;
   routableReason: string;
+  /** 飞猪返回该候选数据的时间；早期记录没有这个字段 */
+  flyaiCollectedAt?: string | null;
+  /** id 是否飞猪原样返回；false = 飞猪缺 id、系统补了占位标识，来源校验不能点亮 */
+  flyaiIdFromSource?: boolean;
 }
 
 /**
@@ -284,6 +290,10 @@ export interface VerifiedStop {
   jumpUrl: string | null;
   /** 飞猪给的简介文本（未经核实的事实性文字），只作为智能体的语料，不在前端当结论展示 */
   flyaiDescription: string | null;
+  /** 飞猪返回该地点数据的时间；早期快照没有这个字段，界面只能写「查询时间未记录」 */
+  flyaiCollectedAt?: string | null;
+  /** id 是否飞猪原样返回且能在本次候选集合里对上；undefined = 早期记录未留存校验信息 */
+  flyaiIdFromSource?: boolean;
 }
 
 export interface VerifiedItinerary {

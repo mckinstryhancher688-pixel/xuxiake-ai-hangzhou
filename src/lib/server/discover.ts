@@ -210,7 +210,8 @@ interface PoiEnvelope {
   data?: { itemList?: unknown[] };
 }
 
-function parsePoiPayload(
+/** 导出仅供零付费夹具测试：解析是纯函数，不发起任何调用。 */
+export function parsePoiPayload(
   category: string,
   stdout: string,
   proof: Omit<FlyAiCallProof, "rawItemCount">,
@@ -240,7 +241,7 @@ function parsePoiPayload(
 
   const rawList = Array.isArray(payload.data?.itemList) ? (payload.data?.itemList ?? []) : [];
   const items = rawList.flatMap((raw, index) => {
-    const poi = toDiscoveredPoi(raw, category, index);
+    const poi = toDiscoveredPoi(raw, category, index, proof.invokedAt);
     return poi ? [poi] : [];
   });
   const fullProof: FlyAiCallProof = { ...proof, rawItemCount: rawList.length };
@@ -296,6 +297,7 @@ function toDiscoveredPoi(
   raw: unknown,
   category: string,
   index: number,
+  collectedAt: string,
 ): DiscoveredPoi | null {
   if (!raw || typeof raw !== "object") return null;
   const record = raw as Record<string, unknown>;
@@ -329,5 +331,7 @@ function toDiscoveredPoi(
     description,
     source: "live",
     missingFields,
+    // 缓存命中时 items 原样复用，这个时间仍是原始采集时间，不会因复用被刷新
+    collectedAt,
   };
 }

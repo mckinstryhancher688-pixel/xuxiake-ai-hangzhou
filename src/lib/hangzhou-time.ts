@@ -23,3 +23,14 @@ export function formatHangzhouDateTime(value: Date | string): string {
   const display = Number.isNaN(instant.getTime()) ? String(value) : dateTimeFormatter.format(instant);
   return `${display}（${HANGZHOU_TIME_LABEL}）`;
 }
+
+const shortFormatter = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: HANGZHOU_TIME_ZONE,
+  month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+});
+
+/** 证据条用的紧凑时间（月-日 时:分）；时区口径在「数据可信说明」里统一声明为杭州时间。 */
+export function formatHangzhouShort(value: Date | string): string {
+  const instant = typeof value === "string" ? new Date(value) : value;
+  return Number.isNaN(instant.getTime()) ? String(value) : shortFormatter.format(instant);
+}
