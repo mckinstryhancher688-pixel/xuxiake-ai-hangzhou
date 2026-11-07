@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-11-07T12:23:39Z",
+  "branch": "codex/source-evidence",
+  "commit": "c6bc229",
+  "baseCommit": "3af7bc1",
+  "node": "v24.20.0",
+  "scope": "飞猪优化①·确定性校验与证据标注（清单 A/B1/C 适配到本杭州半日 Demo；B2 与 D 的价格/跨城查询不适用，见 scopeAdaptations）",
+  "fixture": true,
+  "fixtureNotice": "离线 20 项与浏览器 14 项全部使用夹具/注入快照，数字与链接不代表飞猪或高德真实返回；浏览器注入行程名称带「夹具」、折线为两点直线占位，地图外部请求被拦截回退手绘底图。本轮不是真实路线端到端验收。",
+  "paidNewCalls": {
+    "amapPlaceText": 0,
+    "amapDirectionWalking": 0,
+    "flyaiCliSpawn": 0,
+    "bailianAgentTurns": 0,
+    "browserPostRequests": 0,
+    "externalRequestsContinued": 0
+  },
+  "gates": {
+    "test:source-evidence": { "passed": 20, "total": 20, "exit": 0 },
+    "test:offline": { "totalChecks": 278, "exit": 0, "note": "11 个原有套件 258 项 + 新增来源证据 20 项" },
+    "lint": { "exit": 0 },
+    "build": { "exit": 0, "note": "next build (Turbopack) 编译与 TypeScript 均通过；清掉了 trips 分支遗留的 .next 类型" },
+    "tsc_noEmit": { "exit": 0 },
+    "browserProbe": { "passed": 14, "total": 14, "exit": 0, "resultFile": "source-evidence-ui.json", "viewports": ["1440x900", "390x844"] }
+  },
+  "scopeAdaptations": [
+    "目标 travel.peiqirui.com 即本仓库：杭州半日、仅 POI，无价格/酒店/跨城字段，故清单 B2「总价一致性」无价格对象，标记不适用；既有 totalMinutes=步行+停留+缓冲 不变量已有测试覆盖。",
+    "清单 D 的「长沙→广州周末游／带预算上限酒店」查询在本 Demo 不存在，验收改为杭州范围：单人路线、双人步行上限协商、负面测试；真实付费验收另提预算。",
+    "清单 A 的「价格注明币种与计价单位」无价格对象；来源＋查询时间已落地。兜底话术沿用既有「数据未提供，需现场核实」（与「未查到实时数据」同义），本轮未改百炼 Agent 提示词，避免使已实测性能参数失效。"
+  ],
+  "artifacts": [
+    "evidence/source-evidence-unit.mjs",
+    "evidence/source-evidence-ui.json",
+    "evidence/source-evidence-desktop.png",
+    "evidence/source-evidence-mobile.png"
+  ],
+  "pending": [
+    "真实路线付费验收（D 适配版）待用户批准单一预算后执行",
+    "推送 GitHub 与线上部署待用户授权（部署由另一智能体负责）",
+    "旧高德 key 删除状态与生产域名白名单待复核"
+  ]
+}
