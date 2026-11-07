@@ -1,0 +1,63 @@
+{
+  "checkedAt": "2026-11-07T12:49:05.916Z",
+  "paid": false,
+  "note": "真实可见 Chromium 导航飞猪原始链接；poiId 经重定向链确定性核对。名称是否渲染取决于飞猪 Flutter H5 在桌面浏览器的可用性，如实记录，不据此伪造一致性。",
+  "source": "source-evidence-paid-accept.json realStops",
+  "total": 4,
+  "passed": 4,
+  "idMatches": 3,
+  "nameRenders": 3,
+  "links": [
+    {
+      "name": "平湖秋月",
+      "flyaiId": "1892",
+      "finalUrl": "https://market.m.taobao.com/app/trip/h5-poi-pc/pages/home/index.html?_fli_newpage=1&un_flutter=true&flutter_path=%2Fpoi_detail_page&_fli_unify=false&titleBarHidden=2&disableNav=YES&poiId=1892&ttid=all.000034214&fpt=qwtk(all.000034214)ai2c(sk.clawhub)&spm=181.45774641.poi.2&_pk=poi_1892&_projVer=1.0.4",
+      "poiId": "1892",
+      "idMatch": true,
+      "nameRendered": true,
+      "httpStatus": 200,
+      "title": "平湖秋月",
+      "bodySample": ""
+    },
+    {
+      "name": "西湖天地",
+      "flyaiId": "2261",
+      "finalUrl": "https://market.m.taobao.com/app/trip/h5-poi-pc/pages/home/index.html?_fli_newpage=1&un_flutter=true&flutter_path=%2Fpoi_detail_page&_fli_unify=false&titleBarHidden=2&disableNav=YES&poiId=2261&ttid=all.000034214&fpt=qwtk(all.000034214)ai2c(sk.clawhub)&spm=181.45774641.poi.8&_pk=poi_2261&_projVer=1.0.4",
+      "poiId": "2261",
+      "idMatch": true,
+      "nameRendered": true,
+      "httpStatus": 200,
+      "title": "西湖天地",
+      "bodySample": ""
+    },
+    {
+      "name": "南宋御街",
+      "flyaiId": "1894",
+      "finalUrl": "https://market.m.taobao.com/app/trip/h5-poi-pc/pages/home/index.html?_fli_newpage=1&un_flutter=true&flutter_path=%2Fpoi_detail_page&_fli_unify=false&titleBarHidden=2&disableNav=YES&poiId=1894&ttid=all.000034214&fpt=qwtk(all.000034214)ai2c(sk.clawhub)&spm=181.45774641.poi.1&_pk=poi_1894&_projVer=1.0.4",
+      "poiId": "1894",
+      "idMatch": true,
+      "nameRendered": true,
+      "httpStatus": 200,
+      "title": "南宋御街",
+      "bodySample": ""
+    }
+  ],
+  "checks": [
+    {
+      "name": "「平湖秋月」原始链接落地 poiId 与标注 flyaiId 一致",
+      "pass": true
+    },
+    {
+      "name": "「西湖天地」原始链接落地 poiId 与标注 flyaiId 一致",
+      "pass": true
+    },
+    {
+      "name": "「南宋御街」原始链接落地 poiId 与标注 flyaiId 一致",
+      "pass": true
+    },
+    {
+      "name": "3 条原始链接全部确定性命中各自标注的飞猪 poiId",
+      "pass": true
+    }
+  ]
+}

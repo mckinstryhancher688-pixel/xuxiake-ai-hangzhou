@@ -1,0 +1,86 @@
+{
+  "checkedAt": "2026-11-07T12:54:35.459Z",
+  "baseUrl": "http://localhost:3000",
+  "paid": false,
+  "note": "真实核验报告经整链缓存命中取回后注入 sessionStorage，UI 原样恢复；浏览器拦截一切付费 POST 与外部请求，地图回退手绘底图。仅验证真实证据条/说明块与手机布局，零新增付费。",
+  "realNames": [
+    "平湖秋月",
+    "西湖天地",
+    "南宋御街"
+  ],
+  "counters": {
+    "before": {
+      "place": 21,
+      "walking": 54
+    },
+    "after": {
+      "place": 21,
+      "walking": 54
+    }
+  },
+  "fetchSpent": 0,
+  "blockedExternal": {
+    "desktop": 1,
+    "mobile": 1
+  },
+  "blockedPaidPosts": {
+    "desktop": 0,
+    "mobile": 0
+  },
+  "total": 13,
+  "passed": 13,
+  "checks": [
+    {
+      "name": "取回真实报告为整链缓存命中（0 新增高德）",
+      "pass": true
+    },
+    {
+      "name": "桌面端：3 个真实站点都在行程里",
+      "pass": true
+    },
+    {
+      "name": "桌面端：✓已校验 点亮数 = 3（真实来源校验通过）",
+      "pass": true
+    },
+    {
+      "name": "桌面端：证据条带紧凑查询时间（查询于 …）",
+      "pass": true
+    },
+    {
+      "name": "桌面端：数据可信说明块可见",
+      "pass": true
+    },
+    {
+      "name": "桌面端：浏览器内 0 次付费 POST（核验/几何/百炼/协商全拦截）",
+      "pass": true
+    },
+    {
+      "name": "手机端：3 个真实站点都在行程里",
+      "pass": true
+    },
+    {
+      "name": "手机端：✓已校验 点亮数 = 3（真实来源校验通过）",
+      "pass": true
+    },
+    {
+      "name": "手机端：证据条带紧凑查询时间（查询于 …）",
+      "pass": true
+    },
+    {
+      "name": "手机端：数据可信说明块可见",
+      "pass": true
+    },
+    {
+      "name": "手机端：可见证据条不横向溢出且页面整体无横向滚动",
+      "pass": true
+    },
+    {
+      "name": "手机端：浏览器内 0 次付费 POST（核验/几何/百炼/协商全拦截）",
+      "pass": true
+    },
+    {
+      "name": "全程高德小时计数不变（取报告缓存命中 + 浏览器 0 付费）",
+      "pass": true
+    }
+  ]
+}

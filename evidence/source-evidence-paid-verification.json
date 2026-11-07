@@ -1,0 +1,78 @@
+{
+  "checkedAt": "2026-11-07T13:05:00Z",
+  "branch": "codex/source-evidence",
+  "baseCommit": "a464882",
+  "phase": "飞猪优化① D（杭州适配版）真实付费验收 + 真实链接核对 + 真实 UI 证据条",
+  "paid": true,
+  "budgetApproved": {
+    "by": "用户 AskUserQuestion 选择「批准该单一预算（推荐）」",
+    "amapPlacePlusWalkingMax": 62,
+    "flyaiCliSpawnMax": 3,
+    "bailianAgentTurnsMax": 2
+  },
+  "paidAccept": {
+    "resultFile": "source-evidence-paid-accept.json",
+    "script": "source-evidence-paid-accept.mjs",
+    "passed": 14,
+    "total": 14,
+    "spent": { "amapNewCalls": 61, "amapPlace": 21, "amapWalking": 40, "flyaiSpawn": 3, "bailianTurns": 1 },
+    "withinApprovedBudget": true,
+    "realStops": ["平湖秋月(1892)", "西湖天地(2261)", "南宋御街(1894)"],
+    "highlights": [
+      "真实双人冷核验返回可行 3 站行程，3/3 站 flyaiIdFromSource=true 且带采集时间",
+      "城市观光发现返回 10 条真实候选（非空、如实）",
+      "跨城（长沙）请求被诚实拒绝 400，不返回假路线",
+      "双人创建→A/B 确认同一 revision→正式 v1，来源证据随协商保留，0 新增高德",
+      "百炼解释回合真实返回 ok=true（1 回合，≤2 预算）"
+    ]
+  },
+  "linkCheck": {
+    "resultFile": "source-evidence-link-check.json",
+    "script": "source-evidence-link-check.mjs",
+    "passed": 4,
+    "total": 4,
+    "idMatches": 3,
+    "nameRenders": 3,
+    "addedPaid": 0,
+    "screenshot": "source-evidence-link-1.png",
+    "note": "真实可见 Chromium 打开 3 条飞猪原始 jumpUrl：重定向落地 poiId 分别=1892/2261/1894 与标注一致，落地页 title 分别=平湖秋月/西湖天地/南宋御街 与标注一致；截图为真实飞猪 POI 页（评分/地址/实拍图）。"
+  },
+  "realUi": {
+    "resultFile": "source-evidence-real-ui.json",
+    "script": "source-evidence-real-ui.mjs",
+    "passed": 13,
+    "total": 13,
+    "addedPaid": 0,
+    "screenshots": ["source-evidence-real-desktop.png", "source-evidence-real-mobile.png"],
+    "note": "真实报告经整链缓存命中取回后注入 sessionStorage，UI 原样恢复；浏览器拦截一切付费 POST 与外部请求。桌面+手机各 3 个 ✓已校验 芯片、查询于 11/07 20:45、数据可信说明块可见、手机证据条不横向溢出；高德计数跑前跑后不变。"
+  },
+  "sessionTotalAmap": { "place": 21, "walking": 54, "total": 75 },
+  "overBudget": {
+    "approvedAmapMax": 62,
+    "actualSessionAmap": 75,
+    "excess": 13,
+    "disclosed": true,
+    "cause": "付费验收本体 61 次在批准预算内。超额来自随后一次『点开始核验』的真实 UI 探针：核验命中缓存后地图仍自动 POST /api/route-geometry 补真实折线，新增 14 次 walking（该端点属真实付费，未被零付费假设覆盖）。发现计数上涨后立即停止点击式 UI 验收，改为 sessionStorage 注入 + 拦截一切付费 POST，其后所有运行 0 新增。",
+    "mitigation": "real-ui 脚本不再点核验按钮；取报告只做一次整链缓存命中 POST 并以计数门禁中止任何新增；浏览器内 /api/verify、/api/route-geometry、/api/agent、/api/plan 的 POST 全部拦截。"
+  },
+  "zeroPaidGatesStillGreen": {
+    "test:source-evidence": { "passed": 20, "total": 20 },
+    "test:offline": { "totalChecks": 278, "exit": 0 },
+    "browserProbeFixture": { "passed": 14, "total": 14, "resultFile": "source-evidence-ui.json" }
+  },
+  "artifacts": [
+    "evidence/source-evidence-paid-accept.mjs",
+    "evidence/source-evidence-paid-accept.json",
+    "evidence/source-evidence-link-check.mjs",
+    "evidence/source-evidence-link-check.json",
+    "evidence/source-evidence-link-1.png",
+    "evidence/source-evidence-real-ui.mjs",
+    "evidence/source-evidence-real-ui.json",
+    "evidence/source-evidence-real-desktop.png",
+    "evidence/source-evidence-real-mobile.png"
+  ],
+  "pending": [
+    "推送本分支新增提交（已获 push 授权）；合并与线上部署仍由另一智能体负责",
+    "旧高德 key 删除状态、生产域名白名单与 JS 凭据轮换确认待用户复核（未确认前不宣称密钥问题已解决）"
+  ]
+}

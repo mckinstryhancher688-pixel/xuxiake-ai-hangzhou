@@ -1,0 +1,99 @@
+{
+  "checkedAt": "2026-11-07T12:46:34.821Z",
+  "baseUrl": "http://localhost:3000",
+  "paid": true,
+  "budget": {
+    "amapMax": 62,
+    "flyaiMax": 3,
+    "bailianMax": 2
+  },
+  "spent": {
+    "amapNewCalls": 61,
+    "flyaiSpawn": 3,
+    "bailianTurns": 1
+  },
+  "negotiationNote": "创建→双方确认→解释 全闭环，0 新增高德",
+  "realStops": [
+    {
+      "name": "平湖秋月",
+      "flyaiId": "1892",
+      "jumpUrl": "https://router.feizhu.com/multi/webview?url=https%3A%2F%2Frouter.feizhu.com%2Fws%2F0Ik6k8",
+      "flyaiCollectedAt": "2026-11-07T12:45:57.888Z",
+      "flyaiIdFromSource": true
+    },
+    {
+      "name": "西湖天地",
+      "flyaiId": "2261",
+      "jumpUrl": "https://router.feizhu.com/multi/webview?url=https%3A%2F%2Frouter.feizhu.com%2Fws%2F2bgL6H",
+      "flyaiCollectedAt": "2026-11-07T12:45:58.926Z",
+      "flyaiIdFromSource": true
+    },
+    {
+      "name": "南宋御街",
+      "flyaiId": "1894",
+      "jumpUrl": "https://router.feizhu.com/multi/webview?url=https%3A%2F%2Frouter.feizhu.com%2Fws%2F3JPVlE",
+      "flyaiCollectedAt": "2026-11-07T12:45:58.926Z",
+      "flyaiIdFromSource": true
+    }
+  ],
+  "total": 14,
+  "passed": 14,
+  "checks": [
+    {
+      "name": "真实核验返回 200 且 ok",
+      "pass": true
+    },
+    {
+      "name": "真实行程非空且可行",
+      "pass": true
+    },
+    {
+      "name": "真实站点来源证据可判定且至少一站校验通过",
+      "pass": true
+    },
+    {
+      "name": "本轮高德新增 ≤62（预算上限）",
+      "pass": true
+    },
+    {
+      "name": "核验飞猪 spawn ≤2",
+      "pass": true
+    },
+    {
+      "name": "城市观光发现返回 200 且结果如实（有数据或明说空）",
+      "pass": true
+    },
+    {
+      "name": "跨城（长沙）请求被诚实拒绝 400，不返回假路线",
+      "pass": true
+    },
+    {
+      "name": "双人计划创建成功且带回角色链接",
+      "pass": true
+    },
+    {
+      "name": "双方确认后产生正式版本且来源证据随协商保留",
+      "pass": true
+    },
+    {
+      "name": "协商重解未新增高德调用（复用事实池）",
+      "pass": true
+    },
+    {
+      "name": "百炼解释回合真实返回（≤2 预算）",
+      "pass": true
+    },
+    {
+      "name": "全程高德新增总量 ≤62",
+      "pass": true
+    },
+    {
+      "name": "全程飞猪 spawn ≤3",
+      "pass": true
+    },
+    {
+      "name": "全程百炼回合 ≤2",
+      "pass": true
+    }
+  ]
+}

@@ -256,6 +256,7 @@ node evidence/phase6-accept.mjs           # 真实地图与同步链路，25 项
 测试时间、哪些数字来自夹具、以及当轮真实新增调用量＝0；失败历史留在各自原来的时间戳文件里，不混写。
 258 项于 2026-10-24 的重新运行记录见[离线日志](evidence/offline-accept-2026-10-24.log)，17 项浏览器回归见[结果 JSON](evidence/route-experience-followup-ui.json)。
 2026-11-07 加入来源证据 20 项后离线共 278 项；来源证据的浏览器回归（证据条三态、数据可信说明、手机不溢出、零 POST）见[结果 JSON](evidence/source-evidence-ui.json)与桌面/手机截图，注入的是夹具行程，不代表真实路线验收。
+同日完成真实付费验收（D 杭州适配版）：[14 项付费验收](evidence/source-evidence-paid-accept.json)（真实 3 站来源校验通过、跨城负面 400、双人确认保留证据、百炼解释 1 回合）、[4 项原始链接核对](evidence/source-evidence-link-check.json)（落地 poiId 与名称均与标注一致）、[13 项真实 UI 证据条](evidence/source-evidence-real-ui.json)（零新增付费）；阶段日志与超额披露见[付费验收记录](evidence/source-evidence-paid-verification.json)。
 演示台词、固定演示案例、电脑＋手机手工核对清单、视频分镜与待确认清单，写在 [docs/DEMO.md](docs/DEMO.md)。
 
 ## 安全
