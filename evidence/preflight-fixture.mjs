@@ -122,6 +122,18 @@ export const FIXTURE_REPORT = {
     cacheTtlSeconds: 21600, log: [],
   },
   flyaiProofs: [],
+  // 无障碍洗手间：只给第一站一条，用来验证「有就显示、没有就不显示」
+  toilets: {
+    cityName: "杭州",
+    found: 2,
+    nearest: [
+      { anchorName: "桩站点A（夹具）", toiletName: "无障碍洗手间(夹具)", straightLineMeters: 120, address: "夹具地址", amapId: "t1" },
+    ],
+    anchorsWithoutToilet: ["湖滨公园（起点）", "桩站点B（夹具）"],
+    newCalls: 0,
+    fromCache: true,
+    note: "夹具：口径说明文字由 TOILET_SCOPE_NOTE 提供",
+  },
   // 只为触发重解接线；真实核验里这个 id 来自服务端事实层
   facts: {
     factsId: "stub-facts",

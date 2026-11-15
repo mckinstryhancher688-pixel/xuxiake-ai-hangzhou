@@ -261,10 +261,18 @@ function scrub(text: string, key: string): string {
 
 export async function searchPlace(
   keywords: string,
-  options: { region?: string; cityLimit?: boolean; showBusiness?: boolean; pageSize?: number } = {},
+  options: {
+    region?: string;
+    cityLimit?: boolean;
+    showBusiness?: boolean;
+    pageSize?: number;
+    /** 高德六位分类码（如 200303 无障碍洗手间）。与 keywords 二选一，官方建议优先用 types。 */
+    types?: string;
+  } = {},
 ): Promise<AmapCallResult<AmapPoi[]>> {
   const params: Record<string, string | number | boolean> = {
-    keywords,
+    // 用 types 精确取类时不能再塞 keywords，否则高德会按「关键词 AND 类型」收窄，常常查不到
+    ...(options.types ? { types: options.types } : { keywords }),
     region: options.region ?? "杭州",
     city_limit: options.cityLimit ?? true,
     page_size: options.pageSize ?? 5,

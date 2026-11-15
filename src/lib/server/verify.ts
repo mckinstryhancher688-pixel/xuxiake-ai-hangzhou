@@ -43,6 +43,7 @@ import {
 } from "./amap";
 import { discoverCity } from "./discover";
 import { buildFactSet, mintFactsId, putFactSet } from "./facts";
+import { lookupToilets } from "./toilets";
 import { composeItinerary, toLeg } from "@/lib/itinerary-compose";
 import { auditStopSources, flyaiIdFromSourceOf } from "@/lib/source-evidence";
 import {
@@ -391,6 +392,16 @@ async function runPipeline(
     failedKeys: failedPairKeys,
   });
 
+  /* 沿途无障碍洗手间：整趟只查一次 place/text（types=200303），命中缓存为 0 新增。
+     失败不阻断核验本身，只是这块如实写查不到。 */
+  const toilets = await lookupToilets(
+    cityName,
+    [
+      { name: `${start.name}（起点）`, position: start.position },
+      ...itinerary.stops.map((stop) => ({ name: stop.name, position: stop.position })),
+    ],
+  );
+
   return {
     ...base,
     ok: true,
@@ -408,6 +419,7 @@ async function runPipeline(
     rejections,
     amap: usage(log),
     flyaiProofs,
+    toilets,
     facts: putFactSet(facts),
   };
 }

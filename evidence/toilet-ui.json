@@ -1,0 +1,67 @@
+{
+  "checkedAt": "2026-11-15T11:44:58.321Z",
+  "baseUrl": "http://localhost:3000",
+  "paid": false,
+  "fixture": true,
+  "fixtureNotice": "注入夹具快照；只验证洗手间标签与口径说明的渲染，不代表真实路线或真实洗手间数据。",
+  "total": 14,
+  "passed": 14,
+  "checks": [
+    {
+      "name": "1 有数据时显示洗手间标签",
+      "pass": true
+    },
+    {
+      "name": "1b 显示直线距离与名称",
+      "pass": true
+    },
+    {
+      "name": "1c 口径说明写明「直线距离、不是步行距离」",
+      "pass": true
+    },
+    {
+      "name": "1d 口径说明写明「不代表整条路线无障碍」",
+      "pass": true
+    },
+    {
+      "name": "1e 口径说明写明「不代表当天开放」",
+      "pass": true
+    },
+    {
+      "name": "1f 缓存命中时注明未新增高德调用",
+      "pass": true
+    },
+    {
+      "name": "1g 只有第一站有；第二站不显示",
+      "pass": true
+    },
+    {
+      "name": "2 没有洗手间数据时不显示该标签",
+      "pass": true
+    },
+    {
+      "name": "2b 也不留下口径说明空壳",
+      "pass": true
+    },
+    {
+      "name": "2c 页面仍正常显示行程",
+      "pass": true
+    },
+    {
+      "name": "3 查询结果为空时不虚构洗手间",
+      "pass": true
+    },
+    {
+      "name": "3b 也不出现口径说明",
+      "pass": true
+    },
+    {
+      "name": "4 手机端洗手间标签可见且不横向溢出",
+      "pass": true
+    },
+    {
+      "name": "5 全程 0 次付费 POST",
+      "pass": true
+    }
+  ]
+}

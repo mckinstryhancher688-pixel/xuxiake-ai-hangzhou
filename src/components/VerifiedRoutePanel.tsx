@@ -1,6 +1,7 @@
 import { formatDistance, formatMinutes } from "@/lib/format";
 import { formatHangzhouDateTime } from "@/lib/hangzhou-time";
 import { EvidenceBar } from "@/components/EvidenceBar";
+import { StopToiletLine, ToiletScopeNote } from "@/components/ToiletNote";
 import { sameCategories, type FlyAiPoiCategory } from "@/lib/discovery";
 import type { VerifiedRoute, VerifyPhase } from "@/hooks/useVerifiedRoute";
 import {
@@ -14,6 +15,7 @@ import type {
   MatchStatus,
   OpeningStatus,
   RouteStart,
+  ToiletLookup,
   VerifiedItinerary,
   VerifyReport,
 } from "@/lib/types";
@@ -179,7 +181,7 @@ export function VerifiedRoutePanel({
               以下是「少走一点」后的当前生效路线，与地图一致；原始核验记录保留在下方。
             </p>
           ) : null}
-          <Itinerary itinerary={shownItinerary} selectedStopId={selectedStopId} arrivedStopIds={arrivedStopIds} onSelectStop={onSelectStop} />
+          <Itinerary itinerary={shownItinerary} selectedStopId={selectedStopId} arrivedStopIds={arrivedStopIds} onSelectStop={onSelectStop} toilets={report?.toilets} />
         </>
       )}
 
@@ -198,6 +200,7 @@ export function VerifiedRoutePanel({
           <p className="mt-3 text-[11px] font-medium text-ink-500">原始核验记录 · {report.categories.join(" + ")} · {formatHangzhouDateTime(report.generatedAt)}</p>
           {report.amap && <p className="mt-1 text-[10px] text-ink-500">本次记录：地点请求 {report.amap.placeCalls} 次 · 步行请求 {report.amap.walkingCalls} 次 · 缓存命中 {report.amap.cacheHits} 次 · 失败 {report.amap.failedCalls} 次。</p>}
           <CountLine report={report} />
+          <ToiletScopeNote lookup={report.toilets} />
 
           {report.start && <StartLine start={report.start} />}
 
@@ -318,11 +321,13 @@ function Itinerary({
   selectedStopId,
   arrivedStopIds,
   onSelectStop,
+  toilets,
 }: {
   itinerary: VerifiedItinerary;
   selectedStopId: string | null;
   arrivedStopIds: string[];
   onSelectStop: (id: string) => void;
+  toilets?: ToiletLookup | null;
 }) {
   const arrived = new Set(arrivedStopIds);
   return (
@@ -460,6 +465,7 @@ function Itinerary({
                     {stop.openingNote}
                   </span>
                   <EvidenceBar stop={stop} />
+                  <StopToiletLine lookup={toilets} stopName={stop.name} />
                 </span>
               </div>
             </li>

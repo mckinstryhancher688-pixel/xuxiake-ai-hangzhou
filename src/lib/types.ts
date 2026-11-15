@@ -340,6 +340,27 @@ export interface AmapUsage {
   log: AmapCallLogEntry[];
 }
 
+/** 沿途无障碍洗手间：每站挑一个最近的，距离是直线距离（不是步行距离）。 */
+export interface NearestToilet {
+  anchorName: string;
+  toiletName: string;
+  straightLineMeters: number;
+  address: string | null;
+  amapId: string;
+}
+
+export interface ToiletLookup {
+  cityName: string;
+  /** 本次高德一共返回多少条该类 POI */
+  found: number;
+  nearest: NearestToilet[];
+  /** 半径内没找到的锚点（站点名或起点名） */
+  anchorsWithoutToilet: string[];
+  newCalls: number;
+  fromCache: boolean;
+  note: string;
+}
+
 export interface VerifyReport {
   cityName: string;
   districtName: string;
@@ -365,6 +386,11 @@ export interface VerifyReport {
   rejections: { name: string; reason: string }[];
   amap: AmapUsage;
   flyaiProofs: FlyAiCallProof[];
+  /**
+   * 沿途无障碍洗手间（亲情场景）。整趟行程只查一次高德 place/text（types=200303），
+   * 命中 6 小时缓存时为 0 新增；查不到就如实写没有，不拿普通公厕冒充。
+   */
+  toilets?: ToiletLookup | null;
   /**
    * 事实层入库摘要。核验时已经付费测出的有向段全部留在服务端事实库里，
    * 双人协商只在这批数据上本地重解；报告里只带计数与 factsId，不带明细。
