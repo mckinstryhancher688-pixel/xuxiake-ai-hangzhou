@@ -1,0 +1,109 @@
+{
+  "checkedAt": "2026-11-15T10:58:26.114Z",
+  "baseUrl": "http://localhost:3000",
+  "paid": true,
+  "verifySpent": 27,
+  "resolveCalls": 3,
+  "counters": {
+    "before": {
+      "place": 0,
+      "walking": 0,
+      "total": 0
+    },
+    "afterVerify": {
+      "place": 11,
+      "walking": 16,
+      "total": 27
+    },
+    "afterUi": {
+      "place": 11,
+      "walking": 16,
+      "total": 27
+    },
+    "final": {
+      "place": 11,
+      "walking": 16,
+      "total": 27
+    }
+  },
+  "realStops": [
+    {
+      "name": "三潭印月",
+      "flyaiId": "2147",
+      "flyaiIdFromSource": true
+    },
+    {
+      "name": "平湖秋月",
+      "flyaiId": "1892",
+      "flyaiIdFromSource": true
+    },
+    {
+      "name": "黄龙洞",
+      "flyaiId": "14307279",
+      "flyaiIdFromSource": true
+    }
+  ],
+  "blockedExternal": 1,
+  "dialogs": [],
+  "screenshots": [
+    "walk-limit-desktop.png",
+    "walk-limit-mobile.png",
+    "walk-limit-mobile-panel.png"
+  ],
+  "total": 13,
+  "passed": 11,
+  "checks": [
+    {
+      "name": "1 真实核验产出可行行程与事实集",
+      "pass": true
+    },
+    {
+      "name": "2 「爸妈能走多远」面板在行程页可见",
+      "pass": true
+    },
+    {
+      "name": "2b 面板附近写明「改上限不再花钱」",
+      "pass": true
+    },
+    {
+      "name": "3 点击后调用了 /api/resolve（事实层重解）",
+      "pass": true
+    },
+    {
+      "name": "3b 显示了服务端判定的人话结论",
+      "pass": true
+    },
+    {
+      "name": "3c 显示了本次重解新增高德调用次数",
+      "pass": false
+    },
+    {
+      "name": "3d 显示了复用已实测路段的说明",
+      "pass": true
+    },
+    {
+      "name": "4 「不设限」同样走重解端点",
+      "pass": false
+    },
+    {
+      "name": "4b 不设限时如实写「没有设走路上限」",
+      "pass": true
+    },
+    {
+      "name": "5 全部点击结束后高德计数与核验后一致（0 新增）",
+      "pass": true
+    },
+    {
+      "name": "5b 没有弹窗",
+      "pass": true
+    },
+    {
+      "name": "6 手机端面板不横向溢出且页面无横向滚动",
+      "pass": true
+    },
+    {
+      "name": "7 整场（含手机端）结束后高德仍无新增",
+      "pass": true
+    }
+  ]
+}

@@ -1,0 +1,147 @@
+{
+  "checkedAt": "2026-11-15T10:53:54.259Z",
+  "baseUrl": "http://localhost:3000",
+  "realStops": [
+    {
+      "name": "三潭印月",
+      "flyaiId": "2147"
+    },
+    {
+      "name": "平湖秋月",
+      "flyaiId": "1892"
+    },
+    {
+      "name": "黄龙洞",
+      "flyaiId": "14307279"
+    }
+  ],
+  "baselineWalk": 7838,
+  "verifySpent": 27,
+  "resolveSpent": 0,
+  "counters": {
+    "beforeVerify": {
+      "place": 0,
+      "walking": 0,
+      "total": 0
+    },
+    "afterVerify": {
+      "place": 11,
+      "walking": 16,
+      "total": 27
+    },
+    "finalCounters": {
+      "place": 11,
+      "walking": 16,
+      "total": 27
+    }
+  },
+  "attempts": [
+    {
+      "label": "不设上限",
+      "maxWalkMeters": null,
+      "ok": true,
+      "walk": 7838,
+      "stops": 3,
+      "newAmapCalls": 0,
+      "spentDuringCall": 0
+    },
+    {
+      "label": "上限 6662 米",
+      "maxWalkMeters": 6662,
+      "ok": true,
+      "walk": 4683,
+      "stops": 2,
+      "newAmapCalls": 0,
+      "spentDuringCall": 0
+    },
+    {
+      "label": "上限 400 米（大概率排不出）",
+      "maxWalkMeters": 400,
+      "ok": false,
+      "walk": null,
+      "stops": null,
+      "newAmapCalls": 0,
+      "spentDuringCall": 0
+    }
+  ],
+  "total": 19,
+  "passed": 19,
+  "checks": [
+    {
+      "name": "1 真实核验返回可行行程与事实集",
+      "pass": true
+    },
+    {
+      "name": "2 「不设上限」重解未新增任何高德调用",
+      "pass": true
+    },
+    {
+      "name": "2b 「不设上限」响应自己报告 0 新增",
+      "pass": true
+    },
+    {
+      "name": "2 「上限 6662 米」重解未新增任何高德调用",
+      "pass": true
+    },
+    {
+      "name": "2b 「上限 6662 米」响应自己报告 0 新增",
+      "pass": true
+    },
+    {
+      "name": "2 「上限 400 米（大概率排不出）」重解未新增任何高德调用",
+      "pass": true
+    },
+    {
+      "name": "2b 「上限 400 米（大概率排不出）」响应自己报告 0 新增",
+      "pass": true
+    },
+    {
+      "name": "3 带上限的方案确实不超过上限（服务端判定）",
+      "pass": true
+    },
+    {
+      "name": "3b withinLimit 为 true 且 verdict 是人话",
+      "pass": true
+    },
+    {
+      "name": "3c 执行门禁给出允许",
+      "pass": true
+    },
+    {
+      "name": "4 上限 400 米时结果必须是「排不出」或「确实不超过 400 米」",
+      "pass": true
+    },
+    {
+      "name": "4b 无解时给出可执行建议值",
+      "pass": true
+    },
+    {
+      "name": "4c 无解原因带真实数字",
+      "pass": true
+    },
+    {
+      "name": "5 不设上限时用的是同一事实层（站名一致）",
+      "pass": true
+    },
+    {
+      "name": "5b 重解给出的总步行与核验一致（未受其他约束影响时为同一解）",
+      "pass": true
+    },
+    {
+      "name": "6 非法上限（50 米）被拒绝 400",
+      "pass": true
+    },
+    {
+      "name": "6b 不存在的事实集返回 410 且不自动重跑",
+      "pass": true
+    },
+    {
+      "name": "6c GET 被明确拒绝 405",
+      "pass": true
+    },
+    {
+      "name": "7 全部重解阶段合计 0 新增高德",
+      "pass": true
+    }
+  ]
+}

@@ -13,6 +13,8 @@ import { NegotiationPanel } from "@/components/NegotiationPanel";
 import { PlanActionBar } from "@/components/PlanActionBar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { VerifiedRoutePanel } from "@/components/VerifiedRoutePanel";
+import { WalkLimitPanel } from "@/components/WalkLimitPanel";
+import type { VerifiedItinerary } from "@/lib/types";
 import { useAgent } from "@/hooks/useAgent";
 import { agentDataSourceNote } from "@/lib/agent";
 import { useDiscover } from "@/hooks/useDiscover";
@@ -73,7 +75,9 @@ export function JourneyApp() {
   // 双人协商挂在同一份已核验事实层上：不新建第二套数据，也不改单人链路
   // 地图跟着「当前生效行程」走：智能体调整过就用调整后的，否则用（可能已被双方确认版替换过的）核验结果；
   // 两者都还没有时只能继续显示演示行程，绝不把未核验的飞猪坐标画上去。
-  const activeItinerary = agent.activeItinerary;
+  // 亲情模式：用户在「爸妈能走多远」里重解出的行程优先于智能体结果，因为它是最新的显式选择。
+  const [soloOverride, setSoloOverride] = useState<VerifiedItinerary | null>(null);
+  const activeItinerary = soloOverride ?? agent.activeItinerary;
   // 调整过之后，核验面板显示的就是这一份；原始核验结果只在开发调试面板里保留。
   const routeAdjusted = activeItinerary !== null && activeItinerary !== (verifiedRoute.report?.itinerary ?? null);
   const scene: "verified" | "demo" = activeItinerary ? "verified" : "demo";
@@ -196,6 +200,15 @@ export function JourneyApp() {
               arrivedStopIds={agent.arrivedStopIds}
               onSelectStop={agent.selectStop}
             />}
+
+            {/* 亲情模式的入口：核验后改「爸妈能走多远」，走事实层免费重解，不再请求高德 */}
+            {!jointBlocked && verifiedRoute.report?.ok && verifiedRoute.report.facts?.factsId && (
+              <WalkLimitPanel
+                factsId={verifiedRoute.report.facts.factsId}
+                currentWalkMeters={activeItinerary?.totalWalkMeters ?? null}
+                onResolved={(itinerary) => setSoloOverride(itinerary)}
+              />
+            )}
 
             {!jointBlocked && <AgentPanel agent={agent} stops={verifiedStops} />}
 
