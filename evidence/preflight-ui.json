@@ -1,0 +1,83 @@
+{
+  "checkedAt": "2026-11-15T11:25:54.792Z",
+  "baseUrl": "http://localhost:3000",
+  "paid": false,
+  "fixture": true,
+  "fixtureNotice": "注入夹具快照并拦截 /api/resolve 返回桩结果；只验证界面与接线，不代表真实路线或真实重解结果。",
+  "resolveCalls": 2,
+  "resolveBodies": [
+    {
+      "factsId": "stub-facts",
+      "maxWalkMeters": 1700
+    },
+    {
+      "factsId": "stub-facts",
+      "maxWalkMeters": 1500
+    }
+  ],
+  "dialogs": [],
+  "total": 15,
+  "passed": 15,
+  "checks": [
+    {
+      "name": "1 生成路线之前就能看到「爸妈大概能走多远」",
+      "pass": true
+    },
+    {
+      "name": "1b 三个档位都在",
+      "pass": true
+    },
+    {
+      "name": "1c 说明先定就不用生成完再改",
+      "pass": true
+    },
+    {
+      "name": "1d 此时没有重解请求",
+      "pass": true
+    },
+    {
+      "name": "2 档位有选中态",
+      "pass": true
+    },
+    {
+      "name": "2b 没有事实集时不发重解",
+      "pass": true
+    },
+    {
+      "name": "3 刷新后能恢复已核验路线（无崩溃）",
+      "pass": true
+    },
+    {
+      "name": "4 选档后调用 /api/resolve",
+      "pass": true
+    },
+    {
+      "name": "4b 显示服务端人话回显",
+      "pass": true
+    },
+    {
+      "name": "4c 显示因果说明",
+      "pass": true
+    },
+    {
+      "name": "5 切换档位再次重解",
+      "pass": true
+    },
+    {
+      "name": "5b 排不出时如实提示",
+      "pass": true
+    },
+    {
+      "name": "5c 提示里带真数（米）",
+      "pass": true
+    },
+    {
+      "name": "5d 全程 0 弹窗",
+      "pass": true
+    },
+    {
+      "name": "6 手机端三档可见且不横向溢出",
+      "pass": true
+    }
+  ]
+}

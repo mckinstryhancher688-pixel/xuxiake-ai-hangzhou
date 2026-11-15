@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AgentPanel } from "@/components/AgentPanel";
 import { DataSourcePanel } from "@/components/DataSourcePanel";
 import { DataTrustNote } from "@/components/DataTrustNote";
@@ -77,7 +77,46 @@ export function JourneyApp() {
   // 两者都还没有时只能继续显示演示行程，绝不把未核验的飞猪坐标画上去。
   // 亲情模式：用户在「爸妈能走多远」里重解出的行程优先于智能体结果，因为它是最新的显式选择。
   const [soloOverride, setSoloOverride] = useState<VerifiedItinerary | null>(null);
+  // 出门前先问的那一句。定下来之后，核验一完成就用它重解一次，不用生成完再改。
+  const [preflightCap, setPreflightCap] = useState<number | null>(null);
   const activeItinerary = soloOverride ?? agent.activeItinerary;
+
+  /**
+   * 出门前定的那条线，用在「核验刚成功」这一刻：拿事实层免费重解一次，
+   * 用户就不用先生成一条不合用的路线再手动改。
+   * 只在 factsId 变化时跑一次，避免每次渲染都发请求；失败就保留核验原结果。
+   */
+  const preflightFactsId = verifiedRoute.report?.ok ? verifiedRoute.report.facts?.factsId ?? null : null;
+  const [preflightNote, setPreflightNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!preflightFactsId || preflightCap === null) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/resolve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ factsId: preflightFactsId, maxWalkMeters: preflightCap }),
+        });
+        if (!response.ok) return;
+        const body = await response.json();
+        if (cancelled) return;
+        if (body?.ok === true && body.itinerary) {
+          setSoloOverride(body.itinerary);
+          setPreflightNote(null);
+        } else {
+          // 定得太紧时如实说清楚，不能静默退回一条超限的路线
+          setPreflightNote(
+            `按「${preflightCap} 米」排不出可行路线，下面显示的仍是原核验结果。` +
+            (body?.reason ? `原因：${String(body.reason).slice(0, 90)}` : ""),
+          );
+        }
+      } catch {
+        // 重解失败不影响已核验的路线；用户仍可在面板里手动改
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [preflightFactsId, preflightCap]);
   // 调整过之后，核验面板显示的就是这一份；原始核验结果只在开发调试面板里保留。
   const routeAdjusted = activeItinerary !== null && activeItinerary !== (verifiedRoute.report?.itinerary ?? null);
   const scene: "verified" | "demo" = activeItinerary ? "verified" : "demo";
@@ -176,7 +215,7 @@ export function JourneyApp() {
                 <p className="mt-1 text-ink-500">{jointBlockReason}</p>
                 <a href="#joint-negotiation" onClick={() => setTab("plan")} className="mt-2 inline-block text-brand-700 underline">查看双方条件并确认</a>
               </div>
-            ) : <PlanActionBar route={verifiedRoute} agent={agent} categories={discover.selected} itineraryCategories={itineraryCategories} jointLocked={jointRoute !== null} />}
+            ) : <PlanActionBar route={verifiedRoute} agent={agent} categories={discover.selected} itineraryCategories={itineraryCategories} jointLocked={jointRoute !== null} preflightCap={preflightCap} onPreflightChange={setPreflightCap} />}
           </div>
 
           {/* 数据可信说明不折叠：桌面在右栏顶部、手机在「行程与探索」页顶部，一眼能看到 */}
@@ -202,11 +241,16 @@ export function JourneyApp() {
             />}
 
             {/* 亲情模式的入口：核验后改「爸妈能走多远」，走事实层免费重解，不再请求高德 */}
+            {preflightNote && (
+              <p className="rounded-xl bg-amber-500/5 px-3 py-2 text-[11px] leading-relaxed text-ink-700 ring-1 ring-amber-500/25">
+                {preflightNote}
+              </p>
+            )}
             {!jointBlocked && verifiedRoute.report?.ok && verifiedRoute.report.facts?.factsId && (
               <WalkLimitPanel
                 factsId={verifiedRoute.report.facts.factsId}
                 currentWalkMeters={activeItinerary?.totalWalkMeters ?? null}
-                onResolved={(itinerary) => setSoloOverride(itinerary)}
+                onResolved={(itinerary) => { setSoloOverride(itinerary); setPreflightNote(null); }}
               />
             )}
 
