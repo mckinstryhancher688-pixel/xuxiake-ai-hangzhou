@@ -1,0 +1,153 @@
+{
+  "checkedAt": "2026-11-15T13:31:33.568Z",
+  "baseUrl": "http://localhost:3000",
+  "paid": true,
+  "verifySpent": 37,
+  "blockedPaidPosts": 0,
+  "dialogs": [],
+  "realItinerary": {
+    "stops": [
+      {
+        "name": "西湖天地",
+        "stayMinutes": 30
+      },
+      {
+        "name": "南宋御街",
+        "stayMinutes": 30
+      },
+      {
+        "name": "馒头山社区居委会",
+        "stayMinutes": 30
+      }
+    ],
+    "totalWalkMeters": 6039,
+    "longestSegmentMeters": 2816,
+    "toilets": [
+      {
+        "anchorName": "杭州西湖风景名胜区-湖滨公园（起点）",
+        "toiletName": "兰心公厕(湖滨三公园)",
+        "straightLineMeters": 404,
+        "address": "湖滨路23号",
+        "amapId": "B0H2DDDF0R"
+      },
+      {
+        "anchorName": "西湖天地",
+        "toiletName": "无障碍洗手间(龙井路)",
+        "straightLineMeters": 323,
+        "address": "龙井路1号杭州西湖风景名胜区内(东北角)",
+        "amapId": "B0LAGMT5VE"
+      },
+      {
+        "anchorName": "南宋御街",
+        "toiletName": "无障碍洗手间(新宫桥)",
+        "straightLineMeters": 247,
+        "address": "高银街与光复路交叉口东南60米",
+        "amapId": "B0FFH34A6Q"
+      }
+    ]
+  },
+  "bodyFontSizes": {
+    "min": 22,
+    "max": 36
+  },
+  "screenshots": [
+    "elder-1-expanded.png",
+    "elder-2-mobile.png"
+  ],
+  "total": 23,
+  "passed": 23,
+  "checks": [
+    {
+      "name": "1 行程页有「给爸妈看」入口",
+      "pass": true
+    },
+    {
+      "name": "2 打开全屏大字版",
+      "pass": true
+    },
+    {
+      "name": "3 说明一共去几个地方",
+      "pass": true
+    },
+    {
+      "name": "4 写出总步行与步行时间",
+      "pass": true
+    },
+    {
+      "name": "5 列出每一站的真实名称",
+      "pass": true
+    },
+    {
+      "name": "6 每一段都写了走多远",
+      "pass": true
+    },
+    {
+      "name": "7 写出最长的一段",
+      "pass": true
+    },
+    {
+      "name": "8a 大字版不出现来源标签",
+      "pass": true
+    },
+    {
+      "name": "8b 大字版不出现正负号差异",
+      "pass": true
+    },
+    {
+      "name": "8c 大字版不出现技术排障入口",
+      "pass": true
+    },
+    {
+      "name": "9a 写明走路距离来自地图、不是人真走一遍",
+      "pass": true
+    },
+    {
+      "name": "9b 写明停留时间是设定值",
+      "pass": true
+    },
+    {
+      "name": "9c 写明不含回程",
+      "pass": true
+    },
+    {
+      "name": "9d 写明厕所只算直线、不代表整条路可推轮椅",
+      "pass": true
+    },
+    {
+      "name": "10 点「字大」字号真的变大",
+      "pass": true
+    },
+    {
+      "name": "10b 点「字小」字号变小",
+      "pass": true
+    },
+    {
+      "name": "11 大字版最小字号不低于 16px",
+      "pass": true
+    },
+    {
+      "name": "11b 站名字号明显大于普通界面（≥24px）",
+      "pass": true
+    },
+    {
+      "name": "12 点「退出」能关掉",
+      "pass": true
+    },
+    {
+      "name": "13 按 Esc 也能关掉",
+      "pass": true
+    },
+    {
+      "name": "14 全程 0 弹窗",
+      "pass": true
+    },
+    {
+      "name": "15 手机端大字版铺满且不横向溢出",
+      "pass": true
+    },
+    {
+      "name": "16 整场（含大字版操作）高德计数不变",
+      "pass": true
+    }
+  ]
+}

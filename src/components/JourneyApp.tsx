@@ -6,6 +6,7 @@ import { DataSourcePanel } from "@/components/DataSourcePanel";
 import { DataTrustNote } from "@/components/DataTrustNote";
 import { DebugPanel } from "@/components/DebugPanel";
 import { DiscoverPanel } from "@/components/DiscoverPanel";
+import { ElderView } from "@/components/ElderView";
 import { ExplorePanel } from "@/components/ExplorePanel";
 import { ItineraryPanel } from "@/components/ItineraryPanel";
 import { MapPanel } from "@/components/MapPanel";
@@ -79,6 +80,8 @@ export function JourneyApp() {
   const [soloOverride, setSoloOverride] = useState<VerifiedItinerary | null>(null);
   // 出门前先问的那一句。定下来之后，核验一完成就用它重解一次，不用生成完再改。
   const [preflightCap, setPreflightCap] = useState<number | null>(null);
+  const [preflightSegmentCap, setPreflightSegmentCap] = useState<number | null>(null);
+  const [elderOpen, setElderOpen] = useState(false);
   const activeItinerary = soloOverride ?? agent.activeItinerary;
 
   /**
@@ -247,16 +250,36 @@ export function JourneyApp() {
               </p>
             )}
             {!jointBlocked && verifiedRoute.report?.ok && verifiedRoute.report.facts?.factsId && (
-              <WalkLimitPanel
-                factsId={verifiedRoute.report.facts.factsId}
-                currentWalkMeters={activeItinerary?.totalWalkMeters ?? null}
-                currentLongestSegmentMeters={
-                  activeItinerary?.legs?.length
-                    ? Math.max(...activeItinerary.legs.map((leg) => leg.distanceMeters))
-                    : null
-                }
-                onResolved={(itinerary) => { setSoloOverride(itinerary); setPreflightNote(null); }}
-              />
+              <>
+                <button
+                  type="button"
+                  onClick={() => setElderOpen(true)}
+                  className="flex w-full items-center justify-between rounded-2xl border-2 border-brand-600/30 bg-brand-50/40 px-4 py-3 text-left transition hover:border-brand-600/60"
+                >
+                  <span>
+                    <span className="block text-sm font-semibold text-brand-700">给爸妈看</span>
+                    <span className="mt-0.5 block text-[11px] leading-relaxed text-ink-500">
+                      大字版：只讲去哪几个地方、走多久、厕所在哪，可以调字号
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-lg text-brand-700" aria-hidden>›</span>
+                </button>
+                <WalkLimitPanel
+                  factsId={verifiedRoute.report.facts.factsId}
+                  currentWalkMeters={activeItinerary?.totalWalkMeters ?? null}
+                  currentLongestSegmentMeters={
+                    activeItinerary?.legs?.length
+                      ? Math.max(...activeItinerary.legs.map((leg) => leg.distanceMeters))
+                      : null
+                  }
+                  onResolved={(itinerary, applied) => {
+                    setSoloOverride(itinerary);
+                    setPreflightNote(null);
+                    setPreflightCap(applied.maxWalkMeters);
+                    setPreflightSegmentCap(applied.maxSegmentMeters);
+                  }}
+                />
+              </>
             )}
 
             {!jointBlocked && <AgentPanel agent={agent} stops={verifiedStops} />}
@@ -316,6 +339,16 @@ export function JourneyApp() {
           />
         </div>
       </main>
+
+      {/* 大字版：全屏覆盖，只讲去哪、走多久、厕所在哪 */}
+      <ElderView
+        open={elderOpen}
+        onClose={() => setElderOpen(false)}
+        itinerary={activeItinerary}
+        toilets={verifiedRoute.report?.toilets}
+        limitMeters={preflightCap}
+        segmentLimitMeters={preflightSegmentCap}
+      />
     </div>
   );
 }

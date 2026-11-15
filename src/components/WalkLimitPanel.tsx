@@ -92,7 +92,7 @@ export function WalkLimitPanel({
   currentWalkMeters: number | null;
   /** 当前行程里最长的一段；用来给出「一口气能走多远」的档位 */
   currentLongestSegmentMeters?: number | null;
-  onResolved?: (itinerary: VerifiedItinerary) => void;
+  onResolved?: (itinerary: VerifiedItinerary, applied: { maxWalkMeters: number | null; maxSegmentMeters: number | null }) => void;
 }) {
   const [active, setActive] = useState<number | null | undefined>(undefined);
   const [activeSegment, setActiveSegment] = useState<number | null | undefined>(undefined);
@@ -131,7 +131,11 @@ export function WalkLimitPanel({
         if (body && "ok" in body && body.ok) {
           setResult(body as ResolveOk);
           setFailure(null);
-          onResolved?.((body as ResolveOk).itinerary);
+          onResolved?.((body as ResolveOk).itinerary, {
+            maxWalkMeters: meters,
+            // 单段档位在调用处显式传入；未传时表示「不改单段」，回填 null 让上层知道当前没设这条限制
+            maxSegmentMeters: segmentMeters !== undefined ? segmentMeters : null,
+          });
         } else {
           setFailure(body as ResolveFail);
           setResult(null);
