@@ -1,0 +1,95 @@
+{
+  "checkedAt": "2026-11-15T06:32:48Z",
+  "purpose": "核实高德 Web 服务是否提供「无障碍设施」类 POI，以及返回字段是否含路面无障碍属性；用于判断「低体力/少走路」方向能否用真实数据支撑。",
+  "cost": {
+    "realAmapCalls": 1,
+    "endpoint": "GET /v5/place/text",
+    "budgetApprovedByUser": "≤2 place 调用",
+    "withinBudget": true,
+    "walkingCalls": 0,
+    "flyaiCalls": 0,
+    "bailianTurns": 0
+  },
+  "keyMask": "96d9****5c",
+  "keySource": "本地 .env.local 的 AMAP_WEB_KEY，仅内存使用，未写入任何文件",
+  "call": {
+    "types": "200303",
+    "region": "杭州",
+    "city_limit": true,
+    "offset": 25,
+    "page": 1,
+    "show_fields": "business",
+    "status": "1",
+    "info": "OK",
+    "count": 10,
+    "returned": 10
+  },
+  "bestEvidence": {
+    "note": "高德官方标注的无障碍洗手间，地址与飞猪「平湖秋月」落地页地址一致（孤山后山路1号），且正是我们真实付费验收中的站点（飞猪 id 1892）。",
+    "matchedStop": { "name": "平湖秋月", "flyaiId": "1892", "address": "孤山后山路1号" },
+    "amapPoi": {
+      "name": "无障碍洗手间(平湖秋月)",
+      "typecode": "200303",
+      "type": "公共设施;公共厕所;残障洗手间/无障碍洗手间",
+      "address": "孤山后山路1号",
+      "location": "120.145457,30.252108"
+    }
+  },
+  "samplePois": [
+    { "name": "无障碍公共厕所", "typecode": "200303", "address": "南山路87-1号", "location": "120.156198,30.241704" },
+    { "name": "兰心公厕(湖滨三公园)", "typecode": "200303", "address": "湖滨路23号", "location": "120.161358,30.253685" },
+    { "name": "无障碍洗手间(平湖秋月)", "typecode": "200303", "address": "孤山后山路1号", "location": "120.145457,30.252108" },
+    { "name": "公共厕所(灵隐中心公交站)", "typecode": "200303", "address": "灵隐路灵隐公交终点站", "location": "120.108220,30.241645" },
+    { "name": "无障碍洗手间(杭州西湖风景名胜区)", "typecode": "200303", "address": "龙井路1号西湖风景名胜区内", "location": "120.157266,30.260212" },
+    { "name": "无障碍洗手间(龙井路)", "typecode": "200303", "address": "龙井路1号杭州西湖风景名胜区内(东北角)", "location": "120.160869,30.249590" },
+    { "name": "公共厕所(九溪)", "typecode": "200303", "address": "九溪路3-1附近", "location": "120.118607,30.187085" },
+    { "name": "无障碍洗手间(城市阳台)", "typecode": "200303", "address": "之江路1084号", "location": "120.216697,30.243097" }
+  ],
+  "categoryTableAudit": {
+    "source": "高德官方 AMap_poicode.zip（2023-10 版，68KB，2026-11-15 下载解包核对）",
+    "totalStringEntries": 2499,
+    "hasAccessibility": [
+      "200303 残障洗手间/无障碍洗手间 (Wheelchair Accessible)"
+    ],
+    "alsoPresentNearby": [
+      "200301 男洗手间 / Male Toilet",
+      "200302 女洗手间 / Female Toilet",
+      "200304 婴儿换洗间/哺乳室/母婴室 (Room of Mother and Infant)"
+    ],
+    "absentTerms": [
+      "无障碍通道", "无障碍出入口", "无障碍电梯", "无障碍坡道", "轮椅坡道", "缘石坡道", "盲道", "低位服务设施", "无障碍机动车停车位"
+    ],
+    "conclusion": "高德六位分类体系里只有「点」（无障碍洗手间），没有「路」（通道/坡道/盲道/电梯/台阶/坡度）。这些属于《DB12/T 1093-2021 无障碍设施数据规范》一类地方标准的 11 位编码，不在高德公开体系内。"
+  },
+  "fieldAudit": {
+    "placeTextField": ["id", "name", "type", "typecode", "address", "location", "tel", "pcode", "cityname", "adname", "rating", "cost", "photos"],
+    "directionWalkingField": ["distance", "duration", "polyline/steps"],
+    "noAccessibilityAttributes": true,
+    "conclusion": "两个端点都不返回坡度、台阶、台阶数、路面宽度、坡道、盲道等路面无障碍属性。"
+  },
+  "flyaiAudit": {
+    "cliPackage": "@fly-ai/flyai-cli@1.0.16",
+    "commands": ["search-poi", "search-hotel", "search-flight", "search-train", "keyword-search", "ai-search", "search-marriott-package", "search-marriott-hotel"],
+    "searchPoiFlags": ["--city-name", "--poi-level 1-5", "--keyword", "--category"],
+    "searchPoiCategoryEnum": ["nature", "lake", "forest", "canyon", "beach", "island", "desert", "grassland", "historic site", "ancient town", "garden", "temple", "theme park", "water park", "zoo", "aquarium", "museum", "memorial", "landmark", "market", "outdoor", "skiing", "rafting", "surfing", "diving", "camping", "hot spring"],
+    "hasAccessibilityCategory": false,
+    "aiSearchNote": "ai-search --query 支持自然语言语义搜索，但官方描述限定在酒店/机票，未承诺景点或无障碍筛选。",
+    "conclusion": "飞猪可用于「发现去哪玩」，但不提供无障碍属性，也没有「按无障碍/低体力筛选」的能力。"
+  },
+  "productImplication": {
+    "canClaim": [
+      "每个站点可标注最近的高德实测无障碍洗手间及其步行距离",
+      "总步行上限与单段最长步行上限（基于高德实测路段，可复核）",
+      "少站、多缓冲、休息点安排"
+    ],
+    "cannotClaim": [
+      "轮椅全程可通行",
+      "无台阶 / 无障碍认证",
+      "坡度与路面状况",
+      "盲道或视障可通行",
+      "任何医疗或体力安全保证"
+    ],
+    "honestyRule": "界面与投稿必须写明「未提供坡度、台阶、盲道等路面无障碍数据」，与现有「查不到就明说」口径一致。"
+  },
+  "nextStepIfApproved": "若要产品化：加一次 place/text types=200303 查询（约 1 次调用/次核验），把「最近无障碍洗手间 + 步行距离」作为站点的一列真实证据；不新增 walking 调用即可用直线距离，若要步行距离则每站 1 次 walking。"
+}
