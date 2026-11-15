@@ -250,6 +250,11 @@ export function JourneyApp() {
               <WalkLimitPanel
                 factsId={verifiedRoute.report.facts.factsId}
                 currentWalkMeters={activeItinerary?.totalWalkMeters ?? null}
+                currentLongestSegmentMeters={
+                  activeItinerary?.legs?.length
+                    ? Math.max(...activeItinerary.legs.map((leg) => leg.distanceMeters))
+                    : null
+                }
                 onResolved={(itinerary) => { setSoloOverride(itinerary); setPreflightNote(null); }}
               />
             )}

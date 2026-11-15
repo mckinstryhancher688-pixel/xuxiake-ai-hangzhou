@@ -35,7 +35,7 @@ function leg(fromName, toName, from, to) {
     toName,
     from,
     to,
-    distanceMeters: 400,
+    distanceMeters: 1200,
     durationMinutes: 5,
     durationSeconds: 300,
     stepCount: 0,

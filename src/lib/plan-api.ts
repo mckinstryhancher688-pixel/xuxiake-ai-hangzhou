@@ -112,6 +112,8 @@ export function sanitizeConditions(raw: unknown, role: Role): SanitizeResult {
   const hard: HardConstraints = {
     latestEndMinutes: typeof latestEndMinutes === "number" ? latestEndMinutes : null,
     maxWalkMeters: typeof maxWalkMeters === "number" ? maxWalkMeters : null,
+    // 双人条件录入暂不暴露单段上限；单人重解走 /api/resolve 单独传
+    maxSegmentMeters: null,
     mustVisit,
     neverAccept,
   };

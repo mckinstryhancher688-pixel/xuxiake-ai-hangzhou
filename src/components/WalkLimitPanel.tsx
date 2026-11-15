@@ -46,6 +46,9 @@ interface Explanation {
   totalWalkMeters: number;
   limit: number | null;
   withinLimit: boolean;
+  longestSegmentMeters: number;
+  segmentLimit: number | null;
+  withinSegmentLimit: boolean;
   verdict: string;
   whyDropped: { id: string | null; name: string; text: string }[];
   keptBecauseMust: string[];
@@ -68,23 +71,38 @@ interface ResolveFail {
   cost?: { newAmapCalls: number };
 }
 
+/** 单段档位：按「当前最长一段」的一半 / 四分之三给，另加「不限」。 */
+function segmentPresetsFor(currentLongest: number): Preset[] {
+  const half = Math.max(200, Math.round((currentLongest * 0.5) / 50) * 50);
+  const threeQuarters = Math.max(200, Math.round((currentLongest * 0.75) / 50) * 50);
+  return [
+    { label: "一小段", sub: `≤ ${half} 米`, meters: half },
+    { label: "一段", sub: `≤ ${threeQuarters} 米`, meters: threeQuarters },
+    { label: "不限", sub: "只要能走就行", meters: null },
+  ];
+}
+
 export function WalkLimitPanel({
   factsId,
   currentWalkMeters,
+  currentLongestSegmentMeters = null,
   onResolved,
 }: {
   factsId: string | null;
   currentWalkMeters: number | null;
+  /** 当前行程里最长的一段；用来给出「一口气能走多远」的档位 */
+  currentLongestSegmentMeters?: number | null;
   onResolved?: (itinerary: VerifiedItinerary) => void;
 }) {
   const [active, setActive] = useState<number | null | undefined>(undefined);
+  const [activeSegment, setActiveSegment] = useState<number | null | undefined>(undefined);
   const [result, setResult] = useState<ResolveOk | null>(null);
   const [failure, setFailure] = useState<ResolveFail | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const resolve = useCallback(
-    async (meters: number | null) => {
+    async (meters: number | null, segmentMeters?: number | null) => {
       if (!factsId) {
         setError("还没有可复用的事实集，请先生成一次路线。");
         return;
@@ -93,11 +111,16 @@ export function WalkLimitPanel({
       setError(null);
       setFailure(null);
       setActive(meters);
+      if (segmentMeters !== undefined) setActiveSegment(segmentMeters);
       try {
         const response = await fetch(RESOLVE_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ factsId, maxWalkMeters: meters }),
+          body: JSON.stringify({
+            factsId,
+            maxWalkMeters: meters,
+            ...(segmentMeters !== undefined ? { maxSegmentMeters: segmentMeters } : {}),
+          }),
         });
         const body = (await response.json()) as ResolveOk | ResolveFail | { error?: string };
         if (!response.ok) {
@@ -154,6 +177,35 @@ export function WalkLimitPanel({
           );
         })}
       </div>
+
+      {/* 单段上限：总量够短，也可能中间有一段走不动，所以单独设一档 */}
+      {currentLongestSegmentMeters !== null && currentLongestSegmentMeters > 0 && (
+        <div className="mt-2 rounded-xl border border-line bg-paper px-2.5 py-2">
+          <p className="text-[11px] font-semibold text-ink-700">一口气最多走多远？</p>
+          <p className="mt-0.5 text-[10px] leading-relaxed text-ink-500">
+            现在最长的一段是 {currentLongestSegmentMeters} 米。总量再短，中间有一段走不动也不行。
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {segmentPresetsFor(currentLongestSegmentMeters).map((option) => {
+              const selected = activeSegment === option.meters;
+              return (
+                <button
+                  key={option.label}
+                  type="button"
+                  disabled={busy || !factsId}
+                  onClick={() => void resolve(active ?? currentWalkMeters, option.meters)}
+                  className={`flex min-w-[70px] flex-1 flex-col rounded-lg border px-2 py-1.5 text-left transition ${
+                    selected ? "border-brand-600 bg-brand-600/10 text-brand-700" : "border-line bg-card text-ink-700"
+                  } ${busy || !factsId ? "opacity-50" : ""}`}
+                >
+                  <span className="text-[11px] font-semibold">{option.label}</span>
+                  <span className="text-[9.5px] text-ink-500">{option.sub}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {busy && <p className="mt-2 text-[11px] text-ink-500">正在用已实测的路段重新排…</p>}
 

@@ -43,6 +43,7 @@ let resolveMode = "ok";
 
 function stubOk(body) {
   const limit = body.maxWalkMeters ?? null;
+  const segLimit = body.maxSegmentMeters ?? null;
   return {
     ok: true,
     cost: { newAmapCalls: 0 },
@@ -51,7 +52,12 @@ function stubOk(body) {
       totalWalkMeters: 1800,
       limit,
       withinLimit: true,
-      verdict: `这条路线全天走 1800 米，在您定的 ${limit} 米以内。`,
+      longestSegmentMeters: 900,
+      segmentLimit: segLimit,
+      withinSegmentLimit: segLimit === null || 900 <= segLimit,
+      verdict:
+        `这条路线全天走 1800 米，在您定的 ${limit} 米以内` +
+        (segLimit === null ? "" : `；最长一段走 900 米，在您定的单段 ${segLimit} 米以内`) + "。",
       whyDropped: [{ id: "x", name: "满陇桂雨", text: `保留「满陇桂雨」会走到 2600 米，超出你定的 ${limit} 米，所以这次没排它。` }],
       keptBecauseMust: [],
       withoutLimit: { totalWalkMeters: 2600, stopCount: 4 },
@@ -134,6 +140,15 @@ const afterResolve = await page.evaluate(() => document.body.innerText);
 check("4b 显示服务端人话回显", /全天走 1800 米/.test(afterResolve), afterResolve.match(/这条路线[^\n]*/)?.[0] ?? null);
 check("4c 显示因果说明", afterResolve.includes("满陇桂雨") && /超出你定的/.test(afterResolve));
 await page.screenshot({ path: path.join(EVIDENCE, "preflight-desktop.png"), fullPage: false });
+
+/* 4d. 单段上限：要有独立的「一口气最多走多远」一档，且点击会把 maxSegmentMeters 传上去 */
+const segText = await page.evaluate(() => document.body.innerText);
+check("4d 出现「一口气最多走多远」", segText.includes("一口气最多走多远"));
+check("4e 说明写清「总量再短，中间有一段走不动也不行」", segText.includes("中间有一段走不动也不行"));
+const segBefore = resolveBodies.length;
+await page.getByRole("button", { name: /一小段/ }).click().catch(() => {});
+await page.waitForTimeout(2200);
+check("4f 点单段档位会把 maxSegmentMeters 传给服务端", resolveBodies.length === segBefore + 1 && typeof resolveBodies.at(-1)?.maxSegmentMeters === "number", resolveBodies.at(-1));
 
 /* 5. 失败分支 */
 resolveMode = "fail";

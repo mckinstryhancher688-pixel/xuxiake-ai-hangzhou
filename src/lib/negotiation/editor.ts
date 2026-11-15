@@ -50,6 +50,8 @@ export function conditionsFromDraft(draft: ConditionsDraft): Omit<PartyCondition
   return {
     hard: {
       maxWalkMeters: draft.cap.trim() ? Number(draft.cap.trim()) : null,
+      // 条件草稿编辑器暂不提供单段上限；null 表示没设这个约束
+      maxSegmentMeters: null,
       latestEndMinutes: draft.latestEndMinutes,
       mustVisit,
       neverAccept,

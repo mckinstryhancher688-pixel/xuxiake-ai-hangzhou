@@ -63,6 +63,11 @@ export interface HardConstraints {
   latestEndMinutes: number | null;
   /** 本方接受的总步行上限（米）；统计口径见 COST_SCOPE_NOTICE */
   maxWalkMeters: number | null;
+  /**
+   * 本方能「一口气」走完的最长一段（米）；null 表示没提。
+   * 与 maxWalkMeters 是两个不同的约束：总量够短，也可能中间有一段走不动。
+   */
+  maxSegmentMeters: number | null;
   mustVisit: string[];
   neverAccept: string[];
 }
@@ -80,7 +85,7 @@ export interface PartyConditions {
 export function emptyConditions(role: Role): PartyConditions {
   return {
     role,
-    hard: { latestEndMinutes: null, maxWalkMeters: null, mustVisit: [], neverAccept: [] },
+    hard: { latestEndMinutes: null, maxWalkMeters: null, maxSegmentMeters: null, mustVisit: [], neverAccept: [] },
     soft: {},
     bias: "neutral",
   };

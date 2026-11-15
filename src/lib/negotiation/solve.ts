@@ -31,6 +31,8 @@ interface Candidate {
   walkMeters: number;
   walkMinutes: number;
   totalMinutes: number;
+  /** 这条链条里最长的一段（米）：长者的「一口气能走多远」按它判定 */
+  longestLegMeters: number;
   satA: number;
   satB: number;
   /** 被舍弃的「特别想去」里离起点最远的距离，用来做确定性 tie-break */
@@ -217,6 +219,7 @@ export function solveJoint(
         const legs: WalkingLeg[] = [];
         let walkMeters = 0;
         let walkMinutes = 0;
+        let longestLegMeters = 0;
         let previous = FACT_START_KEY;
         let usable = true;
         for (const id of ids) {
@@ -230,6 +233,7 @@ export function solveJoint(
           legs.push(entry.leg);
           walkMeters += entry.leg.distanceMeters;
           walkMinutes += entry.leg.durationMinutes;
+          longestLegMeters = Math.max(longestLegMeters, entry.leg.distanceMeters);
           previous = id;
         }
         if (!usable) continue;
@@ -239,6 +243,11 @@ export function solveJoint(
 
         if (applyHard) {
           if (parties.some((p) => p.hard.maxWalkMeters !== null && walkMeters > p.hard.maxWalkMeters)) continue;
+          // 单段上限：总量达标也可能中间有一段走不动，所以两条件各自独立判定
+          if (parties.some((p) => {
+            const seg = p.hard.maxSegmentMeters ?? null;
+            return seg !== null && longestLegMeters > seg;
+          })) continue;
           if (parties.some((p) => startMinutes + totalMinutes > endLimitOf(p, startMinutes))) continue;
         }
 
@@ -253,6 +262,7 @@ export function solveJoint(
           walkMeters,
           walkMinutes,
           totalMinutes,
+          longestLegMeters,
           satA: preferSatisfied(a, ids),
           satB: b ? preferSatisfied(b, ids) : 0,
           droppedFurthest: droppedPrefer.length ? Math.max(...droppedPrefer) : 0,
@@ -308,6 +318,7 @@ export function solveJoint(
     }
     const leastWalk = [...relaxed].sort((x, y) => x.walkMeters - y.walkMeters)[0];
     const soonest = [...relaxed].sort((x, y) => x.totalMinutes - y.totalMinutes)[0];
+    const shortestLeg = [...relaxed].sort((x, y) => x.longestLegMeters - y.longestLegMeters)[0];
     const mustNames = mustAll.map((id) => displayName(facts, id)).join("、") || "可行组合";
     const blocked: ConditionHit[] = [];
     for (const party of parties) {
@@ -317,6 +328,14 @@ export function solveJoint(
           role: party.role,
           kind: "hard",
           text: `含「${mustNames}」的全部实测组合里，步行最短的一条是 ${metersText(leastWalk.walkMeters)}，比本方上限 ${metersText(cap)} 多 ${metersText(leastWalk.walkMeters - cap)}`,
+        });
+      }
+      const segCap = party.hard.maxSegmentMeters ?? null;
+      if (segCap !== null && shortestLeg.longestLegMeters > segCap) {
+        blocked.push({
+          role: party.role,
+          kind: "hard",
+          text: `含「${mustNames}」的全部实测组合里，最长一段最短的一条也有 ${metersText(shortestLeg.longestLegMeters)} 连续步行，比本方单段上限 ${metersText(segCap)} 多 ${metersText(shortestLeg.longestLegMeters - segCap)}`,
         });
       }
       const limit = endLimitOf(party, startMinutes);
@@ -372,6 +391,10 @@ export function solveJoint(
     const cap = party.hard.maxWalkMeters;
     if (cap !== null) {
       satisfied.push({ role: party.role, kind: "hard", text: `总步行 ${metersText(best.walkMeters)} ≤ 本方上限 ${metersText(cap)}` });
+    }
+    const segCap = party.hard.maxSegmentMeters ?? null;
+    if (segCap !== null) {
+      satisfied.push({ role: party.role, kind: "hard", text: `最长一段连续步行 ${metersText(best.longestLegMeters)} ≤ 本方单段上限 ${metersText(segCap)}` });
     }
     if (party.hard.latestEndMinutes !== null) {
       satisfied.push({

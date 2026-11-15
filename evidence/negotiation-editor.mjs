@@ -4,7 +4,7 @@ import { conditionsFromDraft, costApprovalKey, draftFromConditions, savedConditi
 // 回归实际故障：刷新后仅编辑软偏好，不得清除未编辑的硬底线。零网络请求。
 const saved = {
   role: "B",
-  hard: { maxWalkMeters: 3000, latestEndMinutes: 1020, mustVisit: ["qinghe"], neverAccept: ["tower"] },
+  hard: { maxWalkMeters: 3000, maxSegmentMeters: null, latestEndMinutes: 1020, mustVisit: ["qinghe"], neverAccept: ["tower"] },
   soft: { street: "prefer", park: "follow", square: "ok", lake: "avoid" },
   bias: "walk_less",
 };

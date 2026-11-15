@@ -19,13 +19,13 @@ import { connection } from "next/server";
 const MIN_WALK_METERS = 200;
 const MAX_WALK_METERS = 40_000;
 
-function parseWalkLimit(value: unknown): { ok: true; value: number | null } | { ok: false; error: string } {
+function parseWalkLimit(value: unknown, label: string): { ok: true; value: number | null } | { ok: false; error: string } {
   if (value === undefined || value === null) return { ok: true, value: null };
   if (typeof value !== "number" || !Number.isInteger(value)) {
-    return { ok: false, error: "maxWalkMeters 必须是整数米（或留空表示不设上限）。" };
+    return { ok: false, error: `${label} 必须是整数米（或留空表示不设这个限制）。` };
   }
   if (value < MIN_WALK_METERS || value > MAX_WALK_METERS) {
-    return { ok: false, error: `maxWalkMeters 必须在 ${MIN_WALK_METERS}~${MAX_WALK_METERS} 之间。` };
+    return { ok: false, error: `${label} 必须在 ${MIN_WALK_METERS}~${MAX_WALK_METERS} 之间。` };
   }
   return { ok: true, value };
 }
@@ -68,8 +68,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const limit = parseWalkLimit(body.maxWalkMeters);
+  const limit = parseWalkLimit(body.maxWalkMeters, "maxWalkMeters");
   if (!limit.ok) return Response.json({ error: limit.error, code: "constraint-invalid" }, { status: 400 });
+  const segment = parseWalkLimit(body.maxSegmentMeters, "maxSegmentMeters");
+  if (!segment.ok) return Response.json({ error: segment.error, code: "constraint-invalid" }, { status: 400 });
   const mustVisit = parseIdList(body.mustVisit, "mustVisit");
   if (!mustVisit.ok) return Response.json({ error: mustVisit.error, code: "constraint-invalid" }, { status: 400 });
   const neverAccept = parseIdList(body.neverAccept, "neverAccept");
@@ -77,6 +79,7 @@ export async function POST(request: Request) {
 
   const constraints: SoloConstraints = {
     maxWalkMeters: limit.value,
+    maxSegmentMeters: segment.value,
     mustVisit: mustVisit.value,
     neverAccept: neverAccept.value,
   };

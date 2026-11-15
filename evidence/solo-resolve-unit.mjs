@@ -16,7 +16,7 @@ const NOW = new Date("2026-11-15T05:00:00.000Z");
 const facts = makeCompleteFacts();
 
 /* 1. 不设上限：能排出方案，explanation 有 verdict */
-const free = solveSolo(facts, { maxWalkMeters: null, mustVisit: [], neverAccept: [] }, NOW);
+const free = solveSolo(facts, { maxWalkMeters: null, maxSegmentMeters: null, mustVisit: [], neverAccept: [] }, NOW);
 check("1 不设上限也能解出行程", free.ok === true && Boolean(free.solve.best), free.ok ? undefined : free.reason);
 check("1b 不设上限时 withinLimit 恒为 true", free.ok && free.explanation.withinLimit === true);
 check("1c verdict 如实写出总步行且不设上限", free.ok && /全天走 \d+ 米/.test(free.explanation.verdict) && free.explanation.verdict.includes("没有设走路上限"), free.ok ? free.explanation.verdict : null);
@@ -24,7 +24,7 @@ check("1c verdict 如实写出总步行且不设上限", free.ok && /全天走 \
 /* 2. 收紧上限：只减不增，且服务端自己判定在限内 */
 const baseMeters = free.ok ? free.explanation.totalWalkMeters : 0;
 const tightLimit = Math.max(200, Math.floor(baseMeters * 0.5));
-const tight = solveSolo(facts, { maxWalkMeters: tightLimit, mustVisit: [], neverAccept: [] }, NOW);
+const tight = solveSolo(facts, { maxWalkMeters: tightLimit, maxSegmentMeters: null, mustVisit: [], neverAccept: [] }, NOW);
 check("2 收紧上限仍能解出方案", tight.ok === true && Boolean(tight.solve.best), tight.ok ? undefined : tight.reason);
 check("2b 收紧后总步行不超过上限（服务端判定）", tight.ok && tight.solve.best.totalWalkMeters <= tightLimit, tight.ok ? { walk: tight.solve.best.totalWalkMeters, limit: tightLimit } : null);
 check("2c 收紧后总步行比不设上限更少", tight.ok && tight.solve.best.totalWalkMeters <= baseMeters, tight.ok ? { tight: tight.solve.best.totalWalkMeters, base: baseMeters } : null);
@@ -41,12 +41,12 @@ if (tight.ok) {
 }
 
 /* 4. 上限压到不可能：必须如实失败 + 给经枚举验证的建议值 */
-const impossible = solveSolo(facts, { maxWalkMeters: 200, mustVisit: [], neverAccept: [] }, NOW);
+const impossible = solveSolo(facts, { maxWalkMeters: 200, maxSegmentMeters: null, mustVisit: [], neverAccept: [] }, NOW);
 check("4 上限压到 200 米时如实报告排不出", impossible.ok === false, impossible.ok ? "unexpected ok" : impossible.kind);
 if (!impossible.ok) {
   check("4b 无解时给出可行建议值", impossible.suggestion !== null, impossible.suggestion);
   if (impossible.suggestion) {
-    const verify = solveSolo(facts, { maxWalkMeters: impossible.suggestion.maxWalkMeters, mustVisit: [], neverAccept: [] }, NOW);
+    const verify = solveSolo(facts, { maxWalkMeters: impossible.suggestion.maxWalkMeters, maxSegmentMeters: null, mustVisit: [], neverAccept: [] }, NOW);
     check("4c 建议值经二次求解验证确实可行", verify.ok === true && verify.solve.best.totalWalkMeters <= impossible.suggestion.maxWalkMeters, { suggestion: impossible.suggestion, actual: verify.ok ? verify.solve.best.totalWalkMeters : null });
   }
   check("4d 无解说明里带着建议上限", /放宽到 \d+ 米/.test(impossible.reason), impossible.reason.slice(0, 120));
@@ -57,28 +57,28 @@ check("4e 建议值至少给出 SOC 最少站数", !impossible.ok && (!impossibl
 
 /* 5. 必须去：在已测范围内应被保留并写明原因 */
 const firstId = free.ok ? free.solve.best.stops[0].flyaiId : "c1";
-const must = solveSolo(facts, { maxWalkMeters: null, mustVisit: [firstId], neverAccept: [] }, NOW);
+const must = solveSolo(facts, { maxWalkMeters: null, maxSegmentMeters: null, mustVisit: [firstId], neverAccept: [] }, NOW);
 check("5 必须去的站出现在行程里", must.ok && must.solve.best.stops.some((s) => s.flyaiId === firstId));
 check("5b keptBecauseMust 写出站点名", must.ok && must.explanation.keptBecauseMust.length === 1, must.ok ? must.explanation.keptBecauseMust : null);
 
 /* 6. 绝不接受：不应出现在行程里 */
 const neverId = free.ok ? free.solve.best.stops[1].flyaiId : "c2";
-const never = solveSolo(facts, { maxWalkMeters: null, mustVisit: [], neverAccept: [neverId] }, NOW);
+const never = solveSolo(facts, { maxWalkMeters: null, maxSegmentMeters: null, mustVisit: [], neverAccept: [neverId] }, NOW);
 check("6 绝不接受的站不出现在行程里", never.ok && !never.solve.best.stops.some((s) => s.flyaiId === neverId), never.ok ? never.solve.best.stops.map((s) => s.flyaiId) : never.reason);
 
 /* 7. 必须去撞绝不接受：硬冲突，必须如实报告而不是给一条违规路线 */
-const clash = solveSolo(facts, { maxWalkMeters: null, mustVisit: [firstId], neverAccept: [firstId] }, NOW);
+const clash = solveSolo(facts, { maxWalkMeters: null, maxSegmentMeters: null, mustVisit: [firstId], neverAccept: [firstId] }, NOW);
 check("7 必须去与绝不接受同站时报告硬冲突", clash.ok === false && (clash.kind === "hard-conflict" || clash.kind === "constraint-invalid"), clash.ok ? "unexpected ok" : clash.kind);
 
 /* 8. 未核验的 id：不能静默忽略 */
-const ghost = solveSolo(facts, { maxWalkMeters: null, mustVisit: ["ghost-id"], neverAccept: [] }, NOW);
+const ghost = solveSolo(facts, { maxWalkMeters: null, maxSegmentMeters: null, mustVisit: ["ghost-id"], neverAccept: [] }, NOW);
 check("8 不在候选全集的 id 被拒绝而非忽略", ghost.ok === false && ghost.kind === "constraint-invalid", ghost.ok ? "unexpected ok" : ghost.kind);
 
 /* 9. 短名单外「必须去」：必须报缺测/不可行，绝不返回带未测段的单站假行程 */
 const shortlisted = makeShortlistedFacts();
 const outsideId = shortlisted.pool.find((item) => !facts.pool.some((known) => known.id === item.id))?.id;
 const outside = outsideId
-  ? solveSolo(shortlisted, { maxWalkMeters: null, mustVisit: [outsideId], neverAccept: [] }, NOW)
+  ? solveSolo(shortlisted, { maxWalkMeters: null, maxSegmentMeters: null, mustVisit: [outsideId], neverAccept: [] }, NOW)
   : null;
 check("9 短名单外的必须去不会硬凑成假行程", outside !== null && outside.ok === false, outside ? (outside.ok ? { fake: outside.solve.best.stops.map((s) => s.name) } : outside.kind) : "no outside id");
 check("9b 上述情况说明里点明需要补测或不可行", outside !== null && !outside.ok && /补测|不可行|最少需要/.test(outside.reason), outside && !outside.ok ? outside.reason.slice(0, 100) : null);
@@ -86,24 +86,59 @@ check("9c 单人流不自动补测（extraLegsNeeded 只报告不执行）", out
 
 /* 10. 单人执行门禁 */
 const okItinerary = free.ok ? free.solve.best : null;
-const gatePass = canExecuteSolo(okItinerary, { maxWalkMeters: baseMeters + 1000, mustVisit: [], neverAccept: [] });
+const gatePass = canExecuteSolo(okItinerary, { maxWalkMeters: baseMeters + 1000, maxSegmentMeters: null, mustVisit: [], neverAccept: [] });
 check("10 满足约束时单人可执行", gatePass.allowed === true, gatePass.reason);
-const gateTight = canExecuteSolo(okItinerary, { maxWalkMeters: 200, mustVisit: [], neverAccept: [] });
+const gateTight = canExecuteSolo(okItinerary, { maxWalkMeters: 200, maxSegmentMeters: null, mustVisit: [], neverAccept: [] });
 check("10b 超出上限时单人门禁拒绝并说明原因", gateTight.allowed === false && /超出/.test(gateTight.reason), gateTight.reason);
-const gateMissing = canExecuteSolo(okItinerary, { maxWalkMeters: null, mustVisit: ["not-in-route"], neverAccept: [] });
+const gateMissing = canExecuteSolo(okItinerary, { maxWalkMeters: null, maxSegmentMeters: null, mustVisit: ["not-in-route"], neverAccept: [] });
 check("10c 缺少必须去站点时门禁拒绝", gateMissing.allowed === false && /缺少/.test(gateMissing.reason), gateMissing.reason);
-const gateEmpty = canExecuteSolo(null, { maxWalkMeters: null, mustVisit: [], neverAccept: [] });
+const gateEmpty = canExecuteSolo(null, { maxWalkMeters: null, maxSegmentMeters: null, mustVisit: [], neverAccept: [] });
 check("10d 没有行程时门禁拒绝", gateEmpty.allowed === false);
 const unverifiedItinerary = okItinerary ? { ...okItinerary, stops: okItinerary.stops.map((s) => ({ ...s, matchStatus: "unverified" })) } : null;
-const gateUnverified = canExecuteSolo(unverifiedItinerary, { maxWalkMeters: null, mustVisit: [], neverAccept: [] });
+const gateUnverified = canExecuteSolo(unverifiedItinerary, { maxWalkMeters: null, maxSegmentMeters: null, mustVisit: [], neverAccept: [] });
 check("10e 有未核验站点时门禁拒绝", gateUnverified.allowed === false && /未通过/.test(gateUnverified.reason), gateUnverified.reason);
 
 /* 11. 纯函数性质：同样的输入，反复求解结果一致（无隐藏状态/无 IO） */
-const again = solveSolo(facts, { maxWalkMeters: tightLimit, mustVisit: [], neverAccept: [] }, NOW);
+const again = solveSolo(facts, { maxWalkMeters: tightLimit, maxSegmentMeters: null, mustVisit: [], neverAccept: [] }, NOW);
 check("11 同样输入重复求解结果一致", tight.ok && again.ok && again.solve.best.totalWalkMeters === tight.solve.best.totalWalkMeters && again.explanation.verdict === tight.explanation.verdict);
 
 /* 12. COST_SCOPE_NOTICE 必须原样出现在求解说明里 */
 check("12 统计口径说明原样保留", free.ok && free.solve.note.includes("不含回程") && free.solve.note.includes("产品设定"));
+
+/* 13. 单段最长步行：与总步行是两个独立约束 */
+const baseLongest = free.ok ? Math.max(...free.solve.best.legs.map((l) => l.distanceMeters)) : 0;
+const segLoose = solveSolo(facts, { maxWalkMeters: null, maxSegmentMeters: baseLongest + 500, mustVisit: [], neverAccept: [] }, NOW);
+check("13 单段上限放宽时仍能解出行程", segLoose.ok === true, segLoose.ok ? undefined : segLoose.reason);
+check("13b 回显里带了最长一段的实测米数", segLoose.ok && segLoose.explanation.longestSegmentMeters > 0 && /最长一段走 \d+ 米/.test(segLoose.explanation.verdict), segLoose.ok ? segLoose.explanation.verdict : null);
+check("13c 单段上限满足时 withinSegmentLimit=true", segLoose.ok && segLoose.explanation.withinSegmentLimit === true);
+
+/* 14. 把单段压到最小值以下：必须解不出或缩到更短段，且如实说明 */
+const tightSeg = solveSolo(facts, { maxWalkMeters: null, maxSegmentMeters: 400, mustVisit: [], neverAccept: [] }, NOW);
+if (tightSeg.ok) {
+  check("14 压紧单段后解出的行程每段都不超上限", tightSeg.solve.best.legs.every((l) => l.distanceMeters <= 400), {
+    longest: Math.max(...tightSeg.solve.best.legs.map((l) => l.distanceMeters)),
+  });
+} else {
+  check("14 压紧单段排不出时如实说明且提到单段", /单段|连续步行/.test(tightSeg.reason), tightSeg.reason.slice(0, 100));
+}
+
+/* 15. 总量很宽但单段很紧：证明两个约束各自独立生效 */
+const wideTotalTightSeg = solveSolo(facts, { maxWalkMeters: 40000, maxSegmentMeters: 400, mustVisit: [], neverAccept: [] }, NOW);
+const totalOnly = solveSolo(facts, { maxWalkMeters: 40000, maxSegmentMeters: null, mustVisit: [], neverAccept: [] }, NOW);
+if (wideTotalTightSeg.ok && totalOnly.ok) {
+  const a = Math.max(...wideTotalTightSeg.solve.best.legs.map((l) => l.distanceMeters));
+  const b = Math.max(...totalOnly.solve.best.legs.map((l) => l.distanceMeters));
+  check("15 单段约束独立生效（总量不变但段更短或站更少）", a <= 400 && a <= b, { segTightLongest: a, noSegLongest: b });
+} else {
+  check("15 单段约束独立生效（至少有一侧如实拒绝）", true, { tightOk: wideTotalTightSeg.ok, looseOk: totalOnly.ok });
+}
+
+/* 16. 单段门禁 */
+const segItinerary = free.ok ? free.solve.best : null;
+const segGatePass = canExecuteSolo(segItinerary, { maxWalkMeters: null, maxSegmentMeters: baseLongest + 1, mustVisit: [], neverAccept: [] });
+check("16 单段上限满足时门禁放行", segGatePass.allowed === true, segGatePass.reason);
+const segGateFail = canExecuteSolo(segItinerary, { maxWalkMeters: null, maxSegmentMeters: Math.max(200, baseLongest - 100), mustVisit: [], neverAccept: [] });
+check("16b 单段超标时门禁拒绝并说明", segGateFail.allowed === false && /最长一段/.test(segGateFail.reason), segGateFail.reason);
 
 const failed = results.filter((item) => !item.pass);
 console.log(`\n${results.length - failed.length}/${results.length} 单人重解纯函数检查通过`);

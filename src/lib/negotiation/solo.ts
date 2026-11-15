@@ -18,6 +18,8 @@ import {
 
 export interface SoloConstraints {
   maxWalkMeters: number | null;
+  /** 一口气能走完的最长一段（米）；与总步行是两个独立约束 */
+  maxSegmentMeters: number | null;
   mustVisit: string[];
   neverAccept: string[];
 }
@@ -41,6 +43,12 @@ export interface SoloExplanation {
   limit: number | null;
   /** limit 为 null 时恒为 true（没设上限就无所谓超没超） */
   withinLimit: boolean;
+  /** 这条行程里最长的一段连续步行（米） */
+  longestSegmentMeters: number;
+  /** 单段上限；null 表示没设 */
+  segmentLimit: number | null;
+  /** segmentLimit 为 null 时恒为 true */
+  withinSegmentLimit: boolean;
   /** 人话回显：把用户自己设的线还给他 */
   verdict: string;
   /** 因果回显：哪条约束拿掉了哪个站 */
@@ -83,6 +91,7 @@ function toPartyConditions(role: "A" | "B", constraints: SoloConstraints) {
   const hard: HardConstraints = {
     ...base.hard,
     maxWalkMeters: constraints.maxWalkMeters,
+    maxSegmentMeters: constraints.maxSegmentMeters,
     mustVisit: [...constraints.mustVisit],
     neverAccept: [...constraints.neverAccept],
   };
@@ -116,6 +125,14 @@ export function canExecuteSolo(
       reason: `全程步行 ${itinerary.totalWalkMeters} 米，超出你定的 ${limit} 米上限。`,
     };
   }
+  const longest = longestSegmentMeters(itinerary);
+  const segCap = constraints.maxSegmentMeters;
+  if (segCap !== null && longest > segCap) {
+    return {
+      allowed: false,
+      reason: `最长一段连续步行 ${longest} 米，超出你定的单段上限 ${segCap} 米。`,
+    };
+  }
   const ids = new Set(itinerary.stops.map((stop) => stop.flyaiId));
   for (const id of constraints.mustVisit) {
     if (!ids.has(id)) return { allowed: false, reason: `行程里缺少必须去的站点「${id}」。` };
@@ -125,17 +142,34 @@ export function canExecuteSolo(
   }
   const minutes = `${itinerary.totalWalkMeters} 米`;
   const within = limit === null ? "" : `，在你定的 ${limit} 米以内`;
-  return { allowed: true, reason: `全程步行 ${minutes}${within}，站点身份与开放时间都已核验。` };
+  const segText = segCap === null ? "" : `；最长一段 ${longest} 米，不超 ${segCap} 米`;
+  return { allowed: true, reason: `全程步行 ${minutes}${within}${segText}，站点身份与开放时间都已核验。` };
 }
 
-function verdictText(totalWalkMeters: number, limit: number | null): string {
-  if (limit === null) {
-    return `这条路线全天走 ${totalWalkMeters} 米（你没有设走路上限）。`;
-  }
-  if (totalWalkMeters <= limit) {
-    return `这条路线全天走 ${totalWalkMeters} 米，在您定的 ${limit} 米以内。`;
-  }
-  return `这条路线全天走 ${totalWalkMeters} 米，已经超过您定的 ${limit} 米——请把上限调高或减少站点。`;
+/** 一条行程里最长的那段连续步行（米）。总量达标也可能中间有一段走不动。 */
+export function longestSegmentMeters(itinerary: Pick<VerifiedItinerary, "legs">): number {
+  return itinerary.legs.reduce((max, leg) => Math.max(max, leg.distanceMeters), 0);
+}
+
+function verdictText(
+  totalWalkMeters: number,
+  limit: number | null,
+  longestSegmentMeters: number,
+  segmentLimit: number | null,
+): string {
+  const total =
+    limit === null
+      ? `这条路线全天走 ${totalWalkMeters} 米（你没有设走路上限）`
+      : totalWalkMeters <= limit
+        ? `这条路线全天走 ${totalWalkMeters} 米，在您定的 ${limit} 米以内`
+        : `这条路线全天走 ${totalWalkMeters} 米，已经超过您定的 ${limit} 米——请把上限调高或减少站点`;
+  const segment =
+    segmentLimit === null
+      ? ""
+      : longestSegmentMeters <= segmentLimit
+        ? `；最长一段走 ${longestSegmentMeters} 米，在您定的单段 ${segmentLimit} 米以内`
+        : `；最长一段要走 ${longestSegmentMeters} 米，超过您定的单段 ${segmentLimit} 米`;
+  return `${total}${segment}。`;
 }
 
 /** 无解时枚举一个「放宽到多少米就能成」的建议值；只从真实求解结果里取，不拍脑袋。 */
@@ -214,18 +248,44 @@ export function solveSolo(
    * 这条同时防住「必须去短名单外的站 → 缩成单站蒙混过关」。
    */
   if (solve.best.stops.length < SOLO_MIN_STOPS) {
-    const safe = solveSolo(facts, { ...constraints, mustVisit: [] }, now);
-    const safeBest = safe.ok ? safe.solve.best : null;
+    // 注意：这里不能递归调 solveSolo —— 递归条件（去掉 mustVisit）可能和当前完全相同，
+    // 会无限递归。直接问一次求解器就够了。
+    const withoutMust = solveJoint(facts, toPartyConditions("A", { ...constraints, mustVisit: [] }), null, now);
+    const safeBest = withoutMust.best && withoutMust.best.stops.length >= SOLO_MIN_STOPS && withoutMust.extraLegsNeeded === 0
+      ? withoutMust.best
+      : null;
+
+    /* 站数不够时，要说清是哪条限制导致的：只报「站太少」会让用户不知道该改哪个数。 */
+    const causes: string[] = [];
+    const segCap = constraints.maxSegmentMeters;
+    if (segCap !== null) {
+      const segRelaxed = solveJoint(facts, toPartyConditions("A", { ...constraints, maxSegmentMeters: null }), null, now);
+      if (segRelaxed.best && segRelaxed.best.stops.length > solve.best.stops.length) {
+        causes.push(`取消单段上限后能排到 ${segRelaxed.best.stops.length} 站，说明是「一口气最多走 ${segCap} 米」把站点压掉了`);
+      }
+    }
+    const cap = constraints.maxWalkMeters;
+    if (cap !== null) {
+      const capRelaxed = solveJoint(facts, toPartyConditions("A", { ...constraints, maxWalkMeters: null }), null, now);
+      if (capRelaxed.best && capRelaxed.best.stops.length > solve.best.stops.length) {
+        causes.push(`取消总步行上限后能排到 ${capRelaxed.best.stops.length} 站，说明是「全程 ${cap} 米」把站点压掉了`);
+      }
+    }
+
     const reason =
       `按当前条件最多只能排 ${solve.best.stops.length} 个站（${solve.best.stops.map((s) => s.name).join("、")}），` +
       `少于半日游最少需要的 ${SOLO_MIN_STOPS} 站。` +
-      (safeBest ? ` 不做这个「必须去」限制时，可以排 ${safeBest.stops.length} 站、全程 ${safeBest.totalWalkMeters} 米。` : "");
+      (causes.length ? `${causes.join("；")}。` : "") +
+      (safeBest ? ` 不做这些限制时，可以排 ${safeBest.stops.length} 站、全程 ${safeBest.totalWalkMeters} 米。` : "");
     return { ok: false, kind: "no-solution", reason, suggestion: null, missingEdges: solve.missingEdges, extraLegsNeeded: solve.extraLegsNeeded, unmet: solve.unmet };
   }
 
   const itinerary = solve.best;
   const limit = constraints.maxWalkMeters;
   const withinLimit = limit === null || itinerary.totalWalkMeters <= limit;
+  const longestSegment = longestSegmentMeters(itinerary);
+  const segmentLimit = constraints.maxSegmentMeters;
+  const withinSegmentLimit = segmentLimit === null || longestSegment <= segmentLimit;
 
   // 反事实：不设上限会排成什么样（纯本地枚举，0 调用）
   let withoutLimit: SoloExplanation["withoutLimit"] = null;
@@ -265,7 +325,10 @@ export function solveSolo(
       totalWalkMeters: itinerary.totalWalkMeters,
       limit,
       withinLimit,
-      verdict: verdictText(itinerary.totalWalkMeters, limit),
+      longestSegmentMeters: longestSegment,
+      segmentLimit,
+      withinSegmentLimit,
+      verdict: verdictText(itinerary.totalWalkMeters, limit, longestSegment, segmentLimit),
       whyDropped,
       keptBecauseMust,
       withoutLimit,
