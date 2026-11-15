@@ -1,0 +1,181 @@
+{
+  "checkedAt": "2026-11-15T13:12:22.141Z",
+  "baseUrl": "http://localhost:3000",
+  "paid": true,
+  "verifySpent": 0,
+  "resolveCalls": 3,
+  "resolveBodies": [
+    {
+      "factsId": "OAvjUvaukeha3dro",
+      "maxWalkMeters": 3900
+    },
+    {
+      "factsId": "OAvjUvaukeha3dro",
+      "maxWalkMeters": 3900,
+      "maxSegmentMeters": 900
+    },
+    {
+      "factsId": "OAvjUvaukeha3dro",
+      "maxWalkMeters": null
+    }
+  ],
+  "counters": {
+    "before": {
+      "place": 22,
+      "walking": 41,
+      "total": 63,
+      "cache": 63
+    },
+    "afterVerify": {
+      "place": 22,
+      "walking": 41,
+      "total": 63,
+      "cache": 63
+    },
+    "final": {
+      "place": 22,
+      "walking": 41,
+      "total": 63,
+      "cache": 63
+    }
+  },
+  "realItinerary": {
+    "stops": [
+      {
+        "name": "西湖天地",
+        "flyaiId": "2261",
+        "flyaiIdFromSource": true
+      },
+      {
+        "name": "南宋御街",
+        "flyaiId": "1894",
+        "flyaiIdFromSource": true
+      },
+      {
+        "name": "馒头山社区居委会",
+        "flyaiId": "31138149",
+        "flyaiIdFromSource": true
+      }
+    ],
+    "totalWalkMeters": 6039,
+    "longestSegmentMeters": 2816
+  },
+  "toilets": {
+    "found": 25,
+    "nearest": [
+      {
+        "anchorName": "杭州西湖风景名胜区-湖滨公园（起点）",
+        "toiletName": "兰心公厕(湖滨三公园)",
+        "straightLineMeters": 404,
+        "address": "湖滨路23号",
+        "amapId": "B0H2DDDF0R"
+      },
+      {
+        "anchorName": "西湖天地",
+        "toiletName": "无障碍洗手间(龙井路)",
+        "straightLineMeters": 323,
+        "address": "龙井路1号杭州西湖风景名胜区内(东北角)",
+        "amapId": "B0LAGMT5VE"
+      },
+      {
+        "anchorName": "南宋御街",
+        "toiletName": "无障碍洗手间(新宫桥)",
+        "straightLineMeters": 247,
+        "address": "高银街与光复路交叉口东南60米",
+        "amapId": "B0FFH34A6Q"
+      }
+    ],
+    "newCalls": 1
+  },
+  "blockedExternal": 1,
+  "dialogs": [],
+  "screenshots": [
+    "family-real-total.png",
+    "family-real-segment.png",
+    "family-real-mobile.png"
+  ],
+  "total": 20,
+  "passed": 20,
+  "checks": [
+    {
+      "name": "1 取得一份可行的真实报告",
+      "pass": true
+    },
+    {
+      "name": "2 核验产出可行行程",
+      "pass": true
+    },
+    {
+      "name": "3 核验带来源证据与无障碍洗手间查询",
+      "pass": true
+    },
+    {
+      "name": "4 本次核验高德新增在预算内（≤30）",
+      "pass": true
+    },
+    {
+      "name": "5 面板显示真实站点名",
+      "pass": true
+    },
+    {
+      "name": "6 「爸妈能走多远？」与「一口气最多走多远？」都在",
+      "pass": true
+    },
+    {
+      "name": "7 显示当前最长一段的真实米数",
+      "pass": true
+    },
+    {
+      "name": "8 改总上限后高德计数不变（0 新增）",
+      "pass": true
+    },
+    {
+      "name": "9 回显了人话结论",
+      "pass": true
+    },
+    {
+      "name": "10 回显了本次新增调用次数",
+      "pass": true
+    },
+    {
+      "name": "11 改单段上限后高德计数不变（0 新增）",
+      "pass": true
+    },
+    {
+      "name": "12 单段请求确实带上了 maxSegmentMeters",
+      "pass": true
+    },
+    {
+      "name": "13 回显里出现单段结论或如实失败说明",
+      "pass": true
+    },
+    {
+      "name": "14 不设限后高德计数仍不变",
+      "pass": true
+    },
+    {
+      "name": "15 不设限如实写没有设上限",
+      "pass": true
+    },
+    {
+      "name": "16 行程卡上展示了无障碍洗手间（若该城有标注点）",
+      "pass": true
+    },
+    {
+      "name": "17 无障碍洗手间口径写明不代表整条路线无障碍",
+      "pass": true
+    },
+    {
+      "name": "18 全程 0 弹窗",
+      "pass": true
+    },
+    {
+      "name": "19 手机端两个面板可见且不横向溢出",
+      "pass": true
+    },
+    {
+      "name": "20 整场结束后高德总新增仅来自那次核验",
+      "pass": true
+    }
+  ]
+}

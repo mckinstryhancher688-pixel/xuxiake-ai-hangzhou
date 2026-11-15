@@ -1,0 +1,53 @@
+{
+  "checkedAt": "2026-11-15T13:12:22Z",
+  "branch": "feat/family-mode",
+  "phase": "亲情版真机验收：真实核验 → 浏览器改总步行 / 单段上限 → 证明 0 新增高德",
+  "paid": true,
+  "passed": 20,
+  "total": 20,
+  "resultFile": "family-real-accept.json",
+  "script": "family-real-accept.mjs",
+  "realItinerary": {
+    "category": "文创街区",
+    "stops": ["西湖天地", "南宋御街", "馒头山社区居委会"],
+    "totalWalkMeters": 6039,
+    "longestSegmentMeters": 2816,
+    "allStopsSourceChecked": true
+  },
+  "whatWasVerified": [
+    "面板显示真实站点名，「爸妈能走多远？」与「一口气最多走多远？」两块都在",
+    "改总上限（3900 米）后行程变为 3223 米，回显「在您定的 3900 米以内」，本次新增高德调用 0 次",
+    "改单段上限（900 米）后如实报「已证实不可行：含『可行组合』的全部实测组合里，最长一段最短的一条也有 1.45 公里」，并说明另有 12 种走法超出补测策略",
+    "改回不设限后如实写「没有设走路上限」，计数不变",
+    "无障碍洗手间：高德返回 25 条全城标注点，3 个锚点各匹配到最近一个，面板写明「不代表整条路线无障碍，也不代表当天开放」",
+    "手机端两个面板可见，无横向溢出，0 弹窗",
+    "整个过程三次重解，高德计数 63 → 63 → 63，未新增"
+  ],
+  "realCostAccounting": {
+    "note": "本轮真实消耗必须按整场算，不能只看脚本内的 verifySpent=0。",
+    "breakdown": [
+      { "step": "自然风光 类别核验", "amapCalls": 27, "result": "不可行（4 个地点，48 种组合最短 241 分钟 > 240 预算）" },
+      { "step": "文创街区 类别核验", "amapCalls": 36, "result": "可行，3 站，6039 米" },
+      { "step": "无障碍洗手间查询（随核验）", "amapCalls": 1, "result": "25 条全城标注点" },
+      { "step": "三次改上限重解", "amapCalls": 0, "result": "0 / 0 / 0" }
+    ],
+    "totalAmapCallsThisSession": 63,
+    "resolvePhaseCalls": 0,
+    "flyaiCalls": 2,
+    "bailianTurns": 0,
+    "disclosed": true,
+    "lesson": "「自然风光」类别本次返回千岛湖（140 公里外）与径山（31 公里外），只剩 4 个西湖附近地点，怎么排都超 240 分钟。飞猪该类别的返回结果随时间波动，属于既有产品的正确失败行为，不是本轮代码缺陷；但这次尝试仍真实花了 27 次调用。"
+  },
+  "knownLimits": [
+    "「自然风光」类别当前可能返回杭州周边远景点（千岛湖/径山），导致无可行路线；「文创街区」更稳定",
+    "单段上限 900 米时该事实集确实无解，系统如实说明而不是硬凑，这是预期行为",
+    "本次只验证了单类别核验；双类别（自然风光+文创街区）在数据不凑巧时同样可能失败"
+  ],
+  "artifacts": [
+    "evidence/family-real-accept.mjs",
+    "evidence/family-real-accept.json",
+    "evidence/family-real-total.png",
+    "evidence/family-real-segment.png",
+    "evidence/family-real-mobile.png"
+  ]
+}
