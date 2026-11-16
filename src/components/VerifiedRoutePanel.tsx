@@ -66,6 +66,7 @@ export function VerifiedRoutePanel({
   selectedStopId,
   arrivedStopIds,
   onSelectStop,
+  showReverify = true,
 }: {
   cityName: string;
   route: VerifiedRoute;
@@ -80,6 +81,8 @@ export function VerifiedRoutePanel({
   selectedStopId: string | null;
   arrivedStopIds: string[];
   onSelectStop: (id: string) => void;
+  /** 「重新核验」属于付费的高级操作，默认只在「更多」页出现，不占首屏 */
+  showReverify?: boolean;
 }) {
   const loading = route.phase === "loading";
   const report = route.report;
@@ -113,7 +116,7 @@ export function VerifiedRoutePanel({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {!official && <button
+        {!official && showReverify && <button
           type="button"
           onClick={() => {
             void route.verify(categories);
@@ -121,7 +124,7 @@ export function VerifiedRoutePanel({
           disabled={loading}
           className="rounded-lg bg-brand-700 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? "核验中，服务端正在真实请求高德…" : "开始核验（真实调用高德）"}
+          {loading ? "核验中，服务端正在真实请求高德…" : "重新核验（真实调用高德）"}
         </button>}
 
         <span className="flex items-center gap-1.5 text-[10px] text-ink-300">

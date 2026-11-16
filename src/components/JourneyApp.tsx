@@ -30,6 +30,8 @@ import { executableOfficial } from "@/lib/negotiation/official-view";
 import { parseCategories } from "@/lib/discovery";
 
 type MobileTab = "map" | "plan";
+/** 生成路线之后的右栏分页：一屏只回答一个问题 */
+type PlanPage = "route" | "adjust" | "advanced";
 
 /** 已核验行程的免责说明与演示数据必须分开写，否则用户分不清哪条线是真的。 */
 const VERIFIED_DISCLAIMER =
@@ -38,6 +40,7 @@ const VERIFIED_DISCLAIMER =
 export function JourneyApp() {
   const journey = useJourney();
   const [tab, setTab] = useState<MobileTab>("map");
+  const [planPage, setPlanPage] = useState<PlanPage>("route");
   // 两个面板与调试面板共用同一份状态，所以在这里统一持有
   const discover = useDiscover(journey.context.city);
   const verifiedRoute = useVerifiedRoute(journey.context.city);
@@ -83,6 +86,8 @@ export function JourneyApp() {
   const [preflightSegmentCap, setPreflightSegmentCap] = useState<number | null>(null);
   const [elderOpen, setElderOpen] = useState(false);
   const activeItinerary = soloOverride ?? agent.activeItinerary;
+  /** 是否已经有真实路线：首屏只在「没有路线」时展示提问与生成按钮，生成后切成三个分页 */
+  const hasRoute = (activeItinerary?.stops?.length ?? 0) > 0;
 
   /**
    * 出门前定的那条线，用在「核验刚成功」这一刻：拿事实层免费重解一次，
@@ -221,36 +226,63 @@ export function JourneyApp() {
             ) : <PlanActionBar route={verifiedRoute} agent={agent} categories={discover.selected} itineraryCategories={itineraryCategories} jointLocked={jointRoute !== null} preflightCap={preflightCap} onPreflightChange={setPreflightCap} />}
           </div>
 
-          {/* 数据可信说明不折叠：桌面在右栏顶部、手机在「行程与探索」页顶部，一眼能看到 */}
-          <DataTrustNote />
+          {/* 数据可信说明：只在有路线、且停在「行程」页时展示。
+              首屏还没有任何数据可看，先不占用视觉重心。 */}
+          {hasRoute && planPage === "route" && <DataTrustNote />}
+
+          {/* 分页：一屏只回答一个问题。没路线时只有「行程」与「更多」（更多里有演示样例）。 */}
+          {!jointBlocked && (
+            <div className="grid grid-cols-3 gap-1 rounded-xl border border-line bg-card p-1" role="tablist" aria-label="行程分页">
+              {([
+                ["route", "行程"],
+                ["adjust", "调整"],
+                ["advanced", "更多"],
+              ] as [PlanPage, string][])
+                .filter(([key]) => hasRoute || key !== "adjust")
+                .map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={planPage === key}
+                    onClick={() => setPlanPage(key)}
+                    className={`rounded-lg px-3 py-2 text-xs font-medium transition ${
+                      planPage === key ? "bg-brand-700 text-white" : "text-ink-500 hover:bg-paper"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+            </div>
+          )}
 
           <div
             className={`${tab === "plan" ? "flex" : "hidden"} flex-col gap-4 lg:flex lg:overflow-y-auto lg:pr-1`}
           >
-            {!jointBlocked && <DiscoverPanel cityName={journey.context.city} discover={discover} />}
-
-            {!jointBlocked && <VerifiedRoutePanel
-              cityName={journey.context.city}
-              route={verifiedRoute}
-              categories={discover.selected}
-              activeItinerary={activeItinerary}
-              routeAdjusted={jointRoute ? false : routeAdjusted}
-              jointRevision={jointRoute ? (plan.snapshot?.officialRevision ?? null) : null}
-              itineraryCategories={itineraryCategories}
-              onSelectCategories={discover.selectCategories}
-              selectedStopId={agent.selectedStopId}
-              arrivedStopIds={agent.arrivedStopIds}
-              onSelectStop={agent.selectStop}
-            />}
-
-            {/* 亲情模式的入口：核验后改「爸妈能走多远」，走事实层免费重解，不再请求高德 */}
-            {preflightNote && (
-              <p className="rounded-xl bg-amber-500/5 px-3 py-2 text-[11px] leading-relaxed text-ink-700 ring-1 ring-amber-500/25">
-                {preflightNote}
+            {/* ── 还没有路线：只留「生成」这一件事（提问区已在底栏，这里只放一句说明） ── */}
+            {!hasRoute ? (
+              <p className="rounded-2xl border border-line bg-card px-4 py-3 text-[11px] leading-relaxed text-ink-500">
+                选好上面的距离，点「生成我的路线」。要用「文创街区」以外的类别，生成后到「更多」里换。
               </p>
-            )}
-            {!jointBlocked && verifiedRoute.report?.ok && verifiedRoute.report.facts?.factsId && (
+            ) : null}
+
+            {/* ── 行程页：看路线 ───────────────────────────────── */}
+            {hasRoute && planPage === "route" && !jointBlocked && (
               <>
+                <VerifiedRoutePanel
+                  cityName={journey.context.city}
+                  route={verifiedRoute}
+                  categories={discover.selected}
+                  activeItinerary={activeItinerary}
+                  routeAdjusted={jointRoute ? false : routeAdjusted}
+                  jointRevision={jointRoute ? (plan.snapshot?.officialRevision ?? null) : null}
+                  itineraryCategories={itineraryCategories}
+                  onSelectCategories={discover.selectCategories}
+                  selectedStopId={agent.selectedStopId}
+                  arrivedStopIds={agent.arrivedStopIds}
+                  onSelectStop={agent.selectStop}
+                  showReverify={false}
+                />
                 <button
                   type="button"
                   onClick={() => setElderOpen(true)}
@@ -259,39 +291,76 @@ export function JourneyApp() {
                   <span>
                     <span className="block text-sm font-semibold text-brand-700">给爸妈看</span>
                     <span className="mt-0.5 block text-[11px] leading-relaxed text-ink-500">
-                      大字版：只讲去哪几个地方、走多久、厕所在哪，可以调字号
+                      大字版：只讲去哪几个地方、走多久、厕所在哪
                     </span>
                   </span>
                   <span className="shrink-0 text-lg text-brand-700" aria-hidden>›</span>
                 </button>
-                <WalkLimitPanel
-                  factsId={verifiedRoute.report.facts.factsId}
-                  currentWalkMeters={activeItinerary?.totalWalkMeters ?? null}
-                  currentLongestSegmentMeters={
-                    activeItinerary?.legs?.length
-                      ? Math.max(...activeItinerary.legs.map((leg) => leg.distanceMeters))
-                      : null
-                  }
-                  onResolved={(itinerary, applied) => {
-                    setSoloOverride(itinerary);
-                    setPreflightNote(null);
-                    setPreflightCap(applied.maxWalkMeters);
-                    setPreflightSegmentCap(applied.maxSegmentMeters);
-                  }}
-                />
+                {!jointBlocked && <AgentPanel agent={agent} stops={verifiedStops} />}
               </>
             )}
 
-            {!jointBlocked && <AgentPanel agent={agent} stops={verifiedStops} />}
-
-            <div id="joint-negotiation">
-              <NegotiationPanel plan={plan} factsId={verifiedRoute.report?.facts?.factsId ?? null} />
-            </div>
-
-            {/* 阶段一的演示链路（预写行程与讲解）只在还没有真实路线时兜底显示，
-                核验出结果之后整块撤下主界面，只保留在下面调试面板里，避免屏幕上并排两条路线。 */}
-            {!activeItinerary && !jointMode && (
+            {/* ── 调整页：改走多远 ─────────────────────────────── */}
+            {hasRoute && planPage === "adjust" && !jointBlocked && (
               <>
+                {preflightNote && (
+                  <p className="rounded-xl bg-amber-500/5 px-3 py-2 text-[11px] leading-relaxed text-ink-700 ring-1 ring-amber-500/25">
+                    {preflightNote}
+                  </p>
+                )}
+                {verifiedRoute.report?.ok && verifiedRoute.report.facts?.factsId ? (
+                  <WalkLimitPanel
+                    factsId={verifiedRoute.report.facts.factsId}
+                    currentWalkMeters={activeItinerary?.totalWalkMeters ?? null}
+                    currentLongestSegmentMeters={
+                      activeItinerary?.legs?.length
+                        ? Math.max(...activeItinerary.legs.map((leg) => leg.distanceMeters))
+                        : null
+                    }
+                    onResolved={(itinerary, applied) => {
+                      setSoloOverride(itinerary);
+                      setPreflightNote(null);
+                      setPreflightCap(applied.maxWalkMeters);
+                      setPreflightSegmentCap(applied.maxSegmentMeters);
+                    }}
+                  />
+                ) : (
+                  <p className="rounded-xl bg-paper px-3 py-2 text-[11px] text-ink-500">这份报告没有可复用的事实集，需要重新生成一次才能调整。</p>
+                )}
+              </>
+            )}
+
+            {/* ── 更多页：类别、重新发现、双人协商、技术细节 ────── */}
+            {hasRoute && planPage === "advanced" && !jointBlocked && (
+              <>
+                <div className="rounded-2xl border border-line bg-card p-3">
+                  <p className="text-xs font-semibold text-ink-700">换个类别重跑</p>
+                  <p className="mt-1 text-[10.5px] leading-relaxed text-ink-500">
+                    重新核验会真实消耗高德调用（约 36 次）。当前类别：{itineraryCategories.join(" + ")}。
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void verifiedRoute.verify(discover.selected)}
+                    disabled={verifiedRoute.phase === "loading"}
+                    className="mt-2 rounded-lg border border-line bg-paper px-2.5 py-1.5 text-[11px] font-medium text-brand-700 disabled:opacity-50"
+                  >
+                    {verifiedRoute.phase === "loading" ? "核验中…" : "按当前类别重新核验"}
+                  </button>
+                </div>
+                <DiscoverPanel cityName={journey.context.city} discover={discover} />
+                <div id="joint-negotiation">
+                  <NegotiationPanel plan={plan} factsId={verifiedRoute.report?.facts?.factsId ?? null} />
+                </div>
+              </>
+            )}
+
+            {/* 演示链路（预写行程与讲解）只是样例参考，不该占首屏：
+                只在「更多」页里出现，且一旦有真实路线就完全不显示。 */}
+            {!activeItinerary && !jointMode && !verifiedRoute.report && hasRoute === false && planPage === "advanced" && (
+              <>
+                <p className="rounded-xl bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-ink-500 ring-1 ring-line">
+                  下面是**演示样例**（不是这次的真实结果），用来看界面大致长什么样。
+                </p>
                 <ItineraryPanel
                   routeLabel={journey.route.label}
                   routeSummary={journey.route.summary}
@@ -317,26 +386,30 @@ export function JourneyApp() {
             )}
           </div>
 
-          <DataSourcePanel
-            adapterNotes={[...journey.adapterNotes, agentDataSourceNote(agent.status)]}
-          />
-
-          <DebugPanel
-            discover={discover}
-            verified={verifiedRoute}
-            agent={agent}
-            mapConfig={mapConfig}
-            geometryNote={geometry.note}
-            demo={
-              activeItinerary
-                ? {
-                    label: journey.route.label,
-                    totalMinutes: journey.route.totalMinutes,
-                    stops: journey.pois.map((poi) => ({ name: poi.name, stayMinutes: poi.stayMinutes })),
-                  }
-                : null
-            }
-          />
+          {/* 数据来源与调试面板属于「更多」：首屏不该出现技术细节 */}
+          {planPage === "advanced" && (
+            <>
+              <DataSourcePanel
+                adapterNotes={[...journey.adapterNotes, agentDataSourceNote(agent.status)]}
+              />
+              <DebugPanel
+                discover={discover}
+                verified={verifiedRoute}
+                agent={agent}
+                mapConfig={mapConfig}
+                geometryNote={geometry.note}
+                demo={
+                  activeItinerary
+                    ? {
+                        label: journey.route.label,
+                        totalMinutes: journey.route.totalMinutes,
+                        stops: journey.pois.map((poi) => ({ name: poi.name, stayMinutes: poi.stayMinutes })),
+                      }
+                    : null
+                }
+              />
+            </>
+          )}
         </div>
       </main>
 
