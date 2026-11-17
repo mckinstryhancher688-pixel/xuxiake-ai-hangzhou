@@ -1,0 +1,119 @@
+{
+  "checkedAt": "2026-11-17T12:59:16.641Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "paid": false,
+  "amapBusinessCalls": 0,
+  "mapReady": true,
+  "sdkScriptCalls": [
+    {
+      "url": "https://webapi.amap.com/maps?callback=___onAPILoaded&v=2.0&key=<hidden>&plugin=AMap.Scale,AMap.ToolBar",
+      "status": 200,
+      "snippet": "(function(config){!function(global,factory){\"object\"==typeof exports&&\"undefined\"!=typeof module?module.exports=factory():\"function\"==typeof define&&define.amd?define(factory):(global=global||self).AMap=factory()}(this,function(){\"use strict\";var shared,worker,AMap;function define(_,chunk){var share"
+    },
+    {
+      "url": "https://webapi.amap.com/maps/checkredirect?key=<hidden>&v=2.3.5.6&defaultLocation=111.896257%252C27.848072%252C114.261265%252C28.661612%252C112.982279%252C28.19",
+      "status": 302,
+      "snippet": ""
+    }
+  ],
+  "sdkResponses": [
+    {
+      "url": "https://webapi.amap.com/maps?callback=___onAPILoaded&v=2.0&key=<hidden>&plugin=AMap.Scale,AMap.ToolBar",
+      "status": 200,
+      "snippet": "(function(config){!function(global,factory){\"object\"==typeof exports&&\"undefined\"!=typeof module?module.exports=factory():\"function\"==typeof define&&define.amd?define(factory):(global=global||self).AMap=factory()}(this,function(){\"use strict\";var shared,worker,AMap;function define(_,chunk){var share"
+    },
+    {
+      "url": "https://webapi.amap.com/theme/v2.0/logo@1x.png",
+      "status": 200,
+      "snippet": "�PNG\r\n\u001a\n\u0000\u0000\u0000\rIHDR\u0000\u0000\u0000V\u0000\u0000\u0000\u0018\b\u0006\u0000\u0000\u0000`\u0004\n�\u0000\u0000\u0000\u0001sRGB\u0000��\u001c�\u0000\u0000\u0000DeXIfMM\u0000*\u0000\u0000\u0000\b\u0000\u0001�i\u0000\u0004\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u001a\u0000\u0000\u0000\u0000\u0000\u0003�\u0001\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0001\u0000\u0000�\u0002\u0000\u0004\u0000\u0000\u0000\u0001\u0000\u0000\u0000V�\u0003\u0000\u0004\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u0018\u0000\u0000\u0000\u0000�W��\u0000\u0000\u0007yIDATh\u0005�kpU�\u0015�׹�\u0006n\u0012ILHHE\u0014�\u0001\u0014,`\u000bcU�7���Q�8訍������\u001d\u001d�\u0018u�ZD�N�V\u0018�\u0000�\">Ƿ�� (�\u000b\u0011\u001d%\u0012\u0005�H\u0013h\u0002$��>N��soN\u000e77�ዒ��/{���g���^�ܘ\rj�\u0003�%\u000f8��6�V-��\\���U�v���&:��EgX*�������\\\u0019q\u001c7\u001a��E��e����s"
+    },
+    {
+      "url": "https://webapi.amap.com/maps/checkredirect?key=<hidden>&v=2.3.5.6&defaultLocation=111.896257%252C27.848072%252C114.261265%252C28.661612%252C112.982279%252C28.19",
+      "status": 302,
+      "snippet": ""
+    },
+    {
+      "url": "https://mapplugin.amap.com/maps/checkredirectcdn?cdnHash=1765790694334&key=<hidden>&v=2.3.5.6&defaultLocation=111.896257%252C27.848072%252C114.261265%252C28.661",
+      "status": 200,
+      "snippet": "__amap_jsonp2_callback__('success')"
+    }
+  ],
+  "proxyResponses": [
+    {
+      "url": "http://127.0.0.1:3000/_AMapService/v3/log/init?eventId=resource.load&s=rsv3&product=JsInit&platform=JS&logversion=2.0&t=1794920347985&csid=B1C6DD3F-07A1-4B9B-80",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:3000/_AMapService/v3/log/init?eventId=monitor.cdn&s=rsv3&product=JsInit&platform=JS&logversion=2.0&t=675&csid=2FD9F67F-5586-4951-A46A-E689E82C0",
+      "status": 200
+    }
+  ],
+  "requestFailures": [
+    {
+      "url": "https://jsapi-data5.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/2/3415_1359_12?auth_key=1794931144-331458-0-2abe5b44880befd96bf25fafeaca6992",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data1.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/2/3414_1359_12?auth_key=1794931144-923579-0-0f860813c5d981ec573c4fc934b3c32b",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data2.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/2/3415_1360_12?auth_key=1794931144-963782-0-e218933856424836e713e49b3cb7cf85",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data3.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/2/3415_1358_12?auth_key=1794931144-366668-0-f2a5f72fa497fcdaa4a9bbfa1889cfbe",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data4.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/2/3414_1360_12?auth_key=1794931144-269968-0-8a022bd241f2624145b0c9fd8912efad",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data5.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/2/3414_1358_12?auth_key=1794931144-871721-0-7b169648f2c252ff7f98aadef4e8b55e",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data4.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/0/13661_5438_14?auth_key=1794931144-351907-0-7453738dd044145bb7f3115d6a15757a",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data5.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/0/13661_5437_14?auth_key=1794931144-437403-0-ef8391f7e4dc5520bb9e68b55f6bf4fa",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data3.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/0/13660_5439_14?auth_key=1794931144-233121-0-9a81c757d701aab704229f6ec8519ea3",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data4.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/0/13660_5436_14?auth_key=1794931144-595040-0-acabe6b874e23f54ef6bdb288e612e67",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data5.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/0/13661_5439_14?auth_key=1794931144-993659-0-38e9d0a4b2310dac7d893ac9303f83a9",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data1.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/0/13661_5436_14?auth_key=1794931144-830605-0-fd96be05f995fe4deea691dfb63107ed",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data2.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/0/13659_5439_14?auth_key=1794931144-975201-0-56452a6467ef4742a5546fb9f96754e3",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data3.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/0/13659_5436_14?auth_key=1794931144-125994-0-29284b899eae07beec1d5ca8dd2cd55d",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data1.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/0/13659_5438_14?auth_key=1794931144-246992-0-45785cdf5dd09fb25b0b5e9ffab74a4a",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://jsapi-data2.amap.com/tile/26_10_26_00/v2/building_region_road_transit/pbf/0/13659_5437_14?auth_key=1794931144-566341-0-0e58566b9ee0b23e00413e2ef3c9f3e8",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "consoleErrors": [],
+  "pageMapMessage": "高德核验后的行程"
+}

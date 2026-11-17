@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentPanel } from "@/components/AgentPanel";
 import { DataSourcePanel } from "@/components/DataSourcePanel";
 import { DataTrustNote } from "@/components/DataTrustNote";
@@ -28,6 +28,7 @@ import { buildVerifiedScene } from "@/lib/map/verified-scene";
 import type { MapFeature, MapRouteLine } from "@/components/map/types";
 import { executableOfficial } from "@/lib/negotiation/official-view";
 import { parseCategories } from "@/lib/discovery";
+import { minutesLabel } from "@/lib/walk-minutes";
 
 type MobileTab = "map" | "plan";
 /** 生成路线之后的右栏分页：一屏只回答一个问题 */
@@ -79,11 +80,11 @@ export function JourneyApp() {
   // 双人协商挂在同一份已核验事实层上：不新建第二套数据，也不改单人链路
   // 地图跟着「当前生效行程」走：智能体调整过就用调整后的，否则用（可能已被双方确认版替换过的）核验结果；
   // 两者都还没有时只能继续显示演示行程，绝不把未核验的飞猪坐标画上去。
-  // 亲情模式：用户在「爸妈能走多远」里重解出的行程优先于智能体结果，因为它是最新的显式选择。
+  // 亲情模式：用户在「爸妈全程一共能走多久」里重解出的行程优先于智能体结果，因为它是最新的显式选择。
   const [soloOverride, setSoloOverride] = useState<VerifiedItinerary | null>(null);
-  // 出门前先问的那一句。定下来之后，核验一完成就用它重解一次，不用生成完再改。
-  const [preflightCap, setPreflightCap] = useState<number | null>(null);
-  const [preflightSegmentCap, setPreflightSegmentCap] = useState<number | null>(null);
+  // 出门前先问的那一句：爸妈全程一共能走多久（分钟）。定下来之后，核验一完成就用它重解一次，不用生成完再改。
+  // 三种状态不能混：undefined = 还没回答；null = 用户答了「不确定」（不设上限）；数字 = 用户选的分钟数。
+  const [preflightMinutes, setPreflightMinutes] = useState<number | null | undefined>(undefined);
   const [elderOpen, setElderOpen] = useState(false);
   const activeItinerary = soloOverride ?? agent.activeItinerary;
   /** 是否已经有真实路线：首屏只在「没有路线」时展示提问与生成按钮，生成后切成三个分页 */
@@ -96,26 +97,33 @@ export function JourneyApp() {
    */
   const preflightFactsId = verifiedRoute.report?.ok ? verifiedRoute.report.facts?.factsId ?? null : null;
   const [preflightNote, setPreflightNote] = useState<string | null>(null);
+  // 已经按「这份事实集 + 这个分钟数」重解成功过的记号：「调整」页的面板刚解完会回写 preflightMinutes，
+  // 没有这个记号这里会再发一次一模一样的请求。
+  const resolvedKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!preflightFactsId || preflightCap === null) return;
+    // 没回答、或答了「不确定」时不重解：核验给出的就是不设上限的最优路线，没有什么可重排的
+    if (!preflightFactsId || typeof preflightMinutes !== "number") return;
+    const resolvedKey = `${preflightFactsId}|${preflightMinutes}`;
+    if (resolvedKeyRef.current === resolvedKey) return;
     let cancelled = false;
     void (async () => {
       try {
         const response = await fetch("/api/resolve", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ factsId: preflightFactsId, maxWalkMeters: preflightCap }),
+          body: JSON.stringify({ factsId: preflightFactsId, maxWalkMinutes: preflightMinutes }),
         });
         if (!response.ok) return;
         const body = await response.json();
         if (cancelled) return;
         if (body?.ok === true && body.itinerary) {
+          resolvedKeyRef.current = resolvedKey;
           setSoloOverride(body.itinerary);
           setPreflightNote(null);
         } else {
           // 定得太紧时如实说清楚，不能静默退回一条超限的路线
           setPreflightNote(
-            `按「${preflightCap} 米」排不出可行路线，下面显示的仍是原核验结果。` +
+            `按「${minutesLabel(preflightMinutes)}」排不出可行路线，下面显示的仍是原核验结果。` +
             (body?.reason ? `原因：${String(body.reason).slice(0, 90)}` : ""),
           );
         }
@@ -124,7 +132,7 @@ export function JourneyApp() {
       }
     })();
     return () => { cancelled = true; };
-  }, [preflightFactsId, preflightCap]);
+  }, [preflightFactsId, preflightMinutes]);
   // 调整过之后，核验面板显示的就是这一份；原始核验结果只在开发调试面板里保留。
   const routeAdjusted = activeItinerary !== null && activeItinerary !== (verifiedRoute.report?.itinerary ?? null);
   const scene: "verified" | "demo" = activeItinerary ? "verified" : "demo";
@@ -231,7 +239,7 @@ export function JourneyApp() {
                 <p className="mt-1 text-ink-500">{jointBlockReason}</p>
                 <a href="#joint-negotiation" onClick={() => setTab("plan")} className="mt-2 inline-block text-brand-700 underline">查看双方条件并确认</a>
               </div>
-            ) : <PlanActionBar route={verifiedRoute} agent={agent} categories={discover.selected} itineraryCategories={itineraryCategories} jointLocked={jointRoute !== null} preflightCap={preflightCap} onPreflightChange={setPreflightCap} />}
+            ) : <PlanActionBar route={verifiedRoute} agent={agent} categories={discover.selected} itineraryCategories={itineraryCategories} jointLocked={jointRoute !== null} preflightMinutes={preflightMinutes} onPreflightChange={setPreflightMinutes} />}
           </div>
 
           {/* 数据可信说明：只在有路线、且停在「行程」页时展示。
@@ -270,7 +278,7 @@ export function JourneyApp() {
             {/* ── 还没有路线：只留「生成」这一件事（提问区已在底栏，这里只放一句说明） ── */}
             {!hasRoute ? (
               <p className="rounded-2xl border border-line bg-card px-4 py-3 text-[11px] leading-relaxed text-ink-500">
-                选好上面的距离，点「生成我的路线」。要用「文创街区」以外的类别，生成后到「更多」里换。
+                选好上面的时间，点「生成我的路线」。要用「文创街区」以外的类别，生成后到「更多」里换。
               </p>
             ) : null}
 
@@ -308,7 +316,7 @@ export function JourneyApp() {
               </>
             )}
 
-            {/* ── 调整页：改走多远 ─────────────────────────────── */}
+            {/* ── 调整页：改走多久 ─────────────────────────────── */}
             {hasRoute && planPage === "adjust" && !jointBlocked && (
               <>
                 {preflightNote && (
@@ -320,16 +328,13 @@ export function JourneyApp() {
                   <WalkLimitPanel
                     factsId={verifiedRoute.report.facts.factsId}
                     currentWalkMeters={activeItinerary?.totalWalkMeters ?? null}
-                    currentLongestSegmentMeters={
-                      activeItinerary?.legs?.length
-                        ? Math.max(...activeItinerary.legs.map((leg) => leg.distanceMeters))
-                        : null
-                    }
+                    currentWalkMinutes={activeItinerary?.totalWalkMinutes ?? null}
+                    selectedMinutes={preflightMinutes}
                     onResolved={(itinerary, applied) => {
                       setSoloOverride(itinerary);
                       setPreflightNote(null);
-                      setPreflightCap(applied.maxWalkMeters);
-                      setPreflightSegmentCap(applied.maxSegmentMeters);
+                      resolvedKeyRef.current = `${preflightFactsId}|${applied.maxWalkMinutes}`;
+                      setPreflightMinutes(applied.maxWalkMinutes);
                     }}
                   />
                 ) : (
@@ -427,8 +432,7 @@ export function JourneyApp() {
         onClose={() => setElderOpen(false)}
         itinerary={activeItinerary}
         toilets={verifiedRoute.report?.toilets}
-        limitMeters={preflightCap}
-        segmentLimitMeters={preflightSegmentCap}
+        limitMinutes={preflightMinutes ?? null}
       />
     </div>
   );

@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const EVIDENCE = path.join(ROOT, "evidence");
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 
 const CLI = [
   process.env.PLAYWRIGHT_CLI_PACKAGE,

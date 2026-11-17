@@ -1,0 +1,216 @@
+{
+  "checkedAt": "2026-11-17T10:36:06.498Z",
+  "baseUrl": "http://localhost:3000",
+  "paid": true,
+  "model": "qwen-flash",
+  "budget": {
+    "bailianCalls": 10,
+    "amapCalls": 0,
+    "flyaiSpawns": 0
+  },
+  "actual": {
+    "bailianCalls": 10,
+    "failedCalls": 0,
+    "inputTokens": 4385,
+    "outputTokens": 254
+  },
+  "hardPassed": 10,
+  "modelAsExpected": 9,
+  "total": 10,
+  "rows": [
+    {
+      "text": "我妈膝盖不好",
+      "expect": "ask",
+      "got": "ask",
+      "minutes": null,
+      "question": "爸妈全程大概能走多久？",
+      "questionFromModel": true,
+      "note": null,
+      "other": [],
+      "degraded": false,
+      "error": null,
+      "cost": {
+        "modelCalls": 1,
+        "inputTokens": 435,
+        "outputTokens": 20
+      },
+      "modelAsExpected": true,
+      "hardViolations": []
+    },
+    {
+      "text": "我爸腿脚不太方便，容易累",
+      "expect": "ask",
+      "got": "ask",
+      "minutes": null,
+      "question": "爸妈全程一共大概能走多久？",
+      "questionFromModel": true,
+      "note": null,
+      "other": [],
+      "degraded": false,
+      "error": null,
+      "cost": {
+        "modelCalls": 1,
+        "inputTokens": 440,
+        "outputTokens": 21
+      },
+      "modelAsExpected": true,
+      "hardViolations": []
+    },
+    {
+      "text": "我妈走半小时就得歇一会儿",
+      "expect": "ask",
+      "got": "ask",
+      "minutes": null,
+      "question": "爸妈全程一共能走多久？",
+      "questionFromModel": true,
+      "note": null,
+      "other": [],
+      "degraded": false,
+      "error": null,
+      "cost": {
+        "modelCalls": 1,
+        "inputTokens": 438,
+        "outputTokens": 32
+      },
+      "modelAsExpected": true,
+      "hardViolations": []
+    },
+    {
+      "text": "全程最多走一个小时",
+      "expect": "minutes",
+      "got": "minutes",
+      "minutes": 60,
+      "question": "爸妈全程一共能走多久？",
+      "questionFromModel": false,
+      "note": "按您说的「全程最多走一个小时」，定为 1 小时。",
+      "other": [],
+      "degraded": false,
+      "error": null,
+      "cost": {
+        "modelCalls": 1,
+        "inputTokens": 436,
+        "outputTokens": 17
+      },
+      "modelAsExpected": true,
+      "hardViolations": []
+    },
+    {
+      "text": "我妈一共能走四十分钟左右",
+      "expect": "minutes",
+      "got": "minutes",
+      "minutes": 40,
+      "question": "爸妈全程一共能走多久？",
+      "questionFromModel": false,
+      "note": "按您说的「一共能走四十分钟左右」，定为 40 分钟。",
+      "other": [],
+      "degraded": false,
+      "error": null,
+      "cost": {
+        "modelCalls": 1,
+        "inputTokens": 438,
+        "outputTokens": 18
+      },
+      "modelAsExpected": true,
+      "hardViolations": []
+    },
+    {
+      "text": "能走个把小时吧",
+      "expect": "ask",
+      "got": "ask",
+      "minutes": null,
+      "question": "爸妈全程大概能走多久？",
+      "questionFromModel": true,
+      "note": null,
+      "other": [],
+      "degraded": false,
+      "error": null,
+      "cost": {
+        "modelCalls": 1,
+        "inputTokens": 438,
+        "outputTokens": 32
+      },
+      "modelAsExpected": true,
+      "hardViolations": []
+    },
+    {
+      "text": "走半小时就累，但全程加起来一个半小时没问题",
+      "expect": "minutes",
+      "got": "ask",
+      "minutes": null,
+      "question": "爸妈全程加起来大概能走多久？",
+      "questionFromModel": true,
+      "note": null,
+      "other": [],
+      "degraded": false,
+      "error": null,
+      "cost": {
+        "modelCalls": 1,
+        "inputTokens": 444,
+        "outputTokens": 22
+      },
+      "modelAsExpected": false,
+      "hardViolations": []
+    },
+    {
+      "text": "我爸身体很好，能走三个小时",
+      "expect": "minutes",
+      "got": "minutes",
+      "minutes": 180,
+      "question": "爸妈全程一共能走多久？",
+      "questionFromModel": false,
+      "note": "按您说的「能走三个小时」，定为 3 小时。",
+      "other": [],
+      "degraded": false,
+      "error": null,
+      "cost": {
+        "modelCalls": 1,
+        "inputTokens": 440,
+        "outputTokens": 17
+      },
+      "modelAsExpected": true,
+      "hardViolations": []
+    },
+    {
+      "text": "想去断桥看看",
+      "expect": "off-topic",
+      "got": "off-topic",
+      "minutes": null,
+      "question": "爸妈全程一共能走多久？",
+      "questionFromModel": false,
+      "note": "这一版只按「爸妈全程能走多久」来排路线。",
+      "other": [
+        "想去断桥看看"
+      ],
+      "degraded": false,
+      "error": null,
+      "cost": {
+        "modelCalls": 1,
+        "inputTokens": 436,
+        "outputTokens": 34
+      },
+      "modelAsExpected": true,
+      "hardViolations": []
+    },
+    {
+      "text": "我妈膝盖不好，想去河坊街",
+      "expect": "ask",
+      "got": "ask",
+      "minutes": null,
+      "question": "爸妈全程大概能走多久？",
+      "questionFromModel": true,
+      "note": null,
+      "other": [
+        "想去河坊街"
+      ],
+      "degraded": false,
+      "error": null,
+      "cost": {
+        "modelCalls": 1,
+        "inputTokens": 440,
+        "outputTokens": 41
+      },
+      "modelAsExpected": true,
+      "hardViolations": []
+    }
+  ]
+}

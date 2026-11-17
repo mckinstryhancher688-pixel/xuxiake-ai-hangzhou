@@ -1,4 +1,10 @@
 /**
+ * 【界面部分已过期，不能直接跑】第 6 项起的浏览器步骤针对旧界面写成（米数档位、「一口气最多走多远」单段框、
+ * aria-label「爸妈能走多远」），现在界面只剩一条「爸妈全程一共能走多久」（分钟），那些选择器对不上。
+ * 接口层（/api/resolve 的 maxWalkMeters / maxSegmentMeters）仍然支持，所以本脚本里直接调接口的部分仍有效。
+ * 要重做真机验收，先参照 evidence/preflight-ui.mjs（零付费，已按新界面写好）改写浏览器部分，
+ * 且跑之前必须先单独报预算并获批。
+ *
  * 亲情版真机验收：一次真实核验 → 浏览器里改「总步行」与「单段上限」→ 证明 0 新增高德调用。
  *
  * 成本：一次核验（单类别，约 27 次高德 + 1 次无障碍洗手间查询）。
@@ -12,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const EVIDENCE = path.join(ROOT, "evidence");
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 if (process.env.CONFIRM_PAID !== "yes") {
   console.error("拒绝运行：本脚本会触发一次真实核验（付费）。需 CONFIRM_PAID=yes 且已获批准。");
   process.exit(2);

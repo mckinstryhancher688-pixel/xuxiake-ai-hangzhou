@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { parsePlanLink } from "../src/lib/plan-api.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 if (process.env.CONFIRM_PAID !== "yes") {
   console.error("拒绝运行：真实付费验收需 CONFIRM_PAID=yes（且已获单一预算批准）。");
   process.exit(2);

@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const EVIDENCE = path.join(ROOT, "evidence");
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const ROUTE_SNAPSHOT_KEY = "xuxiake.session.route";
 const REAL_NAMES = ["平湖秋月", "西湖天地", "南宋御街"];
 const CATEGORIES = ["自然风光", "文创街区"];

@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const EVIDENCE = path.join(ROOT, "evidence");
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 
 /** 全局 npm 目录在不同系统上不一样，逐个候选找到能 require 到 playwright 的那个。 */
 const CLI_CANDIDATES = [

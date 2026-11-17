@@ -2,13 +2,15 @@ import { canExecuteSolo, solveSolo, SOLO_MIN_STOPS, type SoloConstraints } from 
 import { amapCounters } from "@/lib/server/amap";
 import { getFactSet } from "@/lib/server/facts";
 import { readBoundedJson, shortId } from "@/lib/server/plan-http";
+import { MAX_WALK_MINUTES, MIN_WALK_MINUTES } from "@/lib/walk-minutes";
 import { connection } from "next/server";
 
 /**
  * 单人「事实层免费重解」。
  *
  * 核验（/api/verify）已经付费把全部有向路段测完并入事实层；这里只换一个求解目标，
- * 因此不发起任何高德请求。这个端点存在的意义就是：改「爸妈能走多远」不该再花钱。
+ * 因此不发起任何高德请求。这个端点存在的意义就是：改「爸妈全程一共能走多久」不该再花钱。
+ * 界面只传 maxWalkMinutes；maxWalkMeters / maxSegmentMeters 仍受支持（真实验收脚本与以后重新露出单段时使用）。
  *
  * 边界（与设计稿一致）：
  * - 只在已实测范围内重排/减站；必须去一个没测过的站会返回 needs-payment，不自动补测；
@@ -18,6 +20,17 @@ import { connection } from "next/server";
 
 const MIN_WALK_METERS = 200;
 const MAX_WALK_METERS = 40_000;
+
+function parseWalkMinutes(value: unknown): { ok: true; value: number | null } | { ok: false; error: string } {
+  if (value === undefined || value === null) return { ok: true, value: null };
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    return { ok: false, error: "maxWalkMinutes 必须是整数分钟（或留空表示不设这个限制）。" };
+  }
+  if (value < MIN_WALK_MINUTES || value > MAX_WALK_MINUTES) {
+    return { ok: false, error: `maxWalkMinutes 必须在 ${MIN_WALK_MINUTES}~${MAX_WALK_MINUTES} 之间。` };
+  }
+  return { ok: true, value };
+}
 
 function parseWalkLimit(value: unknown, label: string): { ok: true; value: number | null } | { ok: false; error: string } {
   if (value === undefined || value === null) return { ok: true, value: null };
@@ -70,6 +83,8 @@ export async function POST(request: Request) {
 
   const limit = parseWalkLimit(body.maxWalkMeters, "maxWalkMeters");
   if (!limit.ok) return Response.json({ error: limit.error, code: "constraint-invalid" }, { status: 400 });
+  const minutes = parseWalkMinutes(body.maxWalkMinutes);
+  if (!minutes.ok) return Response.json({ error: minutes.error, code: "constraint-invalid" }, { status: 400 });
   const segment = parseWalkLimit(body.maxSegmentMeters, "maxSegmentMeters");
   if (!segment.ok) return Response.json({ error: segment.error, code: "constraint-invalid" }, { status: 400 });
   const mustVisit = parseIdList(body.mustVisit, "mustVisit");
@@ -79,6 +94,7 @@ export async function POST(request: Request) {
 
   const constraints: SoloConstraints = {
     maxWalkMeters: limit.value,
+    maxWalkMinutes: minutes.value,
     maxSegmentMeters: segment.value,
     mustVisit: mustVisit.value,
     neverAccept: neverAccept.value,

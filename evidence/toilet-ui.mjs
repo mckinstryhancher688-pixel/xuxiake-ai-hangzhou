@@ -12,7 +12,7 @@ import { FIXTURE_SNAPSHOT } from "./preflight-fixture.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const EVIDENCE = path.join(ROOT, "evidence");
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const SNAPSHOT_KEY = "xuxiake.session.route";
 
 const CLI = [

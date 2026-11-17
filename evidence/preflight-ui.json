@@ -1,35 +1,57 @@
 {
-  "checkedAt": "2026-11-15T12:31:06.755Z",
+  "checkedAt": "2026-11-17T10:27:33.069Z",
   "baseUrl": "http://localhost:3000",
   "paid": false,
   "fixture": true,
-  "fixtureNotice": "注入夹具快照并拦截 /api/resolve 返回桩结果；只验证界面与接线，不代表真实路线或真实重解结果。",
-  "resolveCalls": 3,
+  "fixtureNotice": "拦截 /api/verify 与 /api/resolve 返回桩结果；只验证界面与接线，不代表真实路线或真实重解结果。",
+  "resolveCalls": 5,
   "resolveBodies": [
     {
       "factsId": "stub-facts",
-      "maxWalkMeters": 1700
+      "maxWalkMinutes": 30
     },
     {
       "factsId": "stub-facts",
-      "maxWalkMeters": 1700,
-      "maxSegmentMeters": 600
+      "maxWalkMinutes": 60
     },
     {
       "factsId": "stub-facts",
-      "maxWalkMeters": 1500
+      "maxWalkMinutes": null
+    },
+    {
+      "factsId": "stub-facts",
+      "maxWalkMinutes": 30
+    },
+    {
+      "factsId": "stub-facts",
+      "maxWalkMinutes": 10
     }
   ],
+  "density": {
+    "note": "旧值 = 旧源码字面字符串按同一夹具数字拼出的字数；新值 = 浏览器里量的真实 DOM。字数不含空白。",
+    "adjustPage": {
+      "oldButtons": 6,
+      "oldChars": 202,
+      "newButtons": 4,
+      "newChars": 157
+    },
+    "beforeGenerate": {
+      "oldButtons": 3,
+      "oldChars": 57,
+      "newButtons": 4,
+      "newChars": 70
+    }
+  },
   "dialogs": [],
-  "total": 18,
-  "passed": 18,
+  "total": 39,
+  "passed": 39,
   "checks": [
     {
-      "name": "1 生成路线之前就能看到「爸妈大概能走多远」",
+      "name": "1 生成路线之前就能看到「爸妈全程一共能走多久」",
       "pass": true
     },
     {
-      "name": "1b 三个档位都在",
+      "name": "1b 四个选项都在：30 分钟 / 1 小时 / 1.5 小时 / 不确定",
       "pass": true
     },
     {
@@ -37,63 +59,147 @@
       "pass": true
     },
     {
-      "name": "1d 此时没有重解请求",
+      "name": "1d 写明时间是按高德的步行速度估的",
       "pass": true
     },
     {
-      "name": "2 档位有选中态",
+      "name": "1e 旧的米数档位与说法已经没有",
       "pass": true
     },
     {
-      "name": "2b 没有事实集时不发重解",
+      "name": "1f 此时没有重解请求",
       "pass": true
     },
     {
-      "name": "3 刷新后能恢复已核验路线（无崩溃）",
+      "name": "1g 还没回答时任何选项都不高亮（不替用户预先答）",
       "pass": true
     },
     {
-      "name": "4 选档后调用 /api/resolve",
+      "name": "2 选 30 分钟后它高亮、其余不高亮",
       "pass": true
     },
     {
-      "name": "4b 显示服务端人话回显",
+      "name": "2b 改答「不确定」后它高亮、30 分钟不再高亮",
       "pass": true
     },
     {
-      "name": "4c 显示因果说明",
+      "name": "2c 没有事实集时选档不发重解",
       "pass": true
     },
     {
-      "name": "4d 出现「一口气最多走多远」",
+      "name": "3 点生成后走了一次核验（桩）",
       "pass": true
     },
     {
-      "name": "4e 说明写清「总量再短，中间有一段走不动也不行」",
+      "name": "3b 核验完成后自动按 30 分钟重解，恰好 1 次",
       "pass": true
     },
     {
-      "name": "4f 点单段档位会把 maxSegmentMeters 传给服务端",
+      "name": "3c 请求体里没有米数口径，也没有单段上限",
       "pass": true
     },
     {
-      "name": "5 切换档位再次重解",
+      "name": "3d 生成后看到的是路线（含桩站点）",
       "pass": true
     },
     {
-      "name": "5b 排不出时如实提示",
+      "name": "4 「调整」页有「爸妈全程一共能走多久」面板",
       "pass": true
     },
     {
-      "name": "5c 提示里带真数（米）",
+      "name": "4b 面板里四个选项都在",
       "pass": true
     },
     {
-      "name": "5d 全程 0 弹窗",
+      "name": "4c 生成前答的 30 分钟在这里仍是高亮（答案没丢）",
       "pass": true
     },
     {
-      "name": "6 手机端三档可见且不横向溢出",
+      "name": "4d 「一口气最多走多远」不再露出",
+      "pass": true
+    },
+    {
+      "name": "4e 面板写出当前这条要走多久",
+      "pass": true
+    },
+    {
+      "name": "4f 打开「调整」页本身不发请求",
+      "pass": true
+    },
+    {
+      "name": "5 选 1 小时：恰好多 1 次重解，maxWalkMinutes=60",
+      "pass": true
+    },
+    {
+      "name": "5b 显示服务端人话回显（分钟口径）",
+      "pass": true
+    },
+    {
+      "name": "5c 显示因果说明且用分钟说话",
+      "pass": true
+    },
+    {
+      "name": "5d 新增高德调用 0 次",
+      "pass": true
+    },
+    {
+      "name": "5e 高亮跟着换到 1 小时",
+      "pass": true
+    },
+    {
+      "name": "5f 选「不确定」：恰好多 1 次，maxWalkMinutes=null（不设上限）",
+      "pass": true
+    },
+    {
+      "name": "5g 「不确定」时回显写明没有设上限并给出步行分钟",
+      "pass": true
+    },
+    {
+      "name": "6 排不出时恰好多 1 次请求",
+      "pass": true
+    },
+    {
+      "name": "6b 如实提示排不出并用分钟说",
+      "pass": true
+    },
+    {
+      "name": "6c 出现「按 10 分钟 再试」按钮（分钟口径，不是米）",
+      "pass": true
+    },
+    {
+      "name": "6d 点建议按钮会按 10 分钟重解",
+      "pass": true
+    },
+    {
+      "name": "7 大字版按分钟判断：桩行程步行 30 分钟 > 说好的 10 分钟，应提示超出",
+      "pass": true
+    },
+    {
+      "name": "7b 大字版不再出现米数上限句式",
+      "pass": true
+    },
+    {
+      "name": "8 全程 0 弹窗；外网请求只有被拦截中止的高德 JS 底图加载器",
+      "pass": true
+    },
+    {
+      "name": "9 答「不确定」后生成：核验 1 次、重解 0 次（核验给的就是不设上限的最优）",
+      "pass": true
+    },
+    {
+      "name": "9b 调整页里「不确定」是高亮的",
+      "pass": true
+    },
+    {
+      "name": "10 没回答直接生成：重解 0 次，调整页也没有任何一档被预先高亮",
+      "pass": true
+    },
+    {
+      "name": "11 手机端四个选项都可见且不横向溢出",
+      "pass": true
+    },
+    {
+      "name": "12 刷新后能恢复已核验路线（无崩溃），且没有因此多发重解",
       "pass": true
     }
   ]

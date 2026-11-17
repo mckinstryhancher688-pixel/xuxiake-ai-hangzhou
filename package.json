@@ -25,11 +25,13 @@
     "test:plan-geometry": "node --import ./evidence/register-alias.mjs evidence/plan-geometry.mjs",
     "test:source-evidence": "node --import ./evidence/register-alias.mjs evidence/source-evidence-unit.mjs",
     "test:solo-resolve": "node --import ./evidence/register-alias.mjs evidence/solo-resolve-unit.mjs",
-    "test:offline": "node evidence/negotiation-unit.mjs && node evidence/negotiation-rules.mjs && node --import ./evidence/register-alias.mjs evidence/plan-ai.mjs && node evidence/plan-persistence.mjs && node evidence/negotiation-editor.mjs && node evidence/hangzhou-timezone.mjs && node evidence/official-view-unit.mjs && node evidence/verify-chain-unit.mjs && node evidence/verification-view.mjs && node evidence/geometry-state-unit.mjs && node --import ./evidence/register-alias.mjs evidence/plan-geometry.mjs && node --import ./evidence/register-alias.mjs evidence/source-evidence-unit.mjs && node --import ./evidence/register-alias.mjs evidence/solo-resolve-unit.mjs && node --import ./evidence/register-alias.mjs evidence/toilet-unit.mjs",
+    "test:offline": "node evidence/negotiation-unit.mjs && node evidence/negotiation-rules.mjs && node --import ./evidence/register-alias.mjs evidence/plan-ai.mjs && node evidence/plan-persistence.mjs && node evidence/negotiation-editor.mjs && node evidence/hangzhou-timezone.mjs && node evidence/official-view-unit.mjs && node evidence/verify-chain-unit.mjs && node evidence/verification-view.mjs && node evidence/geometry-state-unit.mjs && node --import ./evidence/register-alias.mjs evidence/plan-geometry.mjs && node --import ./evidence/register-alias.mjs evidence/source-evidence-unit.mjs && node --import ./evidence/register-alias.mjs evidence/solo-resolve-unit.mjs && node --import ./evidence/register-alias.mjs evidence/toilet-unit.mjs && node --import ./evidence/register-alias.mjs evidence/resolve-route-minutes-unit.mjs && node --import ./evidence/register-alias.mjs evidence/understand-unit.mjs",
     "probe:bailian": "node --env-file=.env.local scripts/bailian-probe.mjs",
     "probe:bailian:discover": "node --env-file=.env.local scripts/bailian-discover.mjs",
     "probe:agent": "node scripts/agent-call.mjs",
-    "test:toilet": "node --import ./evidence/register-alias.mjs evidence/toilet-unit.mjs"
+    "test:toilet": "node --import ./evidence/register-alias.mjs evidence/toilet-unit.mjs",
+    "test:resolve-route": "node --import ./evidence/register-alias.mjs evidence/resolve-route-minutes-unit.mjs",
+    "test:understand": "node --import ./evidence/register-alias.mjs evidence/understand-unit.mjs"
   },
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",

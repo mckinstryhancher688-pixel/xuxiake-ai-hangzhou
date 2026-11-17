@@ -64,6 +64,12 @@ export interface HardConstraints {
   /** 本方接受的总步行上限（米）；统计口径见 COST_SCOPE_NOTICE */
   maxWalkMeters: number | null;
   /**
+   * 本方接受的总步行时间上限（分钟）；缺省或 null 表示没提。
+   * 判定直接用高德实测的每段步行分钟数求和，不经过任何「米 ↔ 分钟」换算。
+   * 可选字段：双人协商与既有调用方不传它，行为不变。
+   */
+  maxWalkMinutes?: number | null;
+  /**
    * 本方能「一口气」走完的最长一段（米）；null 表示没提。
    * 与 maxWalkMeters 是两个不同的约束：总量够短，也可能中间有一段走不动。
    */

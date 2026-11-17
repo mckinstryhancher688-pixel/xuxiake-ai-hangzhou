@@ -1,5 +1,12 @@
 /**
- * 亲情模式「爸妈能走多远」真机 UI 验收。
+ * 【已过期，不能直接跑】本脚本针对 2026-11-15 的旧界面写成：米数档位（少走点/稍微少点/不设限）、
+ * 「爸妈能走多远」面板、「一口气最多走多远」单段框。界面现在改成唯一一条
+ * 「爸妈全程一共能走多久」（30 分钟 / 1 小时 / 1.5 小时 / 不确定，单位分钟），单段框不再露出，
+ * 面板 aria-label 也变成「爸妈能走多久」，下面的选择器与断言全部对不上。
+ * 要重做真机验收，先参照 evidence/preflight-ui.mjs（零付费，已按新界面写好）改写这份，
+ * 且跑之前必须先单独报预算并获批。
+ *
+ * 亲情模式「爸妈能走多远」真机 UI 验收（旧版）。
  *
  * 成本：一次真实核验（单类别，约 27 次高德；命中整链缓存则为 0）。之后所有点击都走事实层重解，0 新增。
  * 跑法：CONFIRM_PAID=yes node evidence/walk-limit-ui-accept.mjs
@@ -12,7 +19,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const EVIDENCE = path.join(ROOT, "evidence");
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 if (process.env.CONFIRM_PAID !== "yes") {
   console.error("拒绝运行：本脚本会触发一次真实核验（付费）。需 CONFIRM_PAID=yes 且已获批准。");
   process.exit(2);

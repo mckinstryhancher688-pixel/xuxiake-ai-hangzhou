@@ -7,7 +7,7 @@
  *   - budget.logicalRequests 必须始终为 0。
  * 这里的路线数字来自真实核验，不是夹具。
  */
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const results = [];
 const check = (name, pass, extra) => {
   results.push({ name, pass });

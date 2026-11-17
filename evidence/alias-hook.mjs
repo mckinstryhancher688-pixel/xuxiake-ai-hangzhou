@@ -22,7 +22,11 @@ function firstExisting(absolute) {
   return null;
 }
 
+/** 进程内直接调路由函数的测试需要：next/server 脱离 Next 请求上下文无法使用，换成空 connection() 桩。 */
+const NEXT_SERVER_STUB = pathToFileURL(path.resolve(import.meta.dirname, "stub-next-server.mjs")).href;
+
 export async function resolve(specifier, context, next) {
+  if (specifier === "next/server") return next(NEXT_SERVER_STUB, context);
   if (specifier.startsWith("@/")) {
     const hit = firstExisting(path.join(SRC, specifier.slice(2)));
     if (hit) return next(pathToFileURL(hit).href, context);

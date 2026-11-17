@@ -1,0 +1,160 @@
+{
+  "checkedAt": "2026-11-17T10:20:01.101Z",
+  "baseUrl": "http://localhost:3000",
+  "paid": false,
+  "fixture": true,
+  "fixtureNotice": "拦截 /api/understand、/api/verify、/api/resolve 返回桩；understanding 由真实 judgeModelReply 从手写模型回复算出，不代表千问真实表现。",
+  "understandBodies": [
+    {
+      "text": "我妈膝盖不好"
+    },
+    {
+      "text": "我妈走半小时就得歇"
+    },
+    {
+      "text": "我妈全程最多走一个小时"
+    },
+    {
+      "text": "全程最多走45分钟"
+    },
+    {
+      "text": "坏掉的一句"
+    },
+    {
+      "text": "想去断桥看看"
+    },
+    {
+      "text": "全程最多走45分钟"
+    },
+    {
+      "text": "我妈膝盖不好"
+    }
+  ],
+  "resolveBodies": [
+    {
+      "factsId": "stub-facts",
+      "maxWalkMinutes": 45
+    }
+  ],
+  "density": {
+    "before": {
+      "buttons": 4,
+      "inputs": 0,
+      "chars": 67,
+      "source": "evidence/preflight-ui.json（加输入框之前的实测）"
+    },
+    "after": {
+      "buttons": 5,
+      "inputs": 1,
+      "chars": 70
+    }
+  },
+  "total": 26,
+  "passed": 26,
+  "checks": [
+    {
+      "name": "1 首页有「说说爸妈的情况」输入框",
+      "pass": true
+    },
+    {
+      "name": "1b 占位提示给了一个例子",
+      "pass": true
+    },
+    {
+      "name": "1c 没输入时「读一下」不可点",
+      "pass": true
+    },
+    {
+      "name": "1d 打开首页不发 /api/understand",
+      "pass": true
+    },
+    {
+      "name": "1e 标题是默认问题",
+      "pass": true
+    },
+    {
+      "name": "2 读一下恰好发 1 次请求，原话原样发出",
+      "pass": true
+    },
+    {
+      "name": "2b 标题换成模型写的追问，并标明是按情况追问的",
+      "pass": true
+    },
+    {
+      "name": "2c 选项还是那四个，且没有任何一个被替用户选上",
+      "pass": true
+    },
+    {
+      "name": "2d 如实写出调用了百炼 1 次",
+      "pass": true
+    },
+    {
+      "name": "2e 追问之后点选项照常生效",
+      "pass": true
+    },
+    {
+      "name": "3 「走半小时就得歇」不会被选成 30 分钟",
+      "pass": true
+    },
+    {
+      "name": "3b 说明讲清这像是一口气、问的是全程",
+      "pass": true
+    },
+    {
+      "name": "4 回车也能提交，恰好再多 1 次请求",
+      "pass": true
+    },
+    {
+      "name": "4b 自动选上 1 小时",
+      "pass": true
+    },
+    {
+      "name": "4c 复述原话：按您说的「…」，定为 1 小时",
+      "pass": true
+    },
+    {
+      "name": "4d 标题回到默认问题（不再是追问）",
+      "pass": true
+    },
+    {
+      "name": "5 出现「45 分钟 · 您说的」并处于选中态",
+      "pass": true
+    },
+    {
+      "name": "5b 菜单里的四个都没被选上",
+      "pass": true
+    },
+    {
+      "name": "6 没读成时写明原因并让用户直接选",
+      "pass": true
+    },
+    {
+      "name": "6b 没读成不改用户已经选的（还是 45 分钟）",
+      "pass": true
+    },
+    {
+      "name": "7 没讲走路时说明这一版只按能走多久排",
+      "pass": true
+    },
+    {
+      "name": "7b 「想去断桥看看」如实列为这一版还用不上",
+      "pass": true
+    },
+    {
+      "name": "8 生成后按您说的 45 分钟重解 1 次",
+      "pass": true
+    },
+    {
+      "name": "8b 调整页显示「45 分钟 · 您说的」",
+      "pass": true
+    },
+    {
+      "name": "9 手机端输入框、按钮、选项都不横向溢出，「生成我的路线」仍在屏内",
+      "pass": true
+    },
+    {
+      "name": "10 全程 0 弹窗；外网请求只有被拦截中止的高德 JS 底图加载器",
+      "pass": true
+    }
+  ]
+}

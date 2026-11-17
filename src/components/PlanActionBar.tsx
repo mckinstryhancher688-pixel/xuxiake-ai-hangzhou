@@ -3,6 +3,7 @@
 import type { AgentController } from "@/hooks/useAgent";
 import type { VerifiedRoute } from "@/hooks/useVerifiedRoute";
 import { sameCategories, type FlyAiPoiCategory } from "@/lib/discovery";
+import { PreflightQuestion } from "@/components/PreflightQuestion";
 
 /**
  * 首屏就固定钉在底部的一条主流程按钮，手机上也一直可见：
@@ -15,7 +16,7 @@ export function PlanActionBar({
   categories,
   jointLocked = false,
   itineraryCategories,
-  preflightCap = null,
+  preflightMinutes,
   onPreflightChange,
 }: {
   route: VerifiedRoute;
@@ -24,9 +25,12 @@ export function PlanActionBar({
   /** 双方已经确认了正式版本：单人「少走一点」不能绕过确认流程替换它 */
   jointLocked?: boolean;
   itineraryCategories: FlyAiPoiCategory[];
-  /** 生成路线之前先问的那一句：爸妈大概能走多远（null = 不设限） */
-  preflightCap?: number | null;
-  onPreflightChange?: (meters: number | null) => void;
+  /**
+   * 生成路线之前先问的那一句：爸妈全程一共能走多久。
+   * 三种状态不能混：undefined = 还没回答（任何按钮都不高亮）；null = 用户答了「不确定」；数字 = 分钟。
+   */
+  preflightMinutes?: number | null;
+  onPreflightChange?: (minutes: number | null) => void;
 }) {
   const itinerary = agent.activeItinerary;
   const stops = itinerary?.stops ?? [];
@@ -40,37 +44,7 @@ export function PlanActionBar({
     return (
       <Bar>
         {onPreflightChange && (
-          <div className="mb-2.5 rounded-xl border border-line bg-paper px-2.5 py-2">
-            <p className="text-[11px] font-semibold text-ink-700">爸妈大概能走多远？</p>
-            <p className="mt-0.5 text-[10px] leading-relaxed text-ink-500">
-              先定这条线，生成时就直接按它排，不用生成完再改。
-            </p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {[
-                { label: "走不远", sub: "约 2 公里", meters: 2000 as number | null },
-                { label: "一般", sub: "约 3.5 公里", meters: 3500 as number | null },
-                { label: "能走", sub: "不设限", meters: null as number | null },
-              ].map((option) => {
-                const selected = preflightCap === option.meters;
-                return (
-                  <button
-                    key={option.label}
-                    type="button"
-                    onClick={() => onPreflightChange(option.meters)}
-                    disabled={verifying}
-                    className={`flex min-w-[74px] flex-1 flex-col rounded-lg border px-2 py-1.5 text-left transition ${
-                      selected
-                        ? "border-brand-600 bg-brand-600/10 text-brand-700"
-                        : "border-line bg-card text-ink-700"
-                    } ${verifying ? "opacity-50" : ""}`}
-                  >
-                    <span className="text-[11px] font-semibold">{option.label}</span>
-                    <span className="text-[9.5px] text-ink-500">{option.sub}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <PreflightQuestion minutes={preflightMinutes} onChange={onPreflightChange} disabled={verifying} />
         )}
         <button
           type="button"

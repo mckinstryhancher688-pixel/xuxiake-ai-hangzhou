@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ToiletLookup, VerifiedItinerary } from "@/lib/types";
+import { minutesLabel } from "@/lib/walk-minutes";
 
 /**
  * 给爸妈看的大字版。
@@ -21,15 +22,17 @@ export function ElderView({
   onClose,
   itinerary,
   toilets,
-  limitMeters,
-  segmentLimitMeters,
+  limitMinutes,
+  segmentLimitMeters = null,
 }: {
   open: boolean;
   onClose: () => void;
   itinerary: VerifiedItinerary | null;
   toilets?: ToiletLookup | null;
-  limitMeters: number | null;
-  segmentLimitMeters: number | null;
+  /** 说好的「全程步行最多多少分钟」；没答或答了「不确定」都传 null，此时不显示这一行 */
+  limitMinutes: number | null;
+  /** 单段上限目前不对用户露出；保留这个入口，打开单段条件时原样可用 */
+  segmentLimitMeters?: number | null;
 }) {
   const [scale, setScale] = useState(1.25);
 
@@ -46,7 +49,7 @@ export function ElderView({
   const legs = itinerary?.legs ?? [];
   const totalMin = itinerary ? itinerary.totalWalkMinutes + itinerary.totalStayMinutes + itinerary.bufferMinutes : 0;
   const longest = legs.length ? Math.max(...legs.map((leg) => leg.distanceMeters)) : 0;
-  const overLimit = limitMeters !== null && itinerary !== null && itinerary.totalWalkMeters > limitMeters;
+  const overLimit = limitMinutes !== null && itinerary !== null && itinerary.totalWalkMinutes > limitMinutes;
   const overSegment = segmentLimitMeters !== null && longest > segmentLimitMeters;
 
   const px = (base: number) => `${Math.round(base * scale)}px`;
@@ -106,14 +109,14 @@ export function ElderView({
                 中间坐下休息的时间算在里面，全程大约 <strong>{Math.round(totalMin / 60 * 10) / 10}</strong> 小时。
               </p>
 
-              {limitMeters !== null && (
+              {limitMinutes !== null && (
                 <p
                   className={`rounded-2xl px-4 py-3 font-semibold ${overLimit ? "bg-red-50 text-red-700" : "bg-green-50 text-green-800"}`}
                   style={{ fontSize: px(22), lineHeight: 1.6 }}
                 >
                   {overLimit
-                    ? `注意：这条路的走路距离超过了说好的 ${limitMeters} 米。`
-                    : `没有超过说好的 ${limitMeters} 米。`}
+                    ? `注意：这条路要走的时间超过了说好的 ${minutesLabel(limitMinutes)}。`
+                    : `没有超过说好的 ${minutesLabel(limitMinutes)}。`}
                 </p>
               )}
               {segmentLimitMeters !== null && (

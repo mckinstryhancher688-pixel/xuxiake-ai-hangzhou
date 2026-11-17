@@ -204,7 +204,7 @@ npm run dev                  # http://localhost:3000
 
 ## 验收
 
-先看[证据索引](docs/EVIDENCE.md)：当前 `npm run test:offline` 包含 **321 项离线检查/场景**（14 个套件；含 2026-11-15 新增的单人重解 38 项与无障碍洗手间 17 项），另有零付费浏览器回归（[来源证据](evidence/source-evidence-ui.json)、[行走上限](evidence/preflight-ui.json)、[无障碍洗手间](evidence/toilet-ui.json)）。
+先看[证据索引](docs/EVIDENCE.md)：当前 `npm run test:offline` 包含 **421 项离线检查/场景**（16 个套件；含 2026-11-15 新增的单人重解 64 项、无障碍洗手间 17 项、`/api/resolve` 步行分钟口径 21 项与「读一句话」53 项），另有零付费浏览器回归（[来源证据](evidence/source-evidence-ui.json)、[步行时间上限](evidence/preflight-ui.json)、[无障碍洗手间](evidence/toilet-ui.json)、[读一句话](evidence/understand-ui.json)）。「读一句话」接真实千问的探针（`evidence/understand-real-probe.mjs`，付费）已运行一次：10 句里硬性要求 10/10，模型判断与预期一致 9/10，共 10 次百炼调用（结果见 [understand-real-probe.json](evidence/understand-real-probe.json)）。
 这些使用夹具与请求桩，不代表真实高德或百炼端到端验收。2026-10-22 的 151 项记录作为历史证据保留。
 
 纯离线套件（不需要启动服务）：

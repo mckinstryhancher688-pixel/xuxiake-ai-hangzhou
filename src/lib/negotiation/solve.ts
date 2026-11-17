@@ -207,6 +207,7 @@ export function solveJoint(
 
   const universe = facts.pool.filter((item) => !neverIds.has(item.id)).map((item) => item.id);
   const tightestCap = Math.min(...parties.map((p) => p.hard.maxWalkMeters ?? Number.POSITIVE_INFINITY));
+  const tightestMinutesCap = Math.min(...parties.map((p) => p.hard.maxWalkMinutes ?? Number.POSITIVE_INFINITY));
   /** 报价口径只有一处真相：与状态机用的是同一个函数，避免两个数字打架 */
   const quoteFor = (targets: string[]) => estimateMissingEdges(facts, [...new Set(targets)], { universe });
 
@@ -226,8 +227,8 @@ export function solveJoint(
           const entry = facts.legs[legKey(previous, id)];
           if (!entry) {
             usable = false;
-            // 已经超出最严上限的链条，补测这条路也救不回来，不计入报价
-            if (!applyHard || walkMeters <= tightestCap) rememberMissing(previous, id);
+            // 已经超出最严上限（米或分钟）的链条，补测这条路也救不回来，不计入报价
+            if (!applyHard || (walkMeters <= tightestCap && walkMinutes <= tightestMinutesCap)) rememberMissing(previous, id);
             break;
           }
           legs.push(entry.leg);
@@ -243,6 +244,11 @@ export function solveJoint(
 
         if (applyHard) {
           if (parties.some((p) => p.hard.maxWalkMeters !== null && walkMeters > p.hard.maxWalkMeters)) continue;
+          // 总步行时间上限：用高德实测的每段分钟数求和，与米数上限各自独立判定
+          if (parties.some((p) => {
+            const cap = p.hard.maxWalkMinutes ?? null;
+            return cap !== null && walkMinutes > cap;
+          })) continue;
           // 单段上限：总量达标也可能中间有一段走不动，所以两条件各自独立判定
           if (parties.some((p) => {
             const seg = p.hard.maxSegmentMeters ?? null;
@@ -317,6 +323,7 @@ export function solveJoint(
       });
     }
     const leastWalk = [...relaxed].sort((x, y) => x.walkMeters - y.walkMeters)[0];
+    const leastMinutes = [...relaxed].sort((x, y) => x.walkMinutes - y.walkMinutes)[0];
     const soonest = [...relaxed].sort((x, y) => x.totalMinutes - y.totalMinutes)[0];
     const shortestLeg = [...relaxed].sort((x, y) => x.longestLegMeters - y.longestLegMeters)[0];
     const mustNames = mustAll.map((id) => displayName(facts, id)).join("、") || "可行组合";
@@ -328,6 +335,14 @@ export function solveJoint(
           role: party.role,
           kind: "hard",
           text: `含「${mustNames}」的全部实测组合里，步行最短的一条是 ${metersText(leastWalk.walkMeters)}，比本方上限 ${metersText(cap)} 多 ${metersText(leastWalk.walkMeters - cap)}`,
+        });
+      }
+      const minutesCap = party.hard.maxWalkMinutes ?? null;
+      if (minutesCap !== null && leastMinutes.walkMinutes > minutesCap) {
+        blocked.push({
+          role: party.role,
+          kind: "hard",
+          text: `含「${mustNames}」的全部实测组合里，步行最短的一条也要 ${leastMinutes.walkMinutes} 分钟，比本方上限 ${minutesCap} 分钟多 ${leastMinutes.walkMinutes - minutesCap} 分钟`,
         });
       }
       const segCap = party.hard.maxSegmentMeters ?? null;
@@ -391,6 +406,10 @@ export function solveJoint(
     const cap = party.hard.maxWalkMeters;
     if (cap !== null) {
       satisfied.push({ role: party.role, kind: "hard", text: `总步行 ${metersText(best.walkMeters)} ≤ 本方上限 ${metersText(cap)}` });
+    }
+    const minutesCap = party.hard.maxWalkMinutes ?? null;
+    if (minutesCap !== null) {
+      satisfied.push({ role: party.role, kind: "hard", text: `总步行 ${best.walkMinutes} 分钟 ≤ 本方上限 ${minutesCap} 分钟` });
     }
     const segCap = party.hard.maxSegmentMeters ?? null;
     if (segCap !== null) {

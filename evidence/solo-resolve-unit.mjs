@@ -140,6 +140,70 @@ check("16 单段上限满足时门禁放行", segGatePass.allowed === true, segG
 const segGateFail = canExecuteSolo(segItinerary, { maxWalkMeters: null, maxSegmentMeters: Math.max(200, baseLongest - 100), mustVisit: [], neverAccept: [] });
 check("16b 单段超标时门禁拒绝并说明", segGateFail.allowed === false && /最长一段/.test(segGateFail.reason), segGateFail.reason);
 
+/* ───── 17+. 总步行「分钟」上限：直接对高德实测的每段分钟求和，不经过米数换算 ─────
+ * 夹具里各段分钟数是人工给定的，所以期望值可以手算：
+ *   不设限最优 = 起点→集贤亭 4 → 湖滨步行街 6 → 圣塘景区 8 → 断桥残雪 12 = 4 站 / 30 分钟
+ *   最短 3 站 = 4 + 6 + 8 = 18 分钟；最短 2 站 = 4 + 6 = 10 分钟
+ */
+const none = { maxWalkMeters: null, maxSegmentMeters: null, mustVisit: [], neverAccept: [] };
+const freeMinutes = free.ok ? free.solve.best.totalWalkMinutes : -1;
+check("17 不设限时夹具最优是 4 站 / 30 分钟（手算期望）", free.ok && free.solve.best.stops.length === 4 && freeMinutes === 30, free.ok ? { stops: free.solve.best.stops.length, minutes: freeMinutes } : null);
+check("17b 解释里带着服务端累加的实测分钟，且与行程一致", free.ok && free.explanation.totalWalkMinutes === freeMinutes && free.explanation.limitMinutes === null && free.explanation.withinMinutesLimit === true, free.ok ? free.explanation.totalWalkMinutes : null);
+check("17c 不设限的回显里写明步行约多少分钟", free.ok && free.explanation.verdict.includes(`步行约 ${freeMinutes} 分钟`), free.ok ? free.explanation.verdict : null);
+
+const undefMinutes = solveSolo(facts, { ...none, maxWalkMinutes: undefined }, NOW);
+check("17d 旧调用方不传 maxWalkMinutes 与传 null 结果一致", free.ok && undefMinutes.ok && undefMinutes.explanation.verdict === free.explanation.verdict);
+
+/* 18. 分钟上限放宽：不影响结果，回显用用户定的口径 */
+const minutesLoose = solveSolo(facts, { ...none, maxWalkMinutes: 60 }, NOW);
+check("18 上限 60 分钟时仍排 4 站", minutesLoose.ok && minutesLoose.solve.best.stops.length === 4, minutesLoose.ok ? minutesLoose.solve.best.stops.length : minutesLoose.reason);
+check("18b withinMinutesLimit=true 且回显写「在您定的 60 分钟以内」", minutesLoose.ok && minutesLoose.explanation.withinMinutesLimit === true && minutesLoose.explanation.verdict.includes("在您定的 60 分钟以内"), minutesLoose.ok ? minutesLoose.explanation.verdict : null);
+check("18c 没设米数时 limit 仍是 null（两个口径互不串味）", minutesLoose.ok && minutesLoose.explanation.limit === null && minutesLoose.explanation.limitMinutes === 60);
+
+/* 19. 分钟上限收紧到 20：只能排 3 站（最短 3 站 = 18 分钟），并说明为什么少了一站 */
+const minutesTight = solveSolo(facts, { ...none, maxWalkMinutes: 20 }, NOW);
+check("19 上限 20 分钟时排 3 站且总步行不超过 20 分钟", minutesTight.ok && minutesTight.solve.best.stops.length === 3 && minutesTight.solve.best.totalWalkMinutes <= 20, minutesTight.ok ? { stops: minutesTight.solve.best.stops.length, minutes: minutesTight.solve.best.totalWalkMinutes } : minutesTight.reason);
+check("19b 总步行分钟比不设限更少", minutesTight.ok && minutesTight.solve.best.totalWalkMinutes < freeMinutes);
+check("19c 少排的那一站有 whyDropped，文案用分钟且含两个真实数字", minutesTight.ok && minutesTight.explanation.whyDropped.length === 1 && minutesTight.explanation.whyDropped[0].text.includes("30 分钟") && minutesTight.explanation.whyDropped[0].text.includes("20 分钟"), minutesTight.ok ? minutesTight.explanation.whyDropped.map((d) => d.text) : null);
+check("19d withoutLimit 记录了放宽后的分钟对照", minutesTight.ok && minutesTight.explanation.withoutLimit?.totalWalkMinutes === 30 && minutesTight.explanation.withoutLimit?.stopCount === 4, minutesTight.ok ? minutesTight.explanation.withoutLimit : null);
+
+/* 20. 分钟上限压到只够 1 站：站数不足的闸门必须点名是分钟卡住，并给出经二分验证的「最少需要多少分钟」
+ *     （夹具里 4 分钟能到集贤亭，所以 5 分钟能排 1 站但排不出 2 站） */
+const minutesImpossible = solveSolo(facts, { ...none, maxWalkMinutes: 5 }, NOW);
+check("20 上限 5 分钟时如实报告排不出", minutesImpossible.ok === false && minutesImpossible.kind === "no-solution", minutesImpossible.ok ? "unexpected ok" : minutesImpossible.kind);
+check("20b 说明点名是「全程步行最多 5 分钟」把站点压掉", !minutesImpossible.ok && minutesImpossible.reason.includes("全程步行最多 5 分钟") && minutesImpossible.reason.includes("最多只能排 1 个站"), !minutesImpossible.ok ? minutesImpossible.reason.slice(0, 160) : null);
+check("20c 建议值 = 最少 10 分钟排 2 站（手算期望）", !minutesImpossible.ok && minutesImpossible.suggestion?.maxWalkMinutes === 10 && minutesImpossible.suggestion?.stopCount === 2, !minutesImpossible.ok ? minutesImpossible.suggestion : null);
+check("20c2 建议值里的米数是该行程的实测米数（不是分钟数串位）", !minutesImpossible.ok && minutesImpossible.suggestion?.maxWalkMeters === 800 && minutesImpossible.suggestion?.totalWalkMeters === 800, !minutesImpossible.ok ? minutesImpossible.suggestion : null);
+check("20d 无解说明用分钟说「放宽到 10 分钟可以排 2 站」", !minutesImpossible.ok && minutesImpossible.reason.includes("放宽到 10 分钟可以排 2 站"), !minutesImpossible.ok ? minutesImpossible.reason.slice(-60) : null);
+
+/* 20g. 压到连 1 站都到不了（最近的一站要 4 分钟）：走硬冲突分支，写出最短要多少分钟、差多少，仍给同一个建议 */
+const minutesNothing = solveSolo(facts, { ...none, maxWalkMinutes: 3 }, NOW);
+check("20g 上限 3 分钟（连最近一站都到不了）报硬冲突", minutesNothing.ok === false && minutesNothing.kind === "hard-conflict", minutesNothing.ok ? "unexpected ok" : minutesNothing.kind);
+check("20h 写出最短也要 4 分钟、比上限 3 分钟多 1 分钟，且不是「没测到」", !minutesNothing.ok && minutesNothing.reason.includes("步行最短的一条也要 4 分钟，比本方上限 3 分钟多 1 分钟"), !minutesNothing.ok ? minutesNothing.reason.slice(0, 200) : null);
+check("20i 同样给出 10 分钟排 2 站的建议", !minutesNothing.ok && minutesNothing.suggestion?.maxWalkMinutes === 10 && minutesNothing.suggestion?.stopCount === 2, !minutesNothing.ok ? minutesNothing.suggestion : null);
+if (!minutesImpossible.ok && minutesImpossible.suggestion) {
+  const atSuggestion = solveSolo(facts, { ...none, maxWalkMinutes: minutesImpossible.suggestion.maxWalkMinutes }, NOW);
+  const belowSuggestion = solveSolo(facts, { ...none, maxWalkMinutes: minutesImpossible.suggestion.maxWalkMinutes - 1 }, NOW);
+  check("20e 建议值经二次求解确实可行", atSuggestion.ok === true && atSuggestion.solve.best.totalWalkMinutes <= minutesImpossible.suggestion.maxWalkMinutes);
+  check("20f 建议值是最小值：再少 1 分钟就排不出", belowSuggestion.ok === false, belowSuggestion.ok ? "还能排，说明建议值不是最小" : belowSuggestion.kind);
+}
+
+/* 21. 分钟与「必须去」叠加：必须去雷峰塔（含它的最短 2 站链条 = 38 分钟） */
+const mustFar = solveSolo(facts, { ...none, maxWalkMinutes: 20, mustVisit: ["c5"] }, NOW);
+check("21 必须去的站让 20 分钟排不出时如实报告", mustFar.ok === false, mustFar.ok ? "unexpected ok" : mustFar.kind);
+check("21b 建议值是含该站的最短链条 38 分钟", !mustFar.ok && mustFar.suggestion?.maxWalkMinutes === 38, !mustFar.ok ? mustFar.suggestion : null);
+
+/* 22. 分钟门禁：独立于米数门禁 */
+const minItinerary = free.ok ? free.solve.best : null;
+const minGateFail = canExecuteSolo(minItinerary, { ...none, maxWalkMinutes: 20 });
+check("22 超出分钟上限时单人门禁拒绝并用分钟说明", minGateFail.allowed === false && /30 分钟，超出你定的 20 分钟/.test(minGateFail.reason), minGateFail.reason);
+const minGatePass = canExecuteSolo(minItinerary, { ...none, maxWalkMinutes: 30 });
+check("22b 刚好等于上限时放行，并写明分钟", minGatePass.allowed === true && minGatePass.reason.includes("步行约 30 分钟，不超你定的 30 分钟"), minGatePass.reason);
+
+/* 23. 同样输入重复求解一致（含二分建议值，无隐藏状态） */
+const minutesImpossibleAgain = solveSolo(facts, { ...none, maxWalkMinutes: 5 }, NOW);
+check("23 分钟上限的无解建议重复求解结果一致", !minutesImpossible.ok && !minutesImpossibleAgain.ok && JSON.stringify(minutesImpossible.suggestion) === JSON.stringify(minutesImpossibleAgain.suggestion));
+
 const failed = results.filter((item) => !item.pass);
 console.log(`\n${results.length - failed.length}/${results.length} 单人重解纯函数检查通过`);
 for (const item of failed) console.log(`未通过：${item.name}`);
