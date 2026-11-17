@@ -177,42 +177,50 @@ export function JourneyApp() {
         }
       />
 
-      <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-4 px-4 pt-4 pb-40 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_25rem] lg:items-start lg:pb-4">
-        <div
-          className={`${tab === "map" ? "block" : "hidden"} lg:sticky lg:top-4 lg:block lg:h-[calc(100dvh-7.5rem)]`}
-        >
-          {jointBlocked ? (
-            <div className="flex min-h-[24rem] h-full items-center justify-center rounded-2xl border border-line bg-card p-6">
-              <div className="max-w-md text-sm leading-6">
-                <h2 className="font-semibold">路线暂停执行，等待双方确认</h2>
-                <p className="mt-2 text-ink-500">{jointBlockReason}</p>
-                <p className="mt-2 text-ink-500">确认前不显示旧路线，也不会切回单人行程。</p>
-                <a href="#joint-negotiation" onClick={() => setTab("plan")} className="mt-3 inline-block text-brand-700 underline">查看协商与确认</a>
+      {/* 没有真实路线时右栏居中、地图整块不出现：首页只回答一个问题 */}
+      <main className={`mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-4 px-4 pt-4 pb-40 sm:px-6 lg:items-start lg:pb-4 ${
+        hasRoute ? "lg:grid lg:grid-cols-[minmax(0,1fr)_25rem]" : "lg:grid lg:grid-cols-[minmax(0,44rem)] lg:justify-center"
+      }`}>
+        {hasRoute && (
+          <div
+            className={`${tab === "map" ? "block" : "hidden"} lg:sticky lg:top-4 lg:block lg:h-[calc(100dvh-7.5rem)]`}
+          >
+            {jointBlocked ? (
+              <div className="flex min-h-[24rem] h-full items-center justify-center rounded-2xl border border-line bg-card p-6">
+                <div className="max-w-md text-sm leading-6">
+                  <h2 className="font-semibold">路线暂停执行，等待双方确认</h2>
+                  <p className="mt-2 text-ink-500">{jointBlockReason}</p>
+                  <p className="mt-2 text-ink-500">确认前不显示旧路线，也不会切回单人行程。</p>
+                  <a href="#joint-negotiation" onClick={() => setTab("plan")} className="mt-3 inline-block text-brand-700 underline">查看协商与确认</a>
+                </div>
               </div>
-            </div>
-          ) : <MapPanel
-            features={mapFeatures}
-            routeLines={mapRouteLines}
-            lakeOutline={journey.geography.lakeOutline}
-            streets={journey.geography.streets}
-            activeFeatureId={activeFeatureId}
-            onSelectFeature={selectFeature}
-            disclaimer={scene === "verified" ? VERIFIED_DISCLAIMER : journey.disclaimer}
-            scene={scene}
-            mapConfig={mapConfig}
-            undrawnLegs={verifiedScene?.undrawnLegs ?? []}
-          />}
-        </div>
+            ) : <MapPanel
+              features={mapFeatures}
+              routeLines={mapRouteLines}
+              lakeOutline={journey.geography.lakeOutline}
+              streets={journey.geography.streets}
+              activeFeatureId={activeFeatureId}
+              onSelectFeature={selectFeature}
+              disclaimer={scene === "verified" ? VERIFIED_DISCLAIMER : journey.disclaimer}
+              scene={scene}
+              mapConfig={mapConfig}
+              undrawnLegs={verifiedScene?.undrawnLegs ?? []}
+            />}
+          </div>
+        )}
 
         <div className="flex min-h-0 flex-col gap-4">
-          <div className="grid grid-cols-2 gap-1 rounded-xl border border-line bg-card p-1 lg:hidden">
-            <TabButton active={tab === "map"} onClick={() => setTab("map")}>
-              地图
-            </TabButton>
-            <TabButton active={tab === "plan"} onClick={() => setTab("plan")}>
-              行程与探索
-            </TabButton>
-          </div>
+          {/* 手机端分页：没有路线时不显示「地图」，先把注意力留在生成上 */}
+          {hasRoute && (
+            <div className="grid grid-cols-2 gap-1 rounded-xl border border-line bg-card p-1 lg:hidden">
+              <TabButton active={tab === "map"} onClick={() => setTab("map")}>
+                地图
+              </TabButton>
+              <TabButton active={tab === "plan"} onClick={() => setTab("plan")}>
+                行程与探索
+              </TabButton>
+            </div>
+          )}
 
           {/* 主流程按钮：窄屏钉在屏幕下沿（滚到哪一步都能点，首屏就一定看得见），
               桌面端回到右栏顶部跟随滚动。同一份组件、同一批按钮，不会出现两个入口。 */}
@@ -257,7 +265,7 @@ export function JourneyApp() {
           )}
 
           <div
-            className={`${tab === "plan" ? "flex" : "hidden"} flex-col gap-4 lg:flex lg:overflow-y-auto lg:pr-1`}
+            className={`${!hasRoute || tab === "plan" ? "flex" : "hidden"} flex-col gap-4 lg:flex lg:overflow-y-auto lg:pr-1`}
           >
             {/* ── 还没有路线：只留「生成」这一件事（提问区已在底栏，这里只放一句说明） ── */}
             {!hasRoute ? (

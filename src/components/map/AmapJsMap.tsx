@@ -209,14 +209,23 @@ export function AmapJsMap({
       })
       .catch((caught: unknown) => {
         if (disposed) return;
-        // 高德 loader 在脚本请求失败时 reject 的是原生 Event（不是 Error），
-        // 直接 String() 只会得到「[object Event]」这种用户读不懂的碎片。
+        // 高德 loader 失败时 reject 的东西不一定是 Error：
+        // 可能是原生 Event，也可能是带 info/message 的普通对象。
+        // 一律展开成能读的文字，否则日志只会留下「[object Object]」，查不下去。
         const detail =
           caught instanceof Error
             ? caught.message
             : caught instanceof Event
               ? "脚本请求没有成功（网络不通，或 Key 与安全密钥不匹配被平台拒绝）"
-              : String(caught);
+              : caught && typeof caught === "object"
+                ? (() => {
+                    const record = caught as Record<string, unknown>;
+                    const picked = ["info", "message", "error", "status", "type"]
+                      .map((key) => (record[key] === undefined ? null : `${key}=${String(record[key])}`))
+                      .filter(Boolean);
+                    return picked.length ? picked.join(" · ") : JSON.stringify(record).slice(0, 160);
+                  })()
+                : String(caught);
         fail(`高德地图 JS API 加载失败：${detail.slice(0, 160)}。已退回手绘示意底图，上面不画伪造的真实路线。`);
       });
 
