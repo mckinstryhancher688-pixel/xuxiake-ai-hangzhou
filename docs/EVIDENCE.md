@@ -4,12 +4,14 @@
 历史服务证据基线为 `3e129045659dd8c13ec92e66077ce92a4650c5c3`（2026-10-22）；2026-10-23 追加可靠性修复与离线/本地浏览器记录。
 新记录没有替换历史真实日志，也没有把夹具当作真实服务效果。
 2026-10-24 重新运行全部 258 个离线检查/场景通过；生产版本 `c906649` 已发布，首页、静态资源与快照恢复检查通过。此次未重跑付费业务闭环，不能把本地记录称为线上真实验收。
+**2026-11-18（当前版本，本地）**：离线 459 项通过；真机端到端 38/38（高德 37、飞猪 1、百炼 0）；读一句话真实 40 句硬性要求 40/40。
+线上 `travel.peiqirui.com` 仍是旧版本 `c906649`，新版本尚未部署，所以这些是本地真实服务记录，不是线上验收。
 
 ## 看懂项目的最短路径
 
-1. [README](../README.md)：目标用户、一次路线取舍、三项核心机制。
-2. [双人差异截图](../evidence/phase9-04-B-diff.png)：7.50 公里 → 3.77 公里。
-3. [双方确认后截图](../evidence/phase9-07-A-joint-executing.png)：同一版本进入地图与执行面板。
+1. [README](../README.md)：目标用户、一次真实运行、三项核心机制。
+2. [真实路线截图](../evidence/family-real-route.png)：真实核验出的 3 站路线，高德真实底图。
+3. [手机调整页](../evidence/family-real-mobile-adjust.png)：全程能走多久 + 每站停留，两组按钮。
 4. [参赛投稿正文](SUBMISSION.md)：官方栏目、百炼职责与复现步骤。
 5. [演示手册](DEMO.md)：两分钟主线、现场核对与录屏准备。
 
@@ -26,7 +28,12 @@
 | 当前 A/B 身份、正式卡、类别切换及失败保留 | [17 项浏览器记录与计数](../evidence/route-experience-followup-ui.json) | 本地开发/生产构建、模拟数据；B 正式卡截图不得用作真实高德结果的证据 |
 | 来源证据标注（飞猪优化① B1/C） | [20 项离线夹具](../evidence/source-evidence-unit.mjs)、[14 项浏览器回归](../evidence/source-evidence-ui.json)、[桌面](../evidence/source-evidence-desktop.png)/[手机](../evidence/source-evidence-mobile.png)截图；真实验收见下一行 | 每站标来源 FlyAI＋查询时间＋✓已校验（仅来源校验通过才亮）；id/链接对不上本次候选集合即标未校验；旧快照如实写未记录。夹具浏览器注入零 POST；本 Demo 无价格字段，清单 B2 总价校验不适用 |
 | 来源证据真实验收（飞猪优化① D 适配） | [14 项付费验收](../evidence/source-evidence-paid-accept.json)、[4 项原始链接核对](../evidence/source-evidence-link-check.json)、[飞猪落地页截图](../evidence/source-evidence-link-1.png)、[13 项真实 UI 证据条](../evidence/source-evidence-real-ui.json)、[真实桌面](../evidence/source-evidence-real-desktop.png)/[手机](../evidence/source-evidence-real-mobile.png)、[付费阶段日志](../evidence/source-evidence-paid-verification.json) | 真实 3 站（平湖秋月/西湖天地/南宋御街）来源校验通过；3 条原始链接落地 poiId 与名称均与标注一致；跨城负面 400；双人确认保留证据、0 新增高德。付费验收本体 61 次高德在批准预算内；会话合计 75 次（含一次 UI 探针误触 route-geometry 补折线 +14），超额已如实披露 |
-| 亲情模式真机验收（2026-11-15） | [20 项真实验收](../evidence/family-real-accept.json)、[桌面总上限](../evidence/family-real-total.png)/[单段](../evidence/family-real-segment.png)/[手机](../evidence/family-real-mobile.png)、[阶段日志与成本](../evidence/family-real-verification.json) | 真实 3 站（西湖天地/南宋御街/馒头山居委会）6039 米；改总上限→3223 米、改单段 900 米→如实报不可行、不设限→恢复，三次重解高德计数 63→63→63（**0 新增**）；无障碍洗手间返回 25 条、3 锚点各有最近点。本轮真实消耗 63 次高德（自然风光 27 次因数据不可行白花 + 文创街区 36 次），已如实记档 |
+| **亲情版真机端到端（2026-11-18，分钟口径，当前版本）** | [38 项真实验收](../evidence/family-real-accept.json)、[路线与高德底图](../evidence/family-real-route.png)、[调整页](../evidence/family-real-adjust.png)、[大字版](../evidence/family-real-elder.png)、[手机调整页](../evidence/family-real-mobile-adjust.png)、[手机大字版](../evidence/family-real-mobile-elder.png)、[脚本](../evidence/family-real-accept.mjs) | 首页选 1 小时 → 真实核验（文创街区）→ 自动按 60 分钟重排 → 调整页改 30 分钟 / 1.5 小时 / 不确定、每站停留 60 / 15 分钟。真实 3 站（西湖天地 / 南宋御街 / 馒头山社区居委会）步行 81 分钟；每次重排步行分钟都等于高德逐段实测之和，账单 = 步行 + 站数 × 停留 + 20。**实际消耗：高德 37 次、飞猪 1 次、百炼 0 次，全部发生在那一次核验；之后 6 次重排新增 0 次。** 38/38 通过 |
+| 读一句话 · 真实千问 40 句（2026-11-18） | [结果 JSON](../evidence/understand-real-probe.json)、[脚本](../evidence/understand-real-probe.mjs) | 百炼 `qwen-flash` 40 次（输入 21968 / 输出 1099 token），0 失败。硬性要求（引文是原话、不编数字、一口气不算全程）**40/40**；类别与预期一致 34/40。年龄误判与一句追问措辞已在代码里修正，修正后没有再付费重跑 |
+| 读一句话 · 零付费 | [68 项离线](../evidence/understand-unit.mjs)（fetch 桩 + 假密钥）、[26 项浏览器回归](../evidence/understand-ui.json) | 桩里的「模型回复」是手写的，只验证校验规则与界面接线，不代表千问真实表现 |
+| 步行时间上限、每站停留、删除「少走一点」 · 零付费 | [78 项单人重解](../evidence/solo-resolve-unit.mjs)、[30 项接口](../evidence/resolve-route-minutes-unit.mjs)、[50 项浏览器回归](../evidence/preflight-ui.json) | 夹具数字手算可复核（如 4 站 30 分钟、停留 60 分钟时只剩 3 站、合计 218）；不代表真实路线 |
+| 高德底图（2026-11-18） | [加载诊断](../evidence/amap-js-diagnose.json)、[脚本](../evidence/amap-js-diagnose.mjs) | 新 JS key 在 `127.0.0.1:3000` 加载成功（`window.AMap` 就绪，无报错）；只加载页面与 SDK，不调用高德业务接口；输出已脱敏 |
+| 亲情模式真机验收（2026-11-15，旧米数口径，历史） | 当时的 20 项 JSON 已被 2026-11-18 的新版本覆盖，原文件见提交 `9e27ed9`；截图 [总上限](../evidence/family-real-total.png)/[单段](../evidence/family-real-segment.png)/[手机](../evidence/family-real-mobile.png)、[阶段日志与成本](../evidence/family-real-verification.json) | 真实 3 站 6039 米；改总上限→3223 米、改单段 900 米→如实报不可行，三次重解 0 新增；本轮真实消耗 63 次高德（自然风光 27 次因数据不可行白花 + 文创街区 36 次）。界面已改为分钟口径，这批截图不代表当前界面 |
 | 双人百炼“解释这次取舍” | [接口](../src/app/api/plan/[planId]/explain/route.ts)、[事实块](../src/lib/negotiation/ai-context.ts)、[桩测试](../evidence/plan-ai.mjs)、[真实回合](../evidence/source-evidence-paid-accept.json) | 接口与角色隔离、门禁、失败处理已实现并用离线测试验证；真实百炼解释回合已于 2026-11-07 实测 1 回合 ok=true |
 | 公开体验 | [travel.peiqirui.com](http://travel.peiqirui.com/)，[2026-10-24 发布记录](release-2026-10-24.md)、[实际首页](../evidence/release-2026-10-24-home.jpg)、[只读检查](../evidence/release-2026-10-24.json) | 已发布 `c906649`；首页 HTTP 200、新默认类别生效、1 份快照恢复；未重跑真实路线与百炼闭环 |
 | 演示视频 | 暂无 | 不虚构视频链接；源码公开不等于完整演示已验收 |

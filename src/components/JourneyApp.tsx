@@ -28,7 +28,7 @@ import { buildVerifiedScene } from "@/lib/map/verified-scene";
 import type { MapFeature, MapRouteLine } from "@/components/map/types";
 import { executableOfficial } from "@/lib/negotiation/official-view";
 import { parseCategories } from "@/lib/discovery";
-import { minutesLabel } from "@/lib/walk-minutes";
+import { DEFAULT_STAY_MINUTES, minutesLabel } from "@/lib/walk-minutes";
 
 type MobileTab = "map" | "plan";
 /** 生成路线之后的右栏分页：一屏只回答一个问题 */
@@ -85,6 +85,8 @@ export function JourneyApp() {
   // 出门前先问的那一句：爸妈全程一共能走多久（分钟）。定下来之后，核验一完成就用它重解一次，不用生成完再改。
   // 三种状态不能混：undefined = 还没回答；null = 用户答了「不确定」（不设上限）；数字 = 用户选的分钟数。
   const [preflightMinutes, setPreflightMinutes] = useState<number | null | undefined>(undefined);
+  // 每站停留分钟（D2）：只在「调整」页改；换类别重新核验后也要按它重解
+  const [stayMinutes, setStayMinutes] = useState<number>(DEFAULT_STAY_MINUTES);
   const [elderOpen, setElderOpen] = useState(false);
   const activeItinerary = soloOverride ?? agent.activeItinerary;
   /** 是否已经有真实路线：首屏只在「没有路线」时展示提问与生成按钮，生成后切成三个分页 */
@@ -103,7 +105,7 @@ export function JourneyApp() {
   useEffect(() => {
     // 没回答、或答了「不确定」时不重解：核验给出的就是不设上限的最优路线，没有什么可重排的
     if (!preflightFactsId || typeof preflightMinutes !== "number") return;
-    const resolvedKey = `${preflightFactsId}|${preflightMinutes}`;
+    const resolvedKey = `${preflightFactsId}|${preflightMinutes}|${stayMinutes}`;
     if (resolvedKeyRef.current === resolvedKey) return;
     let cancelled = false;
     void (async () => {
@@ -111,7 +113,7 @@ export function JourneyApp() {
         const response = await fetch("/api/resolve", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ factsId: preflightFactsId, maxWalkMinutes: preflightMinutes }),
+          body: JSON.stringify({ factsId: preflightFactsId, maxWalkMinutes: preflightMinutes, stayMinutes }),
         });
         if (!response.ok) return;
         const body = await response.json();
@@ -132,7 +134,7 @@ export function JourneyApp() {
       }
     })();
     return () => { cancelled = true; };
-  }, [preflightFactsId, preflightMinutes]);
+  }, [preflightFactsId, preflightMinutes, stayMinutes]);
   // 调整过之后，核验面板显示的就是这一份；原始核验结果只在开发调试面板里保留。
   const routeAdjusted = activeItinerary !== null && activeItinerary !== (verifiedRoute.report?.itinerary ?? null);
   const scene: "verified" | "demo" = activeItinerary ? "verified" : "demo";
@@ -172,8 +174,6 @@ export function JourneyApp() {
     <div className="flex min-h-dvh flex-col">
       <SiteHeader
         context={journey.context}
-        remainingMinutes={journey.remainingMinutes}
-        routeLabel={journey.route.label}
         plan={
           activeItinerary
             ? {
@@ -330,11 +330,13 @@ export function JourneyApp() {
                     currentWalkMeters={activeItinerary?.totalWalkMeters ?? null}
                     currentWalkMinutes={activeItinerary?.totalWalkMinutes ?? null}
                     selectedMinutes={preflightMinutes}
+                    selectedStay={stayMinutes}
                     onResolved={(itinerary, applied) => {
                       setSoloOverride(itinerary);
                       setPreflightNote(null);
-                      resolvedKeyRef.current = `${preflightFactsId}|${applied.maxWalkMinutes}`;
+                      resolvedKeyRef.current = `${preflightFactsId}|${applied.maxWalkMinutes}|${applied.stayMinutes}`;
                       setPreflightMinutes(applied.maxWalkMinutes);
+                      setStayMinutes(applied.stayMinutes);
                     }}
                   />
                 ) : (

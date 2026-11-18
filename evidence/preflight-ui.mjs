@@ -2,11 +2,11 @@
  * 「爸妈全程一共能走多久」零付费 UI 验证（唯一一条条件，单位分钟）：
  * 生成前的提问与三态（没答 / 答了「不确定」/ 选了数字）、生成后按答案自动重解、
  * 「调整」页恢复已答的那一档、单段那一问不再露出、失败如实提示并给分钟建议、
- * 大字版按分钟判断、手机不溢出，以及界面密度（按钮数与字数）。
+ * 大字版按分钟判断、每站停留一档（D2）与账单、「少走一点」已删除（D1）、手机不溢出，以及界面密度（按钮数与字数）。
  *
  * 全程拦截 /api/verify 与 /api/resolve 并返回桩结果，其余付费端点一律拦截：本脚本只验证界面与接线，
  * 不代表真实路线或真实重解结果。服务端真实措辞与数字由 solo-resolve-unit.mjs 覆盖；
- * 真实数据验收见 walk-limit-ui-accept.mjs / family-real-accept.mjs（付费，需先报预算）。
+ * 真实数据验收见 family-real-accept.mjs（付费，需先报预算）。
  * 默认无头运行；要看着浏览器跑：HEADED=1 node evidence/preflight-ui.mjs
  */
 import fs from "node:fs";
@@ -49,6 +49,8 @@ function makeStubs() {
 
 function stubOk(body) {
   const minutes = body.maxWalkMinutes ?? null;
+  const stay = body.stayMinutes ?? 30;
+  const stops = FIXTURE_REPORT.itinerary.stops.map((stop) => ({ ...stop, stayMinutes: stay }));
   return {
     ok: true,
     cost: { newAmapCalls: 0 },
@@ -71,12 +73,17 @@ function stubOk(body) {
         : [{ id: "x", name: "满陇桂雨", text: `保留「满陇桂雨」全程要步行约 45 分钟，超出你定的 ${minutes} 分钟，所以这次没排它。` }],
       keptBecauseMust: [],
       withoutLimit: { totalWalkMeters: 2600, totalWalkMinutes: 45, stopCount: 4 },
+      stayMinutes: stay,
+      stayNote: stay === 60 ? "每站停留 60 分钟时，半日 240 分钟里最多排 2 站；每站停 15 分钟可以排 3 站。" : null,
     },
     itinerary: {
       ...FIXTURE_REPORT.itinerary,
+      stops,
       totalWalkMeters: 1800,
       totalWalkMinutes: 30,
-      totalMinutes: 50,
+      totalStayMinutes: stay * stops.length,
+      bufferMinutes: 20,
+      totalMinutes: 30 + stay * stops.length + 20,
     },
     note: "桩",
   };
@@ -209,7 +216,10 @@ check("5g 「不确定」时回显写明没有设上限并给出步行分钟", /
 
 /* 6. 失败分支：如实提示并给分钟建议，建议按钮能点 */
 A.resolveMode = "fail";
-await page.getByRole("button", { name: /^30 分钟/ }).click();
+// 调整页上「30 分钟」同时出现在步行上限和每站停留两组里，必须按组定位
+const walkGroup = page.getByRole("group", { name: "全程步行上限" });
+const stayGroup = page.getByRole("group", { name: "每站停留多久" });
+await walkGroup.getByRole("button", { name: /^30 分钟/ }).click();
 await page.waitForTimeout(1800);
 const failText = await page.evaluate(() => document.body.innerText);
 check("6 排不出时恰好多 1 次请求", A.resolveBodies.length === 4 && A.resolveBodies[3].maxWalkMinutes === 30, A.resolveBodies.at(-1));
@@ -233,6 +243,27 @@ await page.waitForTimeout(300);
 // 有路线后页面会去加载高德 JS 底图（webapi.amap.com）；请求已被本脚本拦截中止，没有真的发出。
 // 这里只允许它这一个外网主机，出现任何别的外网请求都算失败。
 const externalHosts = [...new Set(A.externalBlocked)];
+/* 7c. 每站停留（D2）：只改停留时保留当前步行上限；账单写出「站数 × 每站分钟」；缓冲固定 */
+await page.getByRole("tab", { name: "调整" }).click();
+await page.waitForTimeout(500);
+check("7c 调整页有「每站停留」一组四档，且写明缓冲 20 分钟固定", (await stayGroup.getByRole("button").count()) === 4 && (await stayGroup.innerText()).includes("缓冲 20 分钟固定"), await stayGroup.innerText().catch(() => ""));
+check("7d 默认是每站 30 分钟", (await stayGroup.getByRole("button", { name: "30 分钟" }).getAttribute("aria-pressed")) === "true");
+const beforeStay = A.resolveBodies.length;
+await stayGroup.getByRole("button", { name: "60 分钟" }).click();
+await page.waitForTimeout(1800);
+check("7e 点每站 60 分钟：恰好多 1 次请求，带 stayMinutes=60，步行上限保持上一次的 10 分钟", A.resolveBodies.length === beforeStay + 1 && A.resolveBodies.at(-1).stayMinutes === 60 && A.resolveBodies.at(-1).maxWalkMinutes === 10, A.resolveBodies.at(-1));
+const billText = await page.getByTestId("resolve-bill").innerText().catch(() => "");
+check("7f 账单写出合计 = 步行 + 站数 × 每站分钟 + 缓冲（固定）", billText.includes("合计 170 / 240 分钟") && billText.includes("2 站 × 60 分钟 = 120 分钟") && billText.includes("缓冲 20 分钟（固定）"), billText);
+check("7g 停留压站时显示说明", (await page.evaluate(() => document.body.innerText)).includes("每站停留 60 分钟时，半日 240 分钟里最多排 2 站"));
+await walkGroup.getByRole("button", { name: /^1 小时/ }).click();
+await page.waitForTimeout(1800);
+check("7h 再改步行上限：带上刚选的每站 60 分钟", A.resolveBodies.at(-1).maxWalkMinutes === 60 && A.resolveBodies.at(-1).stayMinutes === 60, A.resolveBodies.at(-1));
+await page.getByRole("tab", { name: "行程" }).click();
+await page.waitForTimeout(500);
+const routeText = await page.evaluate(() => document.body.innerText);
+check("7i 行程页账单同样写「2 站 × 60 分钟」和「缓冲（固定）」", routeText.includes("2 站 × 60 分钟 = 120 分钟") && routeText.includes("缓冲（固定）"), routeText.match(/合计[^\n]*/)?.[0] ?? null);
+check("7j 行程页不再出现「少走一点」按钮（D1）", (await page.getByRole("button", { name: /少走一点/ }).count()) === 0);
+
 check("8 全程 0 弹窗；外网请求只有被拦截中止的高德 JS 底图加载器", dialogs.length === 0 && externalHosts.every((host) => host === "webapi.amap.com"), { dialogs, externalBlockedHosts: externalHosts });
 const aDensity = await (async () => {
   await page.getByRole("tab", { name: "调整" }).click();
@@ -278,6 +309,10 @@ await pageC.getByRole("tab", { name: "调整" }).click();
 await pageC.waitForTimeout(500);
 const noneSelectedC = (await Promise.all(OPTION_LABELS.map((label) => isSelected(pageC, label)))).every((value) => !value);
 check("10 没回答直接生成：重解 0 次，调整页也没有任何一档被预先高亮", C.resolveBodies.length === 0 && noneSelectedC, { resolveCalls: C.resolveBodies.length });
+await pageC.getByRole("group", { name: "每站停留多久" }).getByRole("button", { name: "45 分钟" }).click();
+await pageC.waitForTimeout(1800);
+const stillNoneC = (await Promise.all(OPTION_LABELS.map((label) => isSelected(pageC, label)))).every((value) => !value);
+check("10b 没回答时只改每站停留：不设步行上限，也不会把步行一栏变成「不确定」", C.resolveBodies.length === 1 && C.resolveBodies[0].maxWalkMinutes === null && C.resolveBodies[0].stayMinutes === 45 && stillNoneC, { bodies: C.resolveBodies, stillNoneC });
 await contextC.close();
 
 /* ═════════ 场景 D：手机端：生成前的四个选项可见、不横向溢出 ═════════ */
@@ -305,6 +340,37 @@ const overflow = await mpage.evaluate((labels) => {
 }, OPTION_LABELS);
 check("11 手机端四个选项都可见且不横向溢出", overflow.visibleButtons === 4 && !overflow.anyOverflow && !overflow.pageOverflows, overflow);
 await mpage.screenshot({ path: path.join(EVIDENCE, "preflight-mobile.png"), fullPage: false });
+
+/* 11b. 手机端大字版：放大字号后顶部三个按钮仍各占一行文字，不会把「字小」拆成一字一行 */
+await mpage.evaluate(([key, value]) => sessionStorage.setItem(key, value), ["xuxiake.session.route", JSON.stringify(FIXTURE_SNAPSHOT)]);
+await mpage.reload({ waitUntil: "domcontentloaded" });
+await mpage.waitForTimeout(1800);
+await mpage.getByRole("button", { name: "行程与探索", exact: true }).click().catch(() => {});
+await mpage.waitForTimeout(400);
+await mpage.getByRole("button", { name: /给爸妈看/ }).click();
+await mpage.waitForTimeout(600);
+const elderHeader = async () => mpage.evaluate(() => {
+  const dialog = document.querySelector('[role="dialog"]');
+  if (!dialog) return null;
+  const doc = document.documentElement;
+  const buttons = Array.from(dialog.querySelectorAll("button")).slice(0, 3);
+  return buttons.map((button) => {
+    const range = document.createRange();
+    range.selectNodeContents(button);
+    const lines = new Set(Array.from(range.getClientRects()).map((rect) => Math.round(rect.top))).size;
+    return { text: button.textContent, lines, right: Math.round(button.getBoundingClientRect().right), viewport: doc.clientWidth };
+  });
+});
+const headerDefault = await elderHeader();
+await mpage.getByRole("button", { name: "放大字号" }).click();
+await mpage.getByRole("button", { name: "放大字号" }).click();
+await mpage.getByRole("button", { name: "放大字号" }).click();
+await mpage.waitForTimeout(300);
+const headerLarge = await elderHeader();
+const oneLine = (rows) => Array.isArray(rows) && rows.length === 3 && rows.every((row) => row.lines === 1 && row.right <= row.viewport + 1);
+check("11b 手机端大字版默认字号：字小 / 字大 / 退出 都是一行文字，不溢出", oneLine(headerDefault), headerDefault);
+check("11c 手机端大字版放到最大字号：三个按钮仍然各一行，不溢出", oneLine(headerLarge), headerLarge);
+await mpage.screenshot({ path: path.join(EVIDENCE, "preflight-mobile-elder.png"), fullPage: false });
 await mobile.close();
 
 /* ═════════ 刷新恢复：已核验快照照常恢复（回归） ═════════ */

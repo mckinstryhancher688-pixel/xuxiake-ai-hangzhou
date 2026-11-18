@@ -21,14 +21,16 @@ export function DataBadge({ verified, className = "" }: { verified: boolean; cla
 
 export function SiteHeader({
   context,
-  remainingMinutes,
-  routeLabel,
   plan,
 }: {
   context: JourneyContext;
-  remainingMinutes: number;
-  routeLabel: string;
-  /** 有它就说「当前生效路线」是真实核验出来的，顶部数字全部换成这一份的口径。 */
+  /**
+   * 以前用来在没有真实路线时显示演示行程的「剩余时间」和路线名。D3 决定演示数据不进主流程，
+   * 顶部不再显示它们；保留成可选参数只是为了不改动冻结的双人协商页面（PlanClient）。
+   */
+  remainingMinutes?: number;
+  routeLabel?: string;
+  /** 有它就说「当前生效路线」是真实核验出来的，顶部数字全部换成这一份的口径。没有真实路线时右侧什么都不显示。 */
   plan: { stops: number; totalMinutes: number; budgetMinutes: number } | null;
 }) {
   return (
@@ -56,21 +58,18 @@ export function SiteHeader({
           <span>4 小时漫游</span>
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <DataBadge verified={plan !== null} />
-          <span className="rounded-full border border-line bg-paper px-2.5 py-1 text-[11px] text-ink-500">
-            {plan
-              ? `当前生效路线 · ${plan.stops} 站 · 合计 ${formatMinutes(plan.totalMinutes)}`
-              : routeLabel}
-          </span>
-          <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-medium text-brand-700">
-            {/* 核验前这个数是演示行程模拟出来的剩余；核验后必须是当前路线相对预算的余量，
-                两个语义不能共用「剩余」这个词 */}
-            {plan
-              ? `预算余 ${formatMinutes(Math.max(0, plan.budgetMinutes - plan.totalMinutes))}`
-              : `剩余 ${formatMinutes(remainingMinutes)}`}
-          </span>
-        </div>
+        {/* 只有真实核验出来的路线才在顶部报数字；没有路线时不显示演示行程的数字（D3） */}
+        {plan && (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <DataBadge verified />
+            <span className="rounded-full border border-line bg-paper px-2.5 py-1 text-[11px] text-ink-500">
+              当前生效路线 · {plan.stops} 站 · 合计 {formatMinutes(plan.totalMinutes)}
+            </span>
+            <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-medium text-brand-700">
+              预算余 {formatMinutes(Math.max(0, plan.budgetMinutes - plan.totalMinutes))}
+            </span>
+          </div>
+        )}
       </div>
     </header>
   );

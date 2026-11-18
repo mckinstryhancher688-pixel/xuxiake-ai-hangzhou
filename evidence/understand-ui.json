@@ -1,6 +1,6 @@
 {
-  "checkedAt": "2026-11-17T10:20:01.101Z",
-  "baseUrl": "http://localhost:3000",
+  "checkedAt": "2026-11-18T04:14:20.474Z",
+  "baseUrl": "http://127.0.0.1:3000",
   "paid": false,
   "fixture": true,
   "fixtureNotice": "拦截 /api/understand、/api/verify、/api/resolve 返回桩；understanding 由真实 judgeModelReply 从手写模型回复算出，不代表千问真实表现。",
@@ -33,7 +33,8 @@
   "resolveBodies": [
     {
       "factsId": "stub-facts",
-      "maxWalkMinutes": 45
+      "maxWalkMinutes": 45,
+      "stayMinutes": 30
     }
   ],
   "density": {

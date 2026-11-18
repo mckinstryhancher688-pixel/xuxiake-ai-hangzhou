@@ -120,6 +120,39 @@ check("C14 模型返回数组而不是对象 → 退回默认问题", t14.source
 const t15 = judgeModelReply("我妈全程最多走１小时", reply({ kind: "total", quote: "全程最多走1小时", question: "", other: [] }));
 check("C15 全角/半角数字差异不影响逐字核对", t15.kind === "minutes" && t15.minutes === 60, t15);
 
+/* C16+. T2 新增：一口气 + 全程并存、年龄数字、口语化的全程说法 */
+const t16 = judgeModelReply("走半小时就累，但全程加起来一个半小时没问题", reply({ kind: "total", quote: "全程加起来一个半小时没问题", question: "", other: [] }));
+check("C16 一口气 + 全程并存：按全程那一段定为 90 分钟", t16.kind === "minutes" && t16.minutes === 90, t16);
+const t17 = judgeModelReply("走半小时就累，但全程加起来一个半小时没问题", reply({ kind: "total", quote: "走半小时就累", question: "", other: [] }));
+check("C17 同一句里模型摘错成一口气那段 → 代码拦下改为追问", t17.kind === "ask" && t17.minutes === null && /一口气/.test(t17.note ?? ""), t17);
+const t18 = judgeModelReply("我妈说走一个小时没问题，但要经常坐下来歇歇", reply({ kind: "total", quote: "走一个小时没问题", question: "", other: [] }));
+check("C18 「歇歇」在另一小句里，不影响这一小句的全程时长 → 60 分钟", t18.kind === "minutes" && t18.minutes === 60, t18);
+const t19 = judgeModelReply("老人家七十多了", reply({ kind: "total", quote: "七十多", question: "", other: [] }));
+check("C19 年龄数字被当成时长 → 代码算不出分钟，改为追问", t19.kind === "ask" && t19.minutes === null, t19);
+const t20 = judgeModelReply("带着八十岁的奶奶", reply({ kind: "ask", quote: "", question: "奶奶八十岁了，全程一共大概能走多久？", other: [] }));
+check("C20 追问里复述年龄（不是时长或距离）允许", t20.kind === "ask" && t20.questionFromModel === true, t20);
+const t21 = judgeModelReply("我妈一共能走四十分钟左右", reply({ kind: "total", quote: "一共能走四十分钟左右", question: "", other: [] }));
+check("C21 「四十分钟左右」按用户说的 40 分钟（「左右」不算含糊范围）", t21.kind === "minutes" && t21.minutes === 40, t21);
+const t22 = judgeModelReply("半天都行吧", reply({ kind: "total", quote: "半天都行", question: "", other: [] }));
+check("C22 「半天」不是步行时长 → 不换算，追问", t22.kind === "ask" && t22.minutes === null, t22);
+const t23 = judgeModelReply("全程走路控制在一小时以内", reply({ kind: "total", quote: "全程走路控制在一小时以内", question: "", other: [] }));
+check("C23 「一小时以内」→ 60 分钟", t23.kind === "minutes" && t23.minutes === 60, t23);
+const extraDurations = [["四十五分钟", 45], ["两个小时没问题", 120], ["一小时以内", 60], ["四十分钟左右", 40], ["七十多", null], ["八十岁", null], ["半天都行", null], ["二十分钟要歇一下", 20]];
+const extraFails = extraDurations.map(([input, expected]) => ({ input, expected, actual: parseDurationMinutes(input) })).filter((row) => row.actual !== row.expected);
+check(`C24 新增 ${extraDurations.length} 例时长换算符合期望`, extraFails.length === 0, extraFails);
+check("C25 系统提示写了「一口气 + 全程并存时按全程」与「年龄不算时长」", UNDERSTAND_SYSTEM_PROMPT.includes("同时有一口气走多久和全程走多久") && UNDERSTAND_SYSTEM_PROMPT.includes("年龄"));
+
+/* C26+. 真实 40 句探针里暴露的两类问题，改在代码里确定性处理（模型回复按探针记录手写） */
+check("B10 追问没问到「全程」（探针原句：一两个小时应该能走多久？）→ 作废", safeQuestion("一两个小时应该能走多久？", "一两个小时应该可以") === null);
+const t26 = judgeModelReply("带着八十岁的奶奶", reply({ kind: "off-topic", quote: "", question: "", other: ["带着八十岁的奶奶"] }));
+check("C26 讲的是老人年龄却被判 off-topic → 改为追问，不说「这一版还用不上」", t26.kind === "ask" && t26.question === DEFAULT_QUESTION && t26.other.length === 0 && t26.note === null, t26);
+const t27 = judgeModelReply("老人家七十多了", reply({ kind: "off-topic", quote: "", question: "", other: [] }));
+check("C27 「老人家七十多了」被判 off-topic → 改为追问", t27.kind === "ask" && t27.minutes === null, t27);
+const t28 = judgeModelReply("我妈膝盖不好，想去河坊街", reply({ kind: "ask", quote: "", question: "阿姨膝盖不好，全程一共能走多久？", other: ["我妈膝盖不好", "想去河坊街"] }));
+check("C28 「其它要求」里讲老人身体的那条不列进「用不上」，真正的其它要求保留", JSON.stringify(t28.other) === JSON.stringify(["想去河坊街"]), t28.other);
+const t29 = judgeModelReply("中午想找个地方吃饭", reply({ kind: "off-topic", quote: "", question: "", other: ["中午想找个地方吃饭"] }));
+check("C29 真正没讲走路的仍是 off-topic", t29.kind === "off-topic" && JSON.stringify(t29.other) === JSON.stringify(["中午想找个地方吃饭"]), t29);
+
 check("D1 系统提示含 JSON 字样（百炼 json_object 模式的硬性要求）", /JSON/.test(UNDERSTAND_SYSTEM_PROMPT));
 check("D2 系统提示明确写了「一口气不是全程」与「不要给出任何数字」", UNDERSTAND_SYSTEM_PROMPT.includes("一口气") && UNDERSTAND_SYSTEM_PROMPT.includes("不要自己给出任何数字"));
 

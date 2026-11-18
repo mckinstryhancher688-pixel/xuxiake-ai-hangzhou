@@ -130,7 +130,7 @@ export function ItineraryPanel({
           onClick={onToggleRoute}
           className="rounded-lg border border-line bg-paper px-3 py-1.5 text-[11px] font-medium text-ink-500 transition hover:bg-white"
         >
-          {routeId === "standard" ? "换成少走一点的 3 站版" : "换回完整 4 站版"}
+          {routeId === "standard" ? "换成精简 3 站版" : "换回完整 4 站版"}
         </button>
       </div>
 

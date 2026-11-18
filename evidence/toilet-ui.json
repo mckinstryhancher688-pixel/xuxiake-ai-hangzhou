@@ -1,6 +1,6 @@
 {
-  "checkedAt": "2026-11-17T10:28:53.269Z",
-  "baseUrl": "http://localhost:3000",
+  "checkedAt": "2026-11-18T04:15:56.743Z",
+  "baseUrl": "http://127.0.0.1:3000",
   "paid": false,
   "fixture": true,
   "fixtureNotice": "注入夹具快照；只验证洗手间标签与口径说明的渲染，不代表真实路线或真实洗手间数据。",

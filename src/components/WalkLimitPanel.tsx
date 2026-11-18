@@ -1,7 +1,15 @@
 "use client";
 import { useCallback, useState } from "react";
 import type { VerifiedItinerary } from "@/lib/types";
-import { WALK_MINUTE_OPTIONS, WALK_MINUTES_BASIS, minutesLabel } from "@/lib/walk-minutes";
+import {
+  DEFAULT_STAY_MINUTES,
+  STAY_MINUTE_OPTIONS,
+  WALK_MINUTE_OPTIONS,
+  WALK_MINUTES_BASIS,
+  billOf,
+  minutesLabel,
+  stayText,
+} from "@/lib/walk-minutes";
 /**
  * 「爸妈全程一共能走多久」——亲情场景唯一露出的一条条件。
  *
@@ -32,6 +40,8 @@ interface Explanation {
   whyDropped: { id: string | null; name: string; text: string }[];
   keptBecauseMust: string[];
   withoutLimit: { totalWalkMeters: number; totalWalkMinutes: number; stopCount: number } | null;
+  stayMinutes: number;
+  stayNote: string | null;
 }
 interface ResolveOk {
   ok: true;
@@ -63,6 +73,7 @@ export function WalkLimitPanel({
   currentWalkMinutes = null,
   currentLongestSegmentMeters = null,
   selectedMinutes,
+  selectedStay = DEFAULT_STAY_MINUTES,
   showSegmentLimit = false,
   onResolved,
 }: {
@@ -77,21 +88,31 @@ export function WalkLimitPanel({
    * 面板重新打开时据此恢复高亮，避免用户在生成前答过的话在这里「消失」。
    */
   selectedMinutes?: number | null;
+  /** 当前的每站停留分钟（D2 开放的唯一第二档调节），默认 30 */
+  selectedStay?: number;
   /**
    * 「一口气最多走多远」这一条目前不对用户露出（产品决定只保留一条）。
    * 求解器与接口仍支持单段上限，把它设为 true 就能原样恢复。
    */
   showSegmentLimit?: boolean;
-  onResolved?: (itinerary: VerifiedItinerary, applied: { maxWalkMinutes: number | null; maxSegmentMeters: number | null }) => void;
+  onResolved?: (
+    itinerary: VerifiedItinerary,
+    applied: { maxWalkMinutes: number | null | undefined; stayMinutes: number; maxSegmentMeters: number | null },
+  ) => void;
 }) {
   const [active, setActive] = useState<number | null | undefined>(selectedMinutes);
+  const [activeStay, setActiveStay] = useState<number>(selectedStay);
   const [activeSegment, setActiveSegment] = useState<number | null | undefined>(undefined);
   const [result, setResult] = useState<ResolveOk | null>(null);
   const [failure, setFailure] = useState<ResolveFail | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const resolve = useCallback(
-    async (minutes: number | null, segmentMeters?: number | null) => {
+    /**
+     * minutes 保留三态：undefined = 用户还没答（只改停留时不能把它变成「不确定」），null = 不确定，数字 = 分钟。
+     * 发给服务端时 undefined 与 null 都是「不设上限」。
+     */
+    async (minutes: number | null | undefined, stay: number, segmentMeters?: number | null) => {
       if (!factsId) {
         setError("还没有可复用的事实集，请先生成一次路线。");
         return;
@@ -100,6 +121,7 @@ export function WalkLimitPanel({
       setError(null);
       setFailure(null);
       setActive(minutes);
+      setActiveStay(stay);
       if (segmentMeters !== undefined) setActiveSegment(segmentMeters);
       try {
         const response = await fetch(RESOLVE_ENDPOINT, {
@@ -107,7 +129,8 @@ export function WalkLimitPanel({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             factsId,
-            maxWalkMinutes: minutes,
+            maxWalkMinutes: minutes ?? null,
+            stayMinutes: stay,
             ...(segmentMeters !== undefined ? { maxSegmentMeters: segmentMeters } : {}),
           }),
         });
@@ -122,6 +145,7 @@ export function WalkLimitPanel({
           setFailure(null);
           onResolved?.((body as ResolveOk).itinerary, {
             maxWalkMinutes: minutes,
+            stayMinutes: stay,
             // 单段档位在调用处显式传入；未传时表示「不改单段」，回填 null 让上层知道当前没设这条限制
             maxSegmentMeters: segmentMeters !== undefined ? segmentMeters : null,
           });
@@ -151,7 +175,7 @@ export function WalkLimitPanel({
             ? ` 当前全程步行 ${currentWalkMeters} 米。`
             : ""}
       </p>
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="全程步行上限">
         {/* 用户在首页用一句话说了菜单之外的时长（比如 45 分钟）：照样显示出来，不能让他的答案「消失」 */}
         {typeof active === "number" && !WALK_MINUTE_OPTIONS.some((option) => option.minutes === active) && (
           <span className="flex min-w-[72px] flex-1 flex-col rounded-xl border border-brand-600 bg-brand-600/10 px-3 py-2 text-left text-brand-700">
@@ -166,7 +190,7 @@ export function WalkLimitPanel({
               key={option.label}
               type="button"
               disabled={busy || !factsId}
-              onClick={() => void resolve(option.minutes)}
+              onClick={() => void resolve(option.minutes, activeStay)}
               className={`flex min-w-[72px] flex-1 flex-col rounded-xl border px-3 py-2 text-left transition ${
                 selected
                   ? "border-brand-600 bg-brand-600/10 text-brand-700"
@@ -178,6 +202,30 @@ export function WalkLimitPanel({
             </button>
           );
         })}
+      </div>
+      {/* 每站停留：D2 开放的唯一第二档调节；缓冲 20 分钟固定，不开放 */}
+      <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="每站停留多久">
+        <span className="text-[11px] font-medium text-ink-600">每站停留</span>
+        {STAY_MINUTE_OPTIONS.map((stay) => {
+          const selected = activeStay === stay && !error;
+          return (
+            <button
+              key={stay}
+              type="button"
+              disabled={busy || !factsId}
+              aria-pressed={selected}
+              onClick={() => void resolve(active, stay)}
+              className={`rounded-lg border px-2 py-1 text-[11px] font-medium transition ${
+                selected
+                  ? "border-brand-600 bg-brand-600/10 text-brand-700"
+                  : "border-line bg-paper text-ink-700 hover:border-brand-600/40"
+              } ${busy || !factsId ? "opacity-50" : ""}`}
+            >
+              {stay} 分钟
+            </button>
+          );
+        })}
+        <span className="text-[10px] text-ink-400">缓冲 20 分钟固定</span>
       </div>
       {/* 单段上限：产品上先不露出（showSegmentLimit 默认 false）。总量够短，也可能中间有一段走不动，需要时再打开。 */}
       {showSegmentLimit && currentLongestSegmentMeters !== null && currentLongestSegmentMeters > 0 && (
@@ -194,7 +242,7 @@ export function WalkLimitPanel({
                   key={option.label}
                   type="button"
                   disabled={busy || !factsId}
-                  onClick={() => void resolve(active ?? null, option.meters)}
+                  onClick={() => void resolve(active, activeStay, option.meters)}
                   className={`flex min-w-[70px] flex-1 flex-col rounded-lg border px-2 py-1.5 text-left transition ${
                     selected ? "border-brand-600 bg-brand-600/10 text-brand-700" : "border-line bg-card text-ink-700"
                   } ${busy || !factsId ? "opacity-50" : ""}`}
@@ -220,6 +268,17 @@ export function WalkLimitPanel({
           >
             {result.explanation.verdict}
           </p>
+          {(() => {
+            const bill = billOf(result.itinerary);
+            return (
+              <p className="mt-1 text-[10.5px] leading-relaxed text-ink-600" data-testid="resolve-bill">
+                合计 {bill.total} / {bill.budget} 分钟 = 步行 {bill.walk} 分钟（高德实测）＋ 停留 {stayText(bill)}（模拟）＋ 缓冲 {bill.buffer} 分钟（固定）
+              </p>
+            );
+          })()}
+          {result.explanation.stayNote && (
+            <p className="mt-0.5 text-[10.5px] leading-relaxed text-ink-500">· {result.explanation.stayNote}</p>
+          )}
           <p className="mt-0.5 text-[10px] text-ink-400">
             本次重解新增高德调用：{result.cost.newAmapCalls} 次
             {result.cost.newAmapCalls === 0 ? "（复用已实测路段）" : ""}
@@ -253,7 +312,7 @@ export function WalkLimitPanel({
           {failure.suggestion && (
             <button
               type="button"
-              onClick={() => void resolve(failure.suggestion!.maxWalkMinutes)}
+              onClick={() => void resolve(failure.suggestion!.maxWalkMinutes, activeStay)}
               className="mt-1.5 rounded-lg border border-line bg-paper px-2 py-1 text-[10.5px] text-brand-700"
             >
               按 {minutesLabel(failure.suggestion.maxWalkMinutes)} 再试（可排 {failure.suggestion.stopCount} 站）

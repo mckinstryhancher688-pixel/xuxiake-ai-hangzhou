@@ -1,30 +1,45 @@
 {
-  "checkedAt": "2026-11-17T10:27:33.069Z",
-  "baseUrl": "http://localhost:3000",
+  "checkedAt": "2026-11-18T04:20:59.062Z",
+  "baseUrl": "http://127.0.0.1:3000",
   "paid": false,
   "fixture": true,
   "fixtureNotice": "拦截 /api/verify 与 /api/resolve 返回桩结果；只验证界面与接线，不代表真实路线或真实重解结果。",
-  "resolveCalls": 5,
+  "resolveCalls": 8,
   "resolveBodies": [
     {
       "factsId": "stub-facts",
-      "maxWalkMinutes": 30
+      "maxWalkMinutes": 30,
+      "stayMinutes": 30
     },
     {
       "factsId": "stub-facts",
-      "maxWalkMinutes": 60
+      "maxWalkMinutes": 60,
+      "stayMinutes": 30
     },
     {
       "factsId": "stub-facts",
-      "maxWalkMinutes": null
+      "maxWalkMinutes": null,
+      "stayMinutes": 30
     },
     {
       "factsId": "stub-facts",
-      "maxWalkMinutes": 30
+      "maxWalkMinutes": 30,
+      "stayMinutes": 30
     },
     {
       "factsId": "stub-facts",
-      "maxWalkMinutes": 10
+      "maxWalkMinutes": 10,
+      "stayMinutes": 30
+    },
+    {
+      "factsId": "stub-facts",
+      "maxWalkMinutes": 10,
+      "stayMinutes": 60
+    },
+    {
+      "factsId": "stub-facts",
+      "maxWalkMinutes": 60,
+      "stayMinutes": 60
     }
   ],
   "density": {
@@ -32,8 +47,8 @@
     "adjustPage": {
       "oldButtons": 6,
       "oldChars": 202,
-      "newButtons": 4,
-      "newChars": 157
+      "newButtons": 8,
+      "newChars": 178
     },
     "beforeGenerate": {
       "oldButtons": 3,
@@ -43,8 +58,8 @@
     }
   },
   "dialogs": [],
-  "total": 39,
-  "passed": 39,
+  "total": 50,
+  "passed": 50,
   "checks": [
     {
       "name": "1 生成路线之前就能看到「爸妈全程一共能走多久」",
@@ -179,6 +194,38 @@
       "pass": true
     },
     {
+      "name": "7c 调整页有「每站停留」一组四档，且写明缓冲 20 分钟固定",
+      "pass": true
+    },
+    {
+      "name": "7d 默认是每站 30 分钟",
+      "pass": true
+    },
+    {
+      "name": "7e 点每站 60 分钟：恰好多 1 次请求，带 stayMinutes=60，步行上限保持上一次的 10 分钟",
+      "pass": true
+    },
+    {
+      "name": "7f 账单写出合计 = 步行 + 站数 × 每站分钟 + 缓冲（固定）",
+      "pass": true
+    },
+    {
+      "name": "7g 停留压站时显示说明",
+      "pass": true
+    },
+    {
+      "name": "7h 再改步行上限：带上刚选的每站 60 分钟",
+      "pass": true
+    },
+    {
+      "name": "7i 行程页账单同样写「2 站 × 60 分钟」和「缓冲（固定）」",
+      "pass": true
+    },
+    {
+      "name": "7j 行程页不再出现「少走一点」按钮（D1）",
+      "pass": true
+    },
+    {
       "name": "8 全程 0 弹窗；外网请求只有被拦截中止的高德 JS 底图加载器",
       "pass": true
     },
@@ -195,7 +242,19 @@
       "pass": true
     },
     {
+      "name": "10b 没回答时只改每站停留：不设步行上限，也不会把步行一栏变成「不确定」",
+      "pass": true
+    },
+    {
       "name": "11 手机端四个选项都可见且不横向溢出",
+      "pass": true
+    },
+    {
+      "name": "11b 手机端大字版默认字号：字小 / 字大 / 退出 都是一行文字，不溢出",
+      "pass": true
+    },
+    {
+      "name": "11c 手机端大字版放到最大字号：三个按钮仍然各一行，不溢出",
       "pass": true
     },
     {

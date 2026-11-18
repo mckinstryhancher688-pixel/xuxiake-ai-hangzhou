@@ -57,14 +57,15 @@ export function ElderView({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white" role="dialog" aria-modal="true" aria-label="给爸妈看的行程">
       {/* 顶部：只有字号调节与退出，避免误触 */}
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-3">
-        <span className="font-semibold text-ink-900" style={{ fontSize: px(20) }}>这次怎么走</span>
-        <div className="flex items-center gap-2">
+      {/* 窄屏上字号放大后放不下时整组按钮换到下一行，不能把「字小」拆成一字一行 */}
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line px-3 py-3 sm:px-4">
+        <span className="whitespace-nowrap font-semibold text-ink-900" style={{ fontSize: px(20) }}>这次怎么走</span>
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             aria-label="缩小字号"
             onClick={() => setScale((s) => Math.max(MIN_FONT_SCALE, Number((s - 0.15).toFixed(2))))}
-            className="rounded-xl border-2 border-line px-4 py-2 font-semibold text-ink-700"
+            className="whitespace-nowrap rounded-xl border-2 border-line px-3 py-2 font-semibold text-ink-700 sm:px-4"
             style={{ fontSize: px(16) }}
           >
             字小
@@ -73,7 +74,7 @@ export function ElderView({
             type="button"
             aria-label="放大字号"
             onClick={() => setScale((s) => Math.min(MAX_FONT_SCALE, Number((s + 0.15).toFixed(2))))}
-            className="rounded-xl border-2 border-line px-4 py-2 font-semibold text-ink-700"
+            className="whitespace-nowrap rounded-xl border-2 border-line px-3 py-2 font-semibold text-ink-700 sm:px-4"
             style={{ fontSize: px(16) }}
           >
             字大
@@ -81,7 +82,7 @@ export function ElderView({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-ink-900 px-4 py-2 font-semibold text-white"
+            className="whitespace-nowrap rounded-xl bg-ink-900 px-3 py-2 font-semibold text-white sm:px-4"
             style={{ fontSize: px(16) }}
           >
             退出

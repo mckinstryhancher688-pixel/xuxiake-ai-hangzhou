@@ -2,7 +2,13 @@ import { canExecuteSolo, solveSolo, SOLO_MIN_STOPS, type SoloConstraints } from 
 import { amapCounters } from "@/lib/server/amap";
 import { getFactSet } from "@/lib/server/facts";
 import { readBoundedJson, shortId } from "@/lib/server/plan-http";
-import { MAX_WALK_MINUTES, MIN_WALK_MINUTES } from "@/lib/walk-minutes";
+import {
+  DEFAULT_STAY_MINUTES,
+  MAX_WALK_MINUTES,
+  MIN_WALK_MINUTES,
+  STAY_MINUTE_OPTIONS,
+  isStayOption,
+} from "@/lib/walk-minutes";
 import { connection } from "next/server";
 
 /**
@@ -85,6 +91,15 @@ export async function POST(request: Request) {
   if (!limit.ok) return Response.json({ error: limit.error, code: "constraint-invalid" }, { status: 400 });
   const minutes = parseWalkMinutes(body.maxWalkMinutes);
   if (!minutes.ok) return Response.json({ error: minutes.error, code: "constraint-invalid" }, { status: 400 });
+  // 每站停留：只接受菜单里的几个数（D2），不传或 null 沿用默认 30 分钟
+  const stayRaw = body.stayMinutes;
+  if (stayRaw !== undefined && stayRaw !== null && !isStayOption(stayRaw)) {
+    return Response.json(
+      { error: `stayMinutes 只能是 ${STAY_MINUTE_OPTIONS.join(" / ")} 之一（或留空，沿用默认 ${DEFAULT_STAY_MINUTES} 分钟）。`, code: "constraint-invalid" },
+      { status: 400 },
+    );
+  }
+  const stayMinutes = isStayOption(stayRaw) ? stayRaw : DEFAULT_STAY_MINUTES;
   const segment = parseWalkLimit(body.maxSegmentMeters, "maxSegmentMeters");
   if (!segment.ok) return Response.json({ error: segment.error, code: "constraint-invalid" }, { status: 400 });
   const mustVisit = parseIdList(body.mustVisit, "mustVisit");
@@ -95,6 +110,7 @@ export async function POST(request: Request) {
   const constraints: SoloConstraints = {
     maxWalkMeters: limit.value,
     maxWalkMinutes: minutes.value,
+    stayMinutes,
     maxSegmentMeters: segment.value,
     mustVisit: mustVisit.value,
     neverAccept: neverAccept.value,

@@ -4,11 +4,8 @@ import { EvidenceBar } from "@/components/EvidenceBar";
 import { StopToiletLine, ToiletScopeNote } from "@/components/ToiletNote";
 import { sameCategories, type FlyAiPoiCategory } from "@/lib/discovery";
 import type { VerifiedRoute, VerifyPhase } from "@/hooks/useVerifiedRoute";
-import {
-  MATCH_STATUS_LABELS,
-  OPENING_STATUS_LABELS,
-  SIMULATED_STAY_MINUTES,
-} from "@/lib/verification";
+import { MATCH_STATUS_LABELS, OPENING_STATUS_LABELS } from "@/lib/verification";
+import { billOf, stayText } from "@/lib/walk-minutes";
 import type {
   CandidateMatch,
   DatumConclusion,
@@ -181,7 +178,7 @@ export function VerifiedRoutePanel({
             </p>
           ) : routeAdjusted ? (
             <p className="mt-3 rounded-lg bg-accent-500/10 px-2.5 py-2 text-[11px] leading-relaxed text-accent-700">
-              以下是「少走一点」后的当前生效路线，与地图一致；原始核验记录保留在下方。
+              以下是按你定的条件（全程能走多久、每站停留多久）重新排的当前生效路线，与地图一致；原始核验记录保留在「更多」页的调试面板里。
             </p>
           ) : null}
           <Itinerary itinerary={shownItinerary} selectedStopId={selectedStopId} arrivedStopIds={arrivedStopIds} onSelectStop={onSelectStop} toilets={report?.toilets} />
@@ -353,8 +350,8 @@ function Itinerary({
       <dl className="mt-2 flex flex-wrap gap-1.5">
         <Chip label="合计" value={`${itinerary.totalMinutes} / ${itinerary.budgetMinutes} 分钟`} tone="brand" />
         <Chip label="步行（高德）" value={`${itinerary.totalWalkMinutes} 分钟 · ${formatDistance(itinerary.totalWalkMeters)}`} />
-        <Chip label="停留（模拟）" value={`${itinerary.totalStayMinutes} 分钟`} />
-        <Chip label="缓冲" value={`${itinerary.bufferMinutes} 分钟`} />
+        <Chip label="停留（模拟）" value={stayText(billOf(itinerary))} />
+        <Chip label="缓冲（固定）" value={`${itinerary.bufferMinutes} 分钟`} />
       </dl>
 
       <p className="mt-2 text-[10px] leading-relaxed text-ink-500">
@@ -478,9 +475,9 @@ function Itinerary({
 
       <p className="mt-2 text-[10px] leading-relaxed text-ink-500">
         合计 {formatMinutes(itinerary.totalMinutes)}：步行 {itinerary.totalWalkMinutes} 分钟（
-        <SourceTag kind="amap" /> 高德实测）＋ 停留 {itinerary.totalStayMinutes} 分钟（
-        <SourceTag kind="simulated" /> 每站 {SIMULATED_STAY_MINUTES} 分钟）＋ 缓冲{" "}
-        {itinerary.bufferMinutes} 分钟，预算 {itinerary.budgetMinutes} 分钟。
+        <SourceTag kind="amap" /> 高德实测）＋ 停留 {stayText(billOf(itinerary))}（
+        <SourceTag kind="simulated" /> 模拟，可在「调整」页改）＋ 缓冲{" "}
+        {itinerary.bufferMinutes} 分钟（固定），预算 {itinerary.budgetMinutes} 分钟。
       </p>
     </div>
   );

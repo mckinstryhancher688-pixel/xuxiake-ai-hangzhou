@@ -50,8 +50,10 @@ export const UNDERSTAND_SYSTEM_PROMPT = [
   '1. 用户给出了一个明确的时长，说的是全程最多能走多久（比如「最多走一个小时」「全程走半小时没问题」），kind 为 "total"。',
   '2. 用户只说了身体情况（膝盖不好、容易累、腿脚不便），没有给时长，kind 为 "ask"。',
   '3. 用户说的是一口气、连续走多久就要歇（比如「走半小时就得歇」），那是一次走多久，不是全程，kind 为 "ask"，追问里要讲明问的是全程加起来。',
-  '4. 时长含糊（个把小时、一两个小时、不太久、一会儿），kind 为 "ask"。',
+  '4. 时长含糊（个把小时、一两个小时、一个多小时、不太久、一会儿），kind 为 "ask"。',
   '5. 话里完全没提走路或体力，kind 为 "off-topic"。',
+  '6. 一句话里同时有一口气走多久和全程走多久（比如「走半小时就累，但全程加起来一个半小时没问题」），按全程：kind 为 "total"，quote 只摘全程的那一段（比如「全程加起来一个半小时没问题」）。',
+  '7. 年龄、楼层、人数等不是步行时长的数字（比如「七十多岁」「八十岁的奶奶」）不算时长；只有这种数字、没有时长时按规则 2 处理。',
   "不要猜测，不要换算，不要自己给出任何数字。",
 ].join("\n");
 
@@ -155,6 +157,8 @@ export function safeQuestion(question: unknown, userText: string): string | null
   const value = question.trim();
   if (!value || value.length > 40) return null;
   if (!/多久|多长时间/.test(value)) return null;
+  // 必须问的是「全程」：真实探针里出现过「一两个小时应该能走多久？」这种没问到点子上的句子
+  if (!/全程|一共|加起来|总共/.test(value)) return null;
   if (!/[？?]$/.test(value)) return null;
   for (const match of normalizeText(value).matchAll(AMOUNT)) {
     if (!isVerbatim(match[0], userText)) return null;
@@ -187,6 +191,12 @@ function looksContinuous(quote: string, userText: string): boolean {
   return CONTINUOUS.test(text.slice(start, end));
 }
 
+/**
+ * 说的是老人本身（年龄、身体状况）。这类话正是这个工具要听的，不能被当成「没讲走路」，
+ * 也不能被列进「这一版还用不上」——真实探针里「带着八十岁的奶奶」就被模型判成了 off-topic。
+ */
+const ELDER_CUE = /岁|老人|老人家|爷爷|奶奶|外婆|外公|姥姥|姥爷|膝盖|腿|腰|拐杖|轮椅|体力|累|手术|血压|身体/;
+
 function cleanOther(value: unknown, userText: string): string[] {
   if (!Array.isArray(value)) return [];
   const out: string[] = [];
@@ -194,6 +204,7 @@ function cleanOther(value: unknown, userText: string): string[] {
     if (typeof item !== "string") continue;
     const trimmed = item.trim();
     if (!trimmed || trimmed.length > 24 || !isVerbatim(trimmed, userText)) continue;
+    if (ELDER_CUE.test(trimmed)) continue;
     if (!out.some((existing) => normalizeText(existing) === normalizeText(trimmed))) out.push(trimmed);
     if (out.length >= 3) break;
   }
@@ -245,6 +256,11 @@ export function judgeModelReply(userText: string, content: unknown): Understandi
 
   const other = cleanOther(parsed.other, userText);
   const kind = parsed.kind;
+
+  if (kind === "off-topic" && ELDER_CUE.test(normalizeText(userText))) {
+    // 提到了老人的年龄或身体：按「只说了情况、没给时长」处理，用默认问题追问
+    return ask(null, null, other);
+  }
 
   if (kind === "off-topic") {
     return {

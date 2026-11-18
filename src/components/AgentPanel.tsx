@@ -2,8 +2,7 @@
 
 import type { AgentController, LiveTurn } from "@/hooks/useAgent";
 import { AGENT_SOURCE_LABEL, ARRIVAL_MODE_LABEL } from "@/lib/agent";
-import { formatDistance, formatMinutes } from "@/lib/format";
-import type { AdjustResponse, AgentNarration, ExploreResponse } from "@/lib/types";
+import type { AgentNarration, ExploreResponse } from "@/lib/types";
 
 const PHASE_BADGE = {
   idle: { label: "未调用", className: "bg-paper text-ink-300 ring-1 ring-line" },
@@ -22,7 +21,7 @@ export function AgentPanel({
   agent: AgentController;
   stops: { flyaiId: string; name: string; matchStatus: string }[];
 }) {
-  const loading = agent.arrived.phase === "loading" || agent.adjusted.phase === "loading";
+  const loading = agent.arrived.phase === "loading";
 
   return (
     <section className="rounded-2xl border border-line bg-card p-4 shadow-sm">
@@ -30,8 +29,8 @@ export function AgentPanel({
         <div>
           <h2 className="text-sm font-semibold text-ink-900">在场探索 · 百炼托管智能体</h2>
           <p className="mt-1 text-xs leading-relaxed text-ink-500">
-            智能体只负责讲解与「少走哪一站」的建议；它报出的每个数字都会和高德实测值对账。
-            连续点会延续同一段对话，所以「少走一点」知道上文。
+            智能体只负责到站讲解，不改路线；它报出的每个数字都会和高德实测值对账。
+            路线只按你在「调整」页定的条件排。
           </p>
         </div>
         <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-medium ${badge(agent).className}`}>
@@ -69,7 +68,7 @@ export function AgentPanel({
           </div>
 
           <p className="mt-2 text-[10px] leading-relaxed text-ink-300">
-            先在本面板的站名里选定「当前这一站」，再用「我到了／少走一点」发起回合。
+            先在本面板的站名里选定「当前这一站」，再点「我到了」听讲解。
             一次点击＝一个真实百炼回合，地图平移缩放不会触发调用。
           </p>
         </>
@@ -96,35 +95,15 @@ export function AgentPanel({
         )
       )}
 
-      {agent.adjustment || agent.adjusted.phase === "loading" ? (
-        <AdjustResult
-          response={agent.adjustment}
-          error={agent.adjusted.error}
-          loading={agent.adjusted.phase === "loading"}
-          live={agent.live.shorten}
-          canRetry={agent.canRetryShorten}
-          onRetry={agent.shorten}
-        />
-      ) : (
-        agent.adjusted.phase === "done" &&
-        agent.adjusted.error && (
-          <Failure
-            text={agent.adjusted.error}
-            label="调整失败"
-            canRetry={agent.canRetryShorten}
-            onRetry={agent.shorten}
-          />
-        )
-      )}
     </section>
   );
 }
 
 function badge(agent: AgentController) {
-  const phases = [agent.arrived.phase, agent.adjusted.phase];
+  const phases = [agent.arrived.phase];
   if (phases.includes("loading")) return PHASE_BADGE.loading;
   const anyDone = phases.includes("done");
-  const anyOk = agent.arrival?.ok || agent.adjustment?.ok;
+  const anyOk = agent.arrival?.ok;
   if (anyDone && !anyOk) {
     return { label: "调用失败", className: "bg-red-500/10 text-red-600" };
   }
@@ -237,120 +216,6 @@ function NumericAudit({ narration }: { narration: AgentNarration }) {
         ? "。"
         : `；未匹配的 ${audit.unmatched.join("、")} 需要人工确认（智能体把几段相加得到的合计也会算未匹配）。`}
     </p>
-  );
-}
-
-/* ── 少走一点的结果 ─────────────────────────────────────────────── */
-
-function AdjustResult({
-  response,
-  error,
-  loading,
-  live,
-  canRetry,
-  onRetry,
-}: {
-  response: AdjustResponse | null;
-  error: string | null;
-  loading: boolean;
-  live: LiveTurn;
-  canRetry: boolean;
-  onRetry: () => Promise<void>;
-}) {
-  return (
-    <div className="mt-4 border-t border-line pt-3">
-      <SectionTitle>「少走一点」动态调整</SectionTitle>
-      {loading && <LiveProgress live={live} label="智能体正在给方案，服务端随后用高德逐段实测" />}
-
-      {response?.proposedNames.length ? (
-        <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
-          智能体提议只保留：{response.proposedNames.join(" → ")}
-          {response.agentReason ? `（${response.agentReason}）` : ""}
-        </p>
-      ) : null}
-
-      {response?.droppedNames.length ? (
-        <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
-          本次少走的后续地点：{response.droppedNames.join("、")}
-        </p>
-      ) : null}
-
-      {response?.firstAttemptFailure && (
-        <p className="mt-1 rounded-lg bg-accent-500/10 px-2.5 py-1.5 text-[10px] leading-relaxed text-accent-700">
-          第一个方案未通过校验：{response.firstAttemptFailure} 已把这句原样回灌给智能体并重问一次。
-        </p>
-      )}
-
-      {response && !response.ok && (
-        <Failure
-          text={
-            error ??
-            response.error ??
-            response.validationError ??
-            "调整后的方案没有通过服务端校验。"
-          }
-          label="未采用"
-          canRetry={canRetry}
-          onRetry={onRetry}
-        />
-      )}
-
-      {/* 通过校验的路线只有一份：上图 + 上方核验面板，这里不再重复渲染一遍 */}
-      {response?.ok && response.itinerary && response.savings && (
-        <Savings
-          response={response}
-          stopNames={response.itinerary.stops.map((stop) => stop.name)}
-        />
-      )}
-
-      {response?.ok && (
-        <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
-          {response.unverifiedNotes.length === 0
-            ? "未核实事项：无，后续各站的坐标核对与开放时间都没有异常。"
-            : `未核实事项：${response.unverifiedNotes.join("；")}。`}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/**
- * 「少走一点」换来的三件事。三个数都是服务端把调整前后两份高德实测行程相减得到的，
- * 智能体报的数字不进这里。
- */
-function Savings({
-  response,
-  stopNames,
-}: {
-  response: AdjustResponse;
-  stopNames: string[];
-}) {
-  const saving = response.savings!;
-  const items = [
-    { label: "少走", value: formatDistance(saving.savedMeters) },
-    { label: "少步行", value: formatMinutes(saving.savedWalkMinutes) },
-    { label: "总行程缩短", value: formatMinutes(saving.savedTotalMinutes) },
-  ];
-  return (
-    <div className="mt-2 rounded-xl border border-brand-100 bg-brand-50/60 p-3">
-      <p className="text-xs font-semibold text-ink-900">
-        {saving.fromStops} 站 → {saving.toStops} 站：
-        {stopNames.join(" → ")}
-      </p>
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        {items.map((item) => (
-          <div key={item.label} className="rounded-lg bg-white/80 px-2 py-1.5 text-center">
-            <p className="text-[10px] text-ink-500">{item.label}</p>
-            <p className="mt-0.5 text-[11px] font-semibold text-brand-700">{item.value}</p>
-          </div>
-        ))}
-      </div>
-      <p className="mt-2 text-[10px] leading-relaxed text-ink-500">
-        现在共 {response.itinerary!.stops.length} 站 / {response.itinerary!.totalMinutes} 分钟（预算{" "}
-        {response.itinerary!.budgetMinutes} 分钟），就是「高德核验路线」面板与地图里的那一条。
-        每一段都用高德步行实测校验过{response.amapNewCalls > 0 ? `，本次新发起 ${response.amapNewCalls} 次实测` : "，全部命中服务端缓存、没有新增调用"}。
-      </p>
-    </div>
   );
 }
 

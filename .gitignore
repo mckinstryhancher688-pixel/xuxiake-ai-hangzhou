@@ -69,3 +69,6 @@ evidence/phase6-12-sdk-failure-fallback.png
 evidence/phase6-13-adjust-stall.png
 evidence/phase6-14-sdk-availability.png
 evidence/phase6-accept.log
+
+# Playwright CLI 的本地会话与截图缓存（工具残留，不进仓库）
+.playwright-cli/

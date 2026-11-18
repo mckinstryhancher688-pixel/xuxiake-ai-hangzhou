@@ -204,6 +204,47 @@ check("22b 刚好等于上限时放行，并写明分钟", minGatePass.allowed =
 const minutesImpossibleAgain = solveSolo(facts, { ...none, maxWalkMinutes: 5 }, NOW);
 check("23 分钟上限的无解建议重复求解结果一致", !minutesImpossible.ok && !minutesImpossibleAgain.ok && JSON.stringify(minutesImpossible.suggestion) === JSON.stringify(minutesImpossibleAgain.suggestion));
 
+/* ───── 24+. 每站停留时长（D2）：只换模拟停留，不改实测路段 ─────
+ * 夹具手算：步行最短的 4 站 = 30 分钟，3 站 = 18 分钟；缓冲 20；半日 240。
+ *   停留 30：4 站 → 30 + 120 + 20 = 170
+ *   停留 45：4 站 → 30 + 180 + 20 = 230 ≤ 240，仍是 4 站
+ *   停留 60：4 站 → 30 + 240 + 20 = 290 > 240；3 站 → 18 + 180 + 20 = 218，所以是 3 站
+ *   停留 15：4 站 → 30 + 60 + 20 = 110
+ */
+const { withStayMinutes } = await import("../src/lib/negotiation/solo.ts");
+const stayDefault = solveSolo(facts, { ...none }, NOW);
+check("24 不传停留时长时沿用事实集的 30 分钟", stayDefault.ok && stayDefault.explanation.stayMinutes === 30 && stayDefault.solve.best.stops.every((s) => s.stayMinutes === 30), stayDefault.ok ? stayDefault.explanation.stayMinutes : null);
+
+const stay45 = solveSolo(facts, { ...none, stayMinutes: 45 }, NOW);
+check("24b 停留 45：仍排 4 站，合计 230 分钟（手算期望）", stay45.ok && stay45.solve.best.stops.length === 4 && stay45.solve.best.totalMinutes === 230 && stay45.solve.best.totalStayMinutes === 180, stay45.ok ? { stops: stay45.solve.best.stops.length, total: stay45.solve.best.totalMinutes } : stay45.reason);
+check("24c 停留 45 没压站，所以没有停留说明", stay45.ok && stay45.explanation.stayNote === null, stay45.ok ? stay45.explanation.stayNote : null);
+
+const stay60 = solveSolo(facts, { ...none, stayMinutes: 60 }, NOW);
+check("25 停留 60：只能排 3 站，合计 218 分钟（手算期望）", stay60.ok && stay60.solve.best.stops.length === 3 && stay60.solve.best.totalMinutes === 218 && stay60.solve.best.totalStayMinutes === 180, stay60.ok ? { stops: stay60.solve.best.stops.length, total: stay60.solve.best.totalMinutes } : stay60.reason);
+check("25b 每站的停留都写成 60 分钟", stay60.ok && stay60.solve.best.stops.every((s) => s.stayMinutes === 60));
+check("25c 步行仍是高德实测的那几段（3 站最短 18 分钟）", stay60.ok && stay60.solve.best.totalWalkMinutes === 18, stay60.ok ? stay60.solve.best.totalWalkMinutes : null);
+check("25d 停留压站时给出说明，两个站数都来自真实求解", stay60.ok && stay60.explanation.stayNote === "每站停留 60 分钟时，半日 240 分钟里最多排 3 站；每站停 15 分钟可以排 4 站。", stay60.ok ? stay60.explanation.stayNote : null);
+check("25e 停留压站不能被记成步行上限删站", stay60.ok && stay60.explanation.whyDropped.length === 0, stay60.ok ? stay60.explanation.whyDropped : null);
+
+const stay60walk20 = solveSolo(facts, { ...none, stayMinutes: 60, maxWalkMinutes: 20 }, NOW);
+check("26 停留 60 + 步行 20 分钟：3 站，且不把原因记到停留上（停 15 分钟也还是 3 站）", stay60walk20.ok && stay60walk20.solve.best.stops.length === 3 && stay60walk20.explanation.stayNote === null, stay60walk20.ok ? { stops: stay60walk20.solve.best.stops.length, note: stay60walk20.explanation.stayNote } : stay60walk20.reason);
+
+const stay60walk5 = solveSolo(facts, { ...none, stayMinutes: 60, maxWalkMinutes: 5 }, NOW);
+check("27 停留 60 + 步行 5 分钟：排不出，原因只点名步行上限，不点名停留", !stay60walk5.ok && stay60walk5.reason.includes("全程步行最多 5 分钟") && !stay60walk5.reason.includes("每站停留 60 分钟"), !stay60walk5.ok ? stay60walk5.reason.slice(0, 200) : "unexpected ok");
+
+check("28 求解不改动事实集原件（同一份事实集再按默认解一次，停留仍是 30）", (() => {
+  const again30 = solveSolo(facts, { ...none }, NOW);
+  return again30.ok && again30.solve.best.stops.every((s) => s.stayMinutes === 30) && facts.pool.every((s) => s.stayMinutes === 30);
+})());
+check("28b withStayMinutes 返回拷贝、实测路段原样共享", (() => {
+  const copy = withStayMinutes(facts, 45);
+  return copy !== facts && copy.legs === facts.legs && copy.pool.every((s) => s.stayMinutes === 45) && facts.pool.every((s) => s.stayMinutes === 30);
+})());
+check("28c withStayMinutes(null) 原样返回", withStayMinutes(facts, null) === facts && withStayMinutes(facts, undefined) === facts);
+
+const stay15 = solveSolo(facts, { ...none, stayMinutes: 15 }, NOW);
+check("29 停留 15：4 站，合计 110 分钟（手算期望）", stay15.ok && stay15.solve.best.stops.length === 4 && stay15.solve.best.totalMinutes === 110, stay15.ok ? stay15.solve.best.totalMinutes : stay15.reason);
+
 const failed = results.filter((item) => !item.pass);
 console.log(`\n${results.length - failed.length}/${results.length} 单人重解纯函数检查通过`);
 for (const item of failed) console.log(`未通过：${item.name}`);

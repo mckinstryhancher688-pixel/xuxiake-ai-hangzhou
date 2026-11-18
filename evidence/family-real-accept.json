@@ -1,180 +1,397 @@
 {
-  "checkedAt": "2026-11-15T13:12:22.141Z",
-  "baseUrl": "http://localhost:3000",
+  "checkedAt": "2026-11-18T04:17:26.064Z",
+  "baseUrl": "http://127.0.0.1:3000",
   "paid": true,
-  "verifySpent": 0,
-  "resolveCalls": 3,
-  "resolveBodies": [
-    {
-      "factsId": "OAvjUvaukeha3dro",
-      "maxWalkMeters": 3900
-    },
-    {
-      "factsId": "OAvjUvaukeha3dro",
-      "maxWalkMeters": 3900,
-      "maxSegmentMeters": 900
-    },
-    {
-      "factsId": "OAvjUvaukeha3dro",
-      "maxWalkMeters": null
-    }
-  ],
-  "counters": {
-    "before": {
-      "place": 22,
-      "walking": 41,
-      "total": 63,
-      "cache": 63
-    },
-    "afterVerify": {
-      "place": 22,
-      "walking": 41,
-      "total": 63,
-      "cache": 63
-    },
-    "final": {
-      "place": 22,
-      "walking": 41,
-      "total": 63,
-      "cache": 63
-    }
+  "budget": {
+    "amap": "约 28（上限 40）",
+    "flyai": 1,
+    "bailian": 0
   },
+  "actual": {
+    "amap": 37,
+    "amapPlace": 12,
+    "amapWalking": 25,
+    "flyai": 1,
+    "bailianUnderstand": 0
+  },
+  "verifySpent": 37,
+  "resolveCalls": 6,
+  "resolveAmapAfterVerify": 0,
   "realItinerary": {
+    "categories": [
+      "文创街区"
+    ],
     "stops": [
       {
         "name": "西湖天地",
-        "flyaiId": "2261",
-        "flyaiIdFromSource": true
+        "flyaiId": "2261"
       },
       {
         "name": "南宋御街",
-        "flyaiId": "1894",
-        "flyaiIdFromSource": true
+        "flyaiId": "1894"
       },
       {
         "name": "馒头山社区居委会",
-        "flyaiId": "31138149",
-        "flyaiIdFromSource": true
+        "flyaiId": "31138149"
       }
     ],
+    "totalWalkMinutes": 81,
     "totalWalkMeters": 6039,
-    "longestSegmentMeters": 2816
+    "legs": [
+      {
+        "from": "杭州西湖风景名胜区-湖滨公园",
+        "to": "西湖天地",
+        "meters": 1453,
+        "minutes": 19,
+        "polylinePoints": 68
+      },
+      {
+        "from": "西湖天地",
+        "to": "南宋御街",
+        "meters": 1770,
+        "minutes": 24,
+        "polylinePoints": 64
+      },
+      {
+        "from": "南宋御街",
+        "to": "馒头山社区居委会",
+        "meters": 2816,
+        "minutes": 38,
+        "polylinePoints": 76
+      }
+    ]
   },
+  "autoResolve": {
+    "request": {
+      "factsId": "QYuyuxMzm_E21iSd",
+      "maxWalkMinutes": 60,
+      "stayMinutes": 30
+    },
+    "ok": true,
+    "walk": 43,
+    "stops": [
+      "西湖天地",
+      "南宋御街"
+    ]
+  },
+  "steps": [
+    {
+      "step": "步行 30 分钟",
+      "request": {
+        "factsId": "QYuyuxMzm_E21iSd",
+        "maxWalkMinutes": 30,
+        "stayMinutes": 30
+      },
+      "ok": false,
+      "amapDelta": 0,
+      "newAmapCalls": 0,
+      "reason": "按当前条件最多只能排 1 个站（西湖天地），少于半日游最少需要的 2 站。取消步行时间上限后能排到 3 站，说明是「全程步行最多 30 分钟」把站点压掉了。 放宽到 43 分钟可以排 2 站（全程步行约 43 分钟）。"
+    },
+    {
+      "step": "步行 1.5 小时",
+      "request": {
+        "factsId": "QYuyuxMzm_E21iSd",
+        "maxWalkMinutes": 90,
+        "stayMinutes": 30
+      },
+      "ok": true,
+      "amapDelta": 0,
+      "newAmapCalls": 0,
+      "stops": [
+        "西湖天地",
+        "南宋御街",
+        "馒头山社区居委会"
+      ],
+      "walk": 81,
+      "total": 191,
+      "bill": {
+        "walk": 81,
+        "stay": 90,
+        "buffer": 20,
+        "stopCount": 3
+      }
+    },
+    {
+      "step": "每站停留 60 分钟",
+      "request": {
+        "factsId": "QYuyuxMzm_E21iSd",
+        "maxWalkMinutes": 90,
+        "stayMinutes": 60
+      },
+      "ok": true,
+      "amapDelta": 0,
+      "newAmapCalls": 0,
+      "stops": [
+        "西湖天地",
+        "南宋御街"
+      ],
+      "walk": 43,
+      "total": 183,
+      "bill": {
+        "walk": 43,
+        "stay": 120,
+        "buffer": 20,
+        "stopCount": 2
+      }
+    },
+    {
+      "step": "每站停留 15 分钟",
+      "request": {
+        "factsId": "QYuyuxMzm_E21iSd",
+        "maxWalkMinutes": 90,
+        "stayMinutes": 15
+      },
+      "ok": true,
+      "amapDelta": 0,
+      "newAmapCalls": 0,
+      "stops": [
+        "西湖天地",
+        "南宋御街",
+        "馒头山社区居委会"
+      ],
+      "walk": 81,
+      "total": 146,
+      "bill": {
+        "walk": 81,
+        "stay": 45,
+        "buffer": 20,
+        "stopCount": 3
+      }
+    },
+    {
+      "step": "步行 不确定",
+      "request": {
+        "factsId": "QYuyuxMzm_E21iSd",
+        "maxWalkMinutes": null,
+        "stayMinutes": 15
+      },
+      "ok": true,
+      "amapDelta": 0,
+      "newAmapCalls": 0,
+      "stops": [
+        "西湖天地",
+        "南宋御街",
+        "馒头山社区居委会"
+      ],
+      "walk": 81,
+      "total": 146,
+      "bill": {
+        "walk": 81,
+        "stay": 45,
+        "buffer": 20,
+        "stopCount": 3
+      }
+    }
+  ],
   "toilets": {
     "found": 25,
-    "nearest": [
-      {
-        "anchorName": "杭州西湖风景名胜区-湖滨公园（起点）",
-        "toiletName": "兰心公厕(湖滨三公园)",
-        "straightLineMeters": 404,
-        "address": "湖滨路23号",
-        "amapId": "B0H2DDDF0R"
-      },
-      {
-        "anchorName": "西湖天地",
-        "toiletName": "无障碍洗手间(龙井路)",
-        "straightLineMeters": 323,
-        "address": "龙井路1号杭州西湖风景名胜区内(东北角)",
-        "amapId": "B0LAGMT5VE"
-      },
-      {
-        "anchorName": "南宋御街",
-        "toiletName": "无障碍洗手间(新宫桥)",
-        "straightLineMeters": 247,
-        "address": "高银街与光复路交叉口东南60米",
-        "amapId": "B0FFH34A6Q"
-      }
-    ],
-    "newCalls": 1
+    "nearest": 3
   },
-  "blockedExternal": 1,
+  "mobile": {
+    "adjust": {
+      "controls": 8,
+      "anyOverflow": false,
+      "pageOverflows": false,
+      "chars": 178
+    },
+    "elder": {
+      "minFont": 20,
+      "buttons": 3,
+      "anyOverflow": false,
+      "pageOverflows": false
+    }
+  },
+  "blockedPosts": [],
   "dialogs": [],
   "screenshots": [
-    "family-real-total.png",
-    "family-real-segment.png",
-    "family-real-mobile.png"
+    "family-real-route.png",
+    "family-real-adjust.png",
+    "family-real-elder.png",
+    "family-real-mobile-adjust.png",
+    "family-real-mobile-elder.png"
   ],
-  "total": 20,
-  "passed": 20,
+  "counters": {
+    "before": {
+      "amapPlace": 0,
+      "amapWalking": 0,
+      "amap": 0,
+      "flyai": 0,
+      "understand": 0,
+      "agentTurns": 0,
+      "pid": 25572
+    },
+    "afterVerify": {
+      "amapPlace": 12,
+      "amapWalking": 25,
+      "amap": 37,
+      "flyai": 1,
+      "understand": 0,
+      "agentTurns": 0,
+      "pid": 25572
+    },
+    "final": {
+      "amapPlace": 12,
+      "amapWalking": 25,
+      "amap": 37,
+      "flyai": 1,
+      "understand": 0,
+      "agentTurns": 0,
+      "pid": 25572
+    }
+  },
+  "total": 38,
+  "passed": 38,
   "checks": [
     {
-      "name": "1 取得一份可行的真实报告",
+      "name": "1 真实核验产出可行行程（至少 2 站）",
       "pass": true
     },
     {
-      "name": "2 核验产出可行行程",
+      "name": "2 核验花费在预算内：高德 ≤ 40、飞猪 ≤ 1",
       "pass": true
     },
     {
-      "name": "3 核验带来源证据与无障碍洗手间查询",
+      "name": "3 核验路线的步行分钟 = 高德逐段实测分钟之和",
       "pass": true
     },
     {
-      "name": "4 本次核验高德新增在预算内（≤30）",
+      "name": "4 每段步行都带真实折线（不是两点直线）",
       "pass": true
     },
     {
-      "name": "5 面板显示真实站点名",
+      "name": "5 核验后自动按 60 分钟重排恰好 1 次",
       "pass": true
     },
     {
-      "name": "6 「爸妈能走多远？」与「一口气最多走多远？」都在",
+      "name": "5b 自动重排 0 新增高德调用，步行 ≤ 60 分钟且等于逐段之和",
       "pass": true
     },
     {
-      "name": "7 显示当前最长一段的真实米数",
+      "name": "6 地图是高德 JS API 真实底图（不是手绘示意）",
       "pass": true
     },
     {
-      "name": "8 改总上限后高德计数不变（0 新增）",
+      "name": "6b 地图上标的是真实站点名",
       "pass": true
     },
     {
-      "name": "9 回显了人话结论",
+      "name": "6c 页面上没有「少走一点」按钮（D1）",
       "pass": true
     },
     {
-      "name": "10 回显了本次新增调用次数",
+      "name": "7 步行 30 分钟：排不出时如实说明，且 0 新增高德调用",
       "pass": true
     },
     {
-      "name": "11 改单段上限后高德计数不变（0 新增）",
+      "name": "7 步行 1.5 小时：恰好 1 次重排，请求参数正确",
       "pass": true
     },
     {
-      "name": "12 单段请求确实带上了 maxSegmentMeters",
+      "name": "7b 步行 1.5 小时：0 新增高德调用（服务端计数前后一致）",
       "pass": true
     },
     {
-      "name": "13 回显里出现单段结论或如实失败说明",
+      "name": "7c 步行 1.5 小时：步行分钟 = 逐段实测之和，且 ≤ 90",
       "pass": true
     },
     {
-      "name": "14 不设限后高德计数仍不变",
+      "name": "7d 步行 1.5 小时：账单 合计 = 步行 + 站数 × 30 + 缓冲 20，且不超过 240",
       "pass": true
     },
     {
-      "name": "15 不设限如实写没有设上限",
+      "name": "7e 步行 1.5 小时：界面账单与服务端数字一致",
       "pass": true
     },
     {
-      "name": "16 行程卡上展示了无障碍洗手间（若该城有标注点）",
+      "name": "7 每站停留 60 分钟：恰好 1 次重排，请求参数正确",
       "pass": true
     },
     {
-      "name": "17 无障碍洗手间口径写明不代表整条路线无障碍",
+      "name": "7b 每站停留 60 分钟：0 新增高德调用（服务端计数前后一致）",
       "pass": true
     },
     {
-      "name": "18 全程 0 弹窗",
+      "name": "7c 每站停留 60 分钟：步行分钟 = 逐段实测之和，且 ≤ 90",
       "pass": true
     },
     {
-      "name": "19 手机端两个面板可见且不横向溢出",
+      "name": "7d 每站停留 60 分钟：账单 合计 = 步行 + 站数 × 60 + 缓冲 20，且不超过 240",
       "pass": true
     },
     {
-      "name": "20 整场结束后高德总新增仅来自那次核验",
+      "name": "7e 每站停留 60 分钟：界面账单与服务端数字一致",
+      "pass": true
+    },
+    {
+      "name": "7 每站停留 15 分钟：恰好 1 次重排，请求参数正确",
+      "pass": true
+    },
+    {
+      "name": "7b 每站停留 15 分钟：0 新增高德调用（服务端计数前后一致）",
+      "pass": true
+    },
+    {
+      "name": "7c 每站停留 15 分钟：步行分钟 = 逐段实测之和，且 ≤ 90",
+      "pass": true
+    },
+    {
+      "name": "7d 每站停留 15 分钟：账单 合计 = 步行 + 站数 × 15 + 缓冲 20，且不超过 240",
+      "pass": true
+    },
+    {
+      "name": "7e 每站停留 15 分钟：界面账单与服务端数字一致",
+      "pass": true
+    },
+    {
+      "name": "7 步行 不确定：恰好 1 次重排，请求参数正确",
+      "pass": true
+    },
+    {
+      "name": "7b 步行 不确定：0 新增高德调用（服务端计数前后一致）",
+      "pass": true
+    },
+    {
+      "name": "7c 步行 不确定：步行分钟 = 逐段实测之和",
+      "pass": true
+    },
+    {
+      "name": "7d 步行 不确定：账单 合计 = 步行 + 站数 × 15 + 缓冲 20，且不超过 240",
+      "pass": true
+    },
+    {
+      "name": "7e 步行 不确定：界面账单与服务端数字一致",
+      "pass": true
+    },
+    {
+      "name": "8 大字版打开，写的是去几个地方、走多少分钟",
+      "pass": true
+    },
+    {
+      "name": "8b 大字版正文最小字号 ≥ 18px",
+      "pass": true
+    },
+    {
+      "name": "8c 大字版不出现米数上限句式",
+      "pass": true
+    },
+    {
+      "name": "9 手机端调整页：步行 4 档 + 停留 4 档都可见且不横向溢出",
+      "pass": true
+    },
+    {
+      "name": "9b 手机端大字版：最小字号 ≥ 18px，按钮只有 3 个（字小/字大/退出）且不溢出",
+      "pass": true
+    },
+    {
+      "name": "10 核验之后的全部操作 0 新增高德调用",
+      "pass": true
+    },
+    {
+      "name": "11 全程 0 次百炼调用（讲解、读一句话都没有发起）",
+      "pass": true
+    },
+    {
+      "name": "12 全程 0 弹窗，服务进程没有重启",
       "pass": true
     }
   ]

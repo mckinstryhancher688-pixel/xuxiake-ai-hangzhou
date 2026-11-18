@@ -68,6 +68,20 @@ check("6b maxSegmentMeters 仍然工作", segment.json.ok === true && segment.js
 const both = await call({ factsId: facts.factsId, maxWalkMinutes: 60, maxWalkMeters: 1200 });
 check("7 分钟 60 + 米数 1200 同时设：行程同时满足两者", both.json.ok === true && both.json.itinerary.totalWalkMinutes <= 60 && both.json.itinerary.totalWalkMeters <= 1200, both.json.ok ? { m: both.json.itinerary.totalWalkMeters, min: both.json.itinerary.totalWalkMinutes } : both.json.reason);
 
+/* 7b. 每站停留（D2）：只接受 15/30/45/60，不传就是 30 */
+const stayDefault = await call({ factsId: facts.factsId });
+check("7b 不传 stayMinutes 时回显 30，且每站停留 30", stayDefault.json.ok === true && stayDefault.json.constraints?.stayMinutes === 30 && stayDefault.json.itinerary.stops.every((s) => s.stayMinutes === 30), stayDefault.json.constraints);
+const stay60 = await call({ factsId: facts.factsId, stayMinutes: 60 });
+check("7c stayMinutes=60：3 站、合计 218、带停留说明，0 新增高德调用", stay60.json.ok === true && stay60.json.itinerary.stops.length === 3 && stay60.json.itinerary.totalMinutes === 218 && typeof stay60.json.explanation?.stayNote === "string" && stay60.json.cost?.newAmapCalls === 0, stay60.json.ok ? { stops: stay60.json.itinerary.stops.length, total: stay60.json.itinerary.totalMinutes, note: stay60.json.explanation.stayNote } : stay60.json);
+const afterStay = await call({ factsId: facts.factsId });
+check("7d 按 60 分钟解完后，同一份事实集再按默认解仍是 30（服务端缓存没被改）", afterStay.json.ok === true && afterStay.json.itinerary.stops.every((s) => s.stayMinutes === 30));
+for (const [label, value] of [["不在菜单里的 20", 20], ["字符串", "30"], ["0", 0], ["小数", 30.5], ["90", 90]]) {
+  const bad = await call({ factsId: facts.factsId, stayMinutes: value });
+  check(`7e 非法 stayMinutes（${label}）被 400 拒绝并点名`, bad.status === 400 && bad.json.code === "constraint-invalid" && /stayMinutes/.test(bad.json.error), { status: bad.status, error: bad.json.error });
+}
+const stayNull = await call({ factsId: facts.factsId, stayMinutes: null });
+check("7f stayMinutes=null 等于不传（30）", stayNull.json.ok === true && stayNull.json.constraints?.stayMinutes === 30);
+
 /* 8. 事实集不存在：仍是 410，不自动重跑付费核验 */
 const gone = await call({ factsId: "no-such-facts", maxWalkMinutes: 30 });
 check("8 事实集不存在返回 410 facts-unavailable", gone.status === 410 && gone.json.code === "facts-unavailable", { status: gone.status, code: gone.json.code });

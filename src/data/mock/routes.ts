@@ -44,7 +44,7 @@ export const MOCK_ROUTES: JourneyRoute[] = [
   },
   {
     id: "short",
-    label: "少走一点 · 3 个地点",
+    label: "精简版 · 3 个地点",
     summary:
       "去掉城门遗址那一段绕行，从里弄直接斜切到柳浪闻莺。步行距离少约 1 公里，适合腿力有限或时间被压缩的情况。",
     poiIds: ["hubin-park", "hubian-cun", "liulang"],

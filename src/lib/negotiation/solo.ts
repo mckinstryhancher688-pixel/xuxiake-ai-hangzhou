@@ -23,6 +23,11 @@ export interface SoloConstraints {
    * 不经过「米 ↔ 分钟」换算，所以界面上问「能走多久」时不需要替用户假设步速。
    */
   maxWalkMinutes?: number | null;
+  /**
+   * 每站停留多少分钟（模拟值，用户决定 D2 开放的唯一一档调节）；缺省或 null 沿用事实集里的值（默认 30）。
+   * 它不改变任何实测路段，只改变「步行 + 停留 + 缓冲」是否放得进半日 240 分钟。
+   */
+  stayMinutes?: number | null;
   /** 一口气能走完的最长一段（米）；与总步行是两个独立约束 */
   maxSegmentMeters: number | null;
   mustVisit: string[];
@@ -78,6 +83,10 @@ export interface SoloExplanation {
   keptBecauseMust: string[];
   /** 没设上限时会是什么样（用于解释上限的作用，null 表示没算或不适用） */
   withoutLimit: { totalWalkMeters: number; totalWalkMinutes: number; stopCount: number } | null;
+  /** 这次求解用的每站停留分钟（模拟值） */
+  stayMinutes: number;
+  /** 停留时长把站数压下来时的一句说明（两次真实求解对比得出）；没有压站时为 null */
+  stayNote: string | null;
 }
 
 export interface SoloCandidate {
@@ -106,6 +115,23 @@ export type SoloSolve = SoloCandidate | SoloFailure;
  * 伪装成一条可行路线（实测：mustVisit=短名单外站点时返回单站 + 8 段未测）。
  */
 export const SOLO_MIN_STOPS = 2;
+
+/** 用来判断「是不是停留时长把站压掉了」的对照值：菜单里最短的一档。 */
+const SHORTEST_STAY_MINUTES = 15;
+
+/**
+ * 把每站停留时长套到事实集的一份浅拷贝上。只换 pool 里的 stayMinutes，实测路段原样共享、不改动，
+ * 所以事实层缓存里的那一份永远保持原值，同一份事实集可以按不同停留时长反复求解。
+ */
+export function withStayMinutes(facts: FactSet, stayMinutes: number | null | undefined): FactSet {
+  if (stayMinutes === null || stayMinutes === undefined) return facts;
+  if (facts.pool.every((stop) => stop.stayMinutes === stayMinutes)) return facts;
+  return { ...facts, pool: facts.pool.map((stop) => ({ ...stop, stayMinutes })) };
+}
+
+function stayOf(facts: FactSet): number {
+  return facts.pool[0]?.stayMinutes ?? 0;
+}
 
 function toPartyConditions(role: "A" | "B", constraints: SoloConstraints) {
   const base = emptyConditions(role);
@@ -290,10 +316,12 @@ function suggestLimit(facts: FactSet, constraints: SoloConstraints, now: Date): 
 }
 
 export function solveSolo(
-  facts: FactSet,
+  rawFacts: FactSet,
   constraints: SoloConstraints,
   now: Date = new Date(),
 ): SoloSolve {
+  // 每站停留时长只在这一次求解里生效：下面所有求解（含反事实对照、建议值）都用同一份拷贝
+  const facts = withStayMinutes(rawFacts, constraints.stayMinutes);
   const party = toPartyConditions("A", constraints);
   const solve = solveJoint(facts, party, null, now);
 
@@ -366,6 +394,13 @@ export function solveSolo(
         causes.push(`取消步行时间上限后能排到 ${minutesRelaxed.best.stops.length} 站，说明是「全程步行最多 ${minutesCap} 分钟」把站点压掉了`);
       }
     }
+    const stay = stayOf(facts);
+    if (stay > SHORTEST_STAY_MINUTES) {
+      const shorter = solveJoint(withStayMinutes(facts, SHORTEST_STAY_MINUTES), party, null, now);
+      if (shorter.best && shorter.best.stops.length > solve.best.stops.length) {
+        causes.push(`每站停留改成 ${SHORTEST_STAY_MINUTES} 分钟能排到 ${shorter.best.stops.length} 站，说明是「每站停留 ${stay} 分钟」把站点压掉了`);
+      }
+    }
 
     // 步行上限把站数压到不够时，同样要告诉用户「至少放宽到多少才排得出」，否则只知道不行、不知道改多少。
     // suggestLimit 每一步都是真实求解（其余条件原样保留），所以只有「放宽步行上限确实能排出」时才会有值。
@@ -426,6 +461,19 @@ export function solveSolo(
     if (stop) keptBecauseMust.push(stop.name);
   }
 
+  /*
+   * 停留时长压站：同样的条件、只把每站停留换成最短一档再解一次。站数变多，才说是停留压掉的；
+   * 站数不变（比如是步行上限卡住的），就不说，避免把原因记到错的那条条件上。
+   */
+  const stay = stayOf(facts);
+  let stayNote: string | null = null;
+  if (stay > SHORTEST_STAY_MINUTES) {
+    const shorter = solveJoint(withStayMinutes(facts, SHORTEST_STAY_MINUTES), party, null, now);
+    if (shorter.best && shorter.best.stops.length > itinerary.stops.length) {
+      stayNote = `每站停留 ${stay} 分钟时，半日 ${itinerary.budgetMinutes} 分钟里最多排 ${itinerary.stops.length} 站；每站停 ${SHORTEST_STAY_MINUTES} 分钟可以排 ${shorter.best.stops.length} 站。`;
+    }
+  }
+
   return {
     ok: true,
     solve,
@@ -450,6 +498,8 @@ export function solveSolo(
       whyDropped,
       keptBecauseMust,
       withoutLimit,
+      stayMinutes: stay,
+      stayNote,
     },
   };
 }

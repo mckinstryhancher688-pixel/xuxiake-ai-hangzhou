@@ -93,7 +93,9 @@ export function useAgent(
   const pickedStopId = pickedOverride ?? snapshot?.pickedStopId ?? null;
 
   const reportKey = report?.itinerary?.stops.map((stop) => stop.flyaiId).join(",") ?? "";
-  const anyAdjustment = adjustmentOverride ?? (snapshot?.adjustment?.ok ? snapshot.adjustment : null);
+  // 「少走一点」入口已删除（D1）：不再从刷新前的快照里恢复智能体给的调整路线，
+  // 否则一份不遵守用户分钟条件的旧路线会悄悄变成「当前生效路线」。
+  const anyAdjustment = adjustmentOverride;
   // 重新核验得到的是另一条路线时，旧路线上的调整与讲解都不再对应屏幕上的站，整组当没有
   const stale = Boolean(anyAdjustment?.baseItineraryKey) && reportKey !== "" && anyAdjustment?.baseItineraryKey !== reportKey;
   const adjustment = stale || executionBlocked || plan !== null ? null : anyAdjustment;
