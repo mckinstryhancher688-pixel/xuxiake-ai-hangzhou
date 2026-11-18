@@ -24,8 +24,11 @@ function probe() {
     assert.equal(end.toISOString(), `${day}T09:00:00.000Z`); // 上海 17:00
     assert.equal(window.startMinutes, 13 * 60);
     assert.equal(window.endMinutes, 17 * 60);
-    assert.match(formatHangzhouDateTime(window.startAt), /13:00:00.*Asia\/Shanghai/);
-    assert.match(formatHangzhouDateTime(end), /17:00:00.*Asia\/Shanghai/);
+    // 时区计算正确性由上面 4 个 ISO 断言保证；
+    // 这里只验证显示文案：界面不再把 IANA 时区名当作要给读者看的信息。
+    assert.match(formatHangzhouDateTime(window.startAt), /13:00:00.*杭州时间/);
+    assert.match(formatHangzhouDateTime(end), /17:00:00.*杭州时间/);
+    assert.doesNotMatch(formatHangzhouDateTime(window.startAt), /Asia\/Shanghai/);
     assert.equal(isWindowClosed([[13 * 60, 17 * 60]], window.startMinutes, window.endMinutes), false);
     assert.equal(isWindowClosed([[17 * 60, 18 * 60]], window.startMinutes, window.endMinutes), true);
 

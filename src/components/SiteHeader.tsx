@@ -1,23 +1,6 @@
 import type { JourneyContext } from "@/lib/types";
 import { formatMinutes } from "@/lib/format";
-
-/** 角标跟着当前数据来源变：核验前是演示数据，核验后必须说清真在哪里、假在哪里。 */
-export function DataBadge({ verified, className = "" }: { verified: boolean; className?: string }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-        verified
-          ? "border-brand-500/40 bg-brand-50 text-brand-700"
-          : "border-accent-500/40 bg-accent-50 text-accent-600"
-      } ${className}`}
-    >
-      <span
-        className={`size-1.5 rounded-full ${verified ? "bg-brand-500" : "bg-accent-500"}`}
-      />
-      {verified ? "真实核验数据 · 停留时长为模拟" : "演示数据 · 非实时"}
-    </span>
-  );
-}
+import { TrustBadge } from "@/components/TrustBadge";
 
 export function SiteHeader({
   context,
@@ -58,16 +41,10 @@ export function SiteHeader({
           <span>4 小时漫游</span>
         </div>
 
-        {/* 只有真实核验出来的路线才在顶部报数字；没有路线时不显示演示行程的数字（D3） */}
+        {/* 顶部只留一个标识；完整的口径说明点开才看，不再三颗胶囊并排占满右侧 */}
         {plan && (
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <DataBadge verified />
-            <span className="rounded-full border border-line bg-paper px-2.5 py-1 text-[11px] text-ink-500">
-              当前生效路线 · {plan.stops} 站 · 合计 {formatMinutes(plan.totalMinutes)}
-            </span>
-            <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-medium text-brand-700">
-              预算余 {formatMinutes(Math.max(0, plan.budgetMinutes - plan.totalMinutes))}
-            </span>
+          <div className="ml-auto">
+            <TrustBadge summary={`${plan.stops} 站 · ${formatMinutes(plan.totalMinutes)}`} />
           </div>
         )}
       </div>

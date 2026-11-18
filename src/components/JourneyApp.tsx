@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AgentPanel } from "@/components/AgentPanel";
 import { DataSourcePanel } from "@/components/DataSourcePanel";
-import { DataTrustNote } from "@/components/DataTrustNote";
 import { DebugPanel } from "@/components/DebugPanel";
 import { DiscoverPanel } from "@/components/DiscoverPanel";
 import { ElderView } from "@/components/ElderView";
@@ -13,7 +11,7 @@ import { MapPanel } from "@/components/MapPanel";
 import { NegotiationPanel } from "@/components/NegotiationPanel";
 import { PlanActionBar } from "@/components/PlanActionBar";
 import { SiteHeader } from "@/components/SiteHeader";
-import { VerifiedRoutePanel } from "@/components/VerifiedRoutePanel";
+import { AuditDetails, VerifiedRoutePanel } from "@/components/VerifiedRoutePanel";
 import { WalkLimitPanel } from "@/components/WalkLimitPanel";
 import type { VerifiedItinerary } from "@/lib/types";
 import { useAgent } from "@/hooks/useAgent";
@@ -33,10 +31,6 @@ import { DEFAULT_STAY_MINUTES, minutesLabel } from "@/lib/walk-minutes";
 type MobileTab = "map" | "plan";
 /** 生成路线之后的右栏分页：一屏只回答一个问题 */
 type PlanPage = "route" | "adjust" | "advanced";
-
-/** 已核验行程的免责说明与演示数据必须分开写，否则用户分不清哪条线是真的。 */
-const VERIFIED_DISCLAIMER =
-  "真实核验数据 · 点位坐标与步行折线均来自高德实测（折线沿真实道路，不是两点直线）；停留时长为模拟值，到达由你手动确认（不是真实 GPS）。";
 
 export function JourneyApp() {
   const journey = useJourney();
@@ -72,11 +66,6 @@ export function JourneyApp() {
     agentScope,
     jointBlocked,
   );
-  const verifiedStops = (agent.activeItinerary?.stops ?? []).map((stop) => ({
-    flyaiId: stop.flyaiId,
-    name: stop.name,
-    matchStatus: stop.matchStatus,
-  }));
   // 双人协商挂在同一份已核验事实层上：不新建第二套数据，也不改单人链路
   // 地图跟着「当前生效行程」走：智能体调整过就用调整后的，否则用（可能已被双方确认版替换过的）核验结果；
   // 两者都还没有时只能继续显示演示行程，绝不把未核验的飞猪坐标画上去。
@@ -191,7 +180,9 @@ export function JourneyApp() {
       }`}>
         {hasRoute && (
           <div
-            className={`${tab === "map" ? "block" : "hidden"} lg:sticky lg:top-4 lg:block lg:h-[calc(100dvh-7.5rem)]`}
+            // min-w-0 + overflow-hidden：grid 子项默认 min-width:auto，
+            // 地图里的 SVG 是 replaced 元素，会把整列撑宽并压到右栏上。
+            className={`min-w-0 overflow-hidden ${tab === "map" ? "block" : "hidden"} lg:sticky lg:top-4 lg:block lg:h-[calc(100dvh-7.5rem)]`}
           >
             {jointBlocked ? (
               <div className="flex min-h-[24rem] h-full items-center justify-center rounded-2xl border border-line bg-card p-6">
@@ -209,7 +200,6 @@ export function JourneyApp() {
               streets={journey.geography.streets}
               activeFeatureId={activeFeatureId}
               onSelectFeature={selectFeature}
-              disclaimer={scene === "verified" ? VERIFIED_DISCLAIMER : journey.disclaimer}
               scene={scene}
               mapConfig={mapConfig}
               undrawnLegs={verifiedScene?.undrawnLegs ?? []}
@@ -242,33 +232,45 @@ export function JourneyApp() {
             ) : <PlanActionBar route={verifiedRoute} agent={agent} categories={discover.selected} itineraryCategories={itineraryCategories} jointLocked={jointRoute !== null} preflightMinutes={preflightMinutes} onPreflightChange={setPreflightMinutes} />}
           </div>
 
-          {/* 数据可信说明：只在有路线、且停在「行程」页时展示。
-              首屏还没有任何数据可看，先不占用视觉重心。 */}
-          {hasRoute && planPage === "route" && <DataTrustNote />}
-
-          {/* 分页：一屏只回答一个问题。没路线时只有「行程」与「更多」（更多里有演示样例）。 */}
+          {/* 右栏最顶部：分页 + 大字版入口。右栏只有 25rem，横排放不下，改成两行。 */}
           {!jointBlocked && (
-            <div className="grid grid-cols-3 gap-1 rounded-xl border border-line bg-card p-1" role="tablist" aria-label="行程分页">
-              {([
-                ["route", "行程"],
-                ["adjust", "调整"],
-                ["advanced", "更多"],
-              ] as [PlanPage, string][])
-                .filter(([key]) => hasRoute || key !== "adjust")
-                .map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    role="tab"
-                    aria-selected={planPage === key}
-                    onClick={() => setPlanPage(key)}
-                    className={`rounded-lg px-3 py-2 text-xs font-medium transition ${
-                      planPage === key ? "bg-brand-700 text-white" : "text-ink-500 hover:bg-paper"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+            <div className="flex flex-col gap-2">
+              <div
+                className="grid grid-cols-3 gap-1 rounded-xl border border-line bg-card p-1"
+                role="tablist"
+                aria-label="行程分页"
+              >
+                {([
+                  ["route", "行程"],
+                  ["adjust", "调整"],
+                  ["advanced", "核验明细"],
+                ] as [PlanPage, string][])
+                  .filter(([key]) => hasRoute || key !== "adjust")
+                  .map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      role="tab"
+                      aria-selected={planPage === key}
+                      onClick={() => setPlanPage(key)}
+                      className={`rounded-lg px-2 py-2 text-xs font-medium transition ${
+                        planPage === key ? "bg-brand-700 text-white" : "text-ink-500 hover:bg-paper"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+              </div>
+              {hasRoute && (
+                <button
+                  type="button"
+                  onClick={() => setElderOpen(true)}
+                  className="flex w-full items-center justify-between rounded-xl border-2 border-brand-600/40 bg-brand-50/60 px-3 py-2 text-xs font-semibold text-brand-700 transition hover:border-brand-600"
+                >
+                  <span>给爸妈看 · 大字版</span>
+                  <span aria-hidden>›</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -286,33 +288,17 @@ export function JourneyApp() {
             {hasRoute && planPage === "route" && !jointBlocked && (
               <>
                 <VerifiedRoutePanel
-                  cityName={journey.context.city}
                   route={verifiedRoute}
                   categories={discover.selected}
                   activeItinerary={activeItinerary}
                   routeAdjusted={jointRoute ? false : routeAdjusted}
                   jointRevision={jointRoute ? (plan.snapshot?.officialRevision ?? null) : null}
-                  itineraryCategories={itineraryCategories}
                   onSelectCategories={discover.selectCategories}
                   selectedStopId={agent.selectedStopId}
                   arrivedStopIds={agent.arrivedStopIds}
                   onSelectStop={agent.selectStop}
-                  showReverify={false}
+                  agent={agent}
                 />
-                <button
-                  type="button"
-                  onClick={() => setElderOpen(true)}
-                  className="flex w-full items-center justify-between rounded-2xl border-2 border-brand-600/30 bg-brand-50/40 px-4 py-3 text-left transition hover:border-brand-600/60"
-                >
-                  <span>
-                    <span className="block text-sm font-semibold text-brand-700">给爸妈看</span>
-                    <span className="mt-0.5 block text-[11px] leading-relaxed text-ink-500">
-                      大字版：只讲去哪几个地方、走多久、厕所在哪
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-lg text-brand-700" aria-hidden>›</span>
-                </button>
-                {!jointBlocked && <AgentPanel agent={agent} stops={verifiedStops} />}
               </>
             )}
 
@@ -345,9 +331,10 @@ export function JourneyApp() {
               </>
             )}
 
-            {/* ── 更多页：类别、重新发现、双人协商、技术细节 ────── */}
+            {/* ── 核验明细页：原始记录、候选统计、坐标系、排除原因、口径 ── */}
             {hasRoute && planPage === "advanced" && !jointBlocked && (
               <>
+                <AuditDetails report={verifiedRoute.report} />
                 <div className="rounded-2xl border border-line bg-card p-3">
                   <p className="text-xs font-semibold text-ink-700">换个类别重跑</p>
                   <p className="mt-1 text-[10.5px] leading-relaxed text-ink-500">

@@ -1,6 +1,7 @@
 /** 杭州半日场景的时间口径；不读取浏览器或服务器的默认时区。 */
 export const HANGZHOU_TIME_ZONE = "Asia/Shanghai";
-export const HANGZHOU_TIME_LABEL = `杭州时间，${HANGZHOU_TIME_ZONE}`;
+/** 界面上只说「杭州时间」，不把 IANA 时区名当作读者需要的信息。 */
+export const HANGZHOU_TIME_LABEL = "杭州时间";
 
 const calendarFormatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: HANGZHOU_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit",

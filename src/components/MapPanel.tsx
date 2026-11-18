@@ -19,7 +19,6 @@ export function MapPanel({
   streets,
   activeFeatureId,
   onSelectFeature,
-  disclaimer,
   scene,
   mapConfig,
   undrawnLegs,
@@ -30,7 +29,6 @@ export function MapPanel({
   streets: MapStreet[];
   activeFeatureId: string | null;
   onSelectFeature: (id: string) => void;
-  disclaimer: string;
   scene: "verified" | "demo";
   mapConfig: MapConfigState;
   undrawnLegs: string[];
@@ -87,18 +85,13 @@ export function MapPanel({
             </li>
           )}
         </ul>
-        <p className="mt-1.5 border-t border-line pt-1.5 text-[9px] leading-relaxed text-ink-300">
-          {real
-            ? "底图：高德 JS API 2.0 真实地图"
-            : mapConfig.phase === "loading"
-              ? "底图配置确认中…"
-              : "底图：手绘示意（真实地图未启用）"}
-        </p>
+        {/* 真地图不解释；不是真地图时必须说清，否则会让人以为是真实底图 */}
+        {!real && mapConfig.phase !== "loading" && (
+          <p className="mt-1.5 border-t border-line pt-1.5 text-[9px] leading-relaxed text-ink-300">
+            示意图，非真实地图
+          </p>
+        )}
       </div>
-
-      <p className="pointer-events-none mx-3 mt-2 mb-3 rounded-lg border border-line bg-paper px-2.5 py-1.5 text-center text-[10px] leading-relaxed text-ink-500 sm:text-[11px] lg:absolute lg:right-3 lg:bottom-3 lg:left-3 lg:mx-0 lg:mt-0 lg:mb-0 lg:border-0 lg:bg-ink-900/70 lg:text-white/90 lg:backdrop-blur-sm">
-        {disclaimer}
-      </p>
     </section>
   );
 }

@@ -14,14 +14,37 @@ const PHASE_BADGE = {
   },
 } as const;
 
+/**
+ * 到站讲解。默认渲染成独立面板；embedded 模式只输出「讲解结果」本身，
+ * 供站点卡片内嵌使用（标题与站点选择在卡片里已经有了）。
+ */
 export function AgentPanel({
   agent,
   stops,
+  embedded = false,
 }: {
   agent: AgentController;
   stops: { flyaiId: string; name: string; matchStatus: string }[];
+  embedded?: boolean;
 }) {
   const loading = agent.arrived.phase === "loading";
+
+  if (embedded) {
+    // 没有发起过到达、也没有在跑时，卡片里什么都不显示
+    if (!agent.arrival && agent.arrived.phase !== "loading" && !agent.arrived.error) return null;
+    return (
+      <div className="mt-2">
+        <ArrivalResult
+          response={agent.arrival}
+          error={agent.arrived.error}
+          loading={loading}
+          live={agent.live.arrive}
+          canRetry={!loading}
+          onRetry={() => agent.arrive()}
+        />
+      </div>
+    );
+  }
 
   return (
     <section className="rounded-2xl border border-line bg-card p-4 shadow-sm">

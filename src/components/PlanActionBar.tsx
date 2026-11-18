@@ -36,7 +36,6 @@ export function PlanActionBar({
   const stops = itinerary?.stops ?? [];
   const hasRoute = stops.length > 0;
   const verifying = route.phase === "loading";
-  const agentBusy = agent.arrived.phase === "loading";
   const currentIndex = stops.findIndex((stop) => stop.flyaiId === agent.selectedStopId);
   const current = currentIndex >= 0 ? stops[currentIndex] : null;
 
@@ -69,20 +68,12 @@ export function PlanActionBar({
         当前路线来自「{itineraryCategories.join(" + ")}」；已改选「{categories.join(" + ")}」。
         {jointLocked ? "改选不会修改双方确认版本。" : "新类别尚未生成，当前仍使用原路线。"}
       </p>}
-      {/* 「少走一点」已删除（用户决定 D1）：它让托管智能体另给一条路线，不遵守用户定的分钟条件。
-          想少走就在「调整」页把分钟调小，在已实测路段上重算，不花钱。 */}
-      <button
-        type="button"
-        onClick={() => void agent.arrive()}
-        disabled={agentBusy}
-        className="w-full rounded-xl bg-accent-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {agent.arrived.phase === "loading" ? "讲解生成中…" : "我到了"}
-      </button>
-      <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
-        {current ? `正在看第 ${currentIndex + 1} 站 · ${current.name} · ` : ""}
-        全程 {stops.length} 站 / {itinerary!.totalMinutes} 分钟，已确认到达 {agent.arrivedStopIds.length} 站
-        （到达由你手动点，不是真实定位）。
+      {/* 「我到了」已内嵌到每一站的卡片里；这里只留一行状态，不再放整条横幅。
+          点哪一站就是哪一站的讲解，不需要先在这里选站。 */}
+      <p className="text-[11px] leading-relaxed text-ink-500">
+        在下方每站点「我到了」听讲解。
+        {current ? ` 当前看第 ${currentIndex + 1} 站 · ${current.name}。` : ""}
+        {" "}全程 {stops.length} 站 / {itinerary!.totalMinutes} 分钟，已到达 {agent.arrivedStopIds.length} 站。
       </p>
     </Bar>
   );

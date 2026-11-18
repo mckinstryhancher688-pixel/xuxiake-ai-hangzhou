@@ -1,16 +1,16 @@
 import { formatDistance, formatMinutes } from "@/lib/format";
 import { formatHangzhouDateTime } from "@/lib/hangzhou-time";
-import { EvidenceBar } from "@/components/EvidenceBar";
+import { AgentPanel } from "@/components/AgentPanel";
 import { StopToiletLine, ToiletScopeNote } from "@/components/ToiletNote";
 import { sameCategories, type FlyAiPoiCategory } from "@/lib/discovery";
 import type { VerifiedRoute, VerifyPhase } from "@/hooks/useVerifiedRoute";
+import type { AgentController } from "@/hooks/useAgent";
 import { MATCH_STATUS_LABELS, OPENING_STATUS_LABELS } from "@/lib/verification";
 import { billOf, stayText } from "@/lib/walk-minutes";
 import type {
   CandidateMatch,
   DatumConclusion,
   MatchStatus,
-  OpeningStatus,
   RouteStart,
   ToiletLookup,
   VerifiedItinerary,
@@ -30,12 +30,6 @@ const MATCH_BADGE: Record<MatchStatus, string> = {
   unverified: "bg-ink-300/25 text-ink-500",
 };
 
-const OPENING_BADGE: Record<OpeningStatus, string> = {
-  "open-24h": "bg-brand-600/15 text-brand-700",
-  "no-conflict": "bg-brand-600/15 text-brand-700",
-  conflict: "bg-red-500/10 text-red-600",
-  unknown: "bg-accent-500/15 text-accent-600",
-};
 
 /** 三类数据来源必须一眼分得开，所以整块面板统一用这三个标签。 */
 function SourceTag({ kind }: { kind: "flyai" | "amap" | "simulated" }) {
@@ -52,20 +46,17 @@ function SourceTag({ kind }: { kind: "flyai" | "amap" | "simulated" }) {
 }
 
 export function VerifiedRoutePanel({
-  cityName,
   route,
   categories,
   activeItinerary,
   routeAdjusted,
   jointRevision = null,
-  itineraryCategories,
   onSelectCategories,
   selectedStopId,
   arrivedStopIds,
   onSelectStop,
-  showReverify = true,
+  agent,
 }: {
-  cityName: string;
   route: VerifiedRoute;
   /** 界面上勾中的飞猪类别：候选池就是它，跟「重新发现」面板共用同一份勾选 */
   categories: FlyAiPoiCategory[];
@@ -73,13 +64,11 @@ export function VerifiedRoutePanel({
   routeAdjusted: boolean;
   /** 双方确认的正式版本号；非空时屏幕上这一份就是它，不再是单人调整结果 */
   jointRevision?: number | null;
-  itineraryCategories: FlyAiPoiCategory[];
   onSelectCategories: (categories: FlyAiPoiCategory[]) => void;
   selectedStopId: string | null;
   arrivedStopIds: string[];
   onSelectStop: (id: string) => void;
-  /** 「重新核验」属于付费的高级操作，默认只在「更多」页出现，不占首屏 */
-  showReverify?: boolean;
+  agent: AgentController;
 }) {
   const loading = route.phase === "loading";
   const report = route.report;
@@ -97,59 +86,19 @@ export function VerifiedRoutePanel({
   return (
     <section className="rounded-2xl border border-line bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-ink-900">
-            高德核验路线 · {cityName}
-            四小时可行性
-          </h2>
-          <p className="mt-1 text-xs leading-relaxed text-ink-500">
-            {official ? `正式路线来自「${itineraryCategories.join(" + ")}」的已核验事实，改选类别不会修改双方确认版本。`
-              : `下一次核验类别：「${categories.join(" + ")}」。先核实地点身份，再按高德步行数据筛选四小时路线。`}
-          </p>
-        </div>
+        <h2 className="text-sm font-semibold text-ink-900">这条路线怎么走</h2>
         <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-medium ${badge.className}`}>
           {badge.label}
         </span>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {!official && showReverify && <button
-          type="button"
-          onClick={() => {
-            void route.verify(categories);
-          }}
-          disabled={loading}
-          className="rounded-lg bg-brand-700 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading ? "核验中，服务端正在真实请求高德…" : "重新核验（真实调用高德）"}
-        </button>}
-
-        <span className="flex items-center gap-1.5 text-[10px] text-ink-300">
-          <SourceTag kind="flyai" /> 地点信息
-          <SourceTag kind="amap" /> 步行计算
-          <SourceTag kind="simulated" /> 停留时间
-        </span>
-      </div>
-
-      <p className="mt-2 text-[10px] leading-relaxed text-ink-300">
-        {official ? "这里直接复用正式行程，不需要重新发现或冷核验。"
-          : `核验可能产生数十次真实请求。成功结果整体缓存约 ${route.status ? route.status.pipelineCacheTtlSeconds / 60 : 30} 分钟；失败重试、补测或缓存过期可能新增调用。`}
-      </p>
-
+      {/* 类别切换、重新核验、恢复说明都属于「核验明细」，行程页只留一句状态 */}
       {!official && stale && (
         <p className="mt-2 rounded-lg bg-accent-50 p-2 text-[11px] leading-relaxed text-accent-700">
-          以下核验记录来自「{report.categories.join(" + ")}」；已改选「{categories.join(" + ")}」，新类别尚未完成核验。
+          已改选「{categories.join(" + ")}」，下方仍是「{report.categories.join(" + ")}」的核验结果。
         </p>
       )}
-      {!official && loading && <p className="mt-2 text-[11px] text-ink-500">正在核验「{route.requestedCategories.join(" + ")}」；下方已有记录仍属于原类别。</p>}
-
-      {!official && route.restored && report && (
-        <p className="mt-2 rounded-lg bg-paper px-2.5 py-2 text-[11px] leading-relaxed text-ink-500 ring-1 ring-line">
-          这一份是刷新前本标签页已经核验过的结果（
-          {formatHangzhouDateTime(report.generatedAt)}
-          ），原样恢复出来接着走；点「开始核验」会重新走一遍真实核验。
-        </p>
-      )}
+      {!official && loading && <p className="mt-2 text-[11px] text-ink-500">正在核验新类别，下方仍是旧结果。</p>}
 
       {!official && route.error && (
         <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/5 p-3">
@@ -181,7 +130,7 @@ export function VerifiedRoutePanel({
               以下是按你定的条件（全程能走多久、每站停留多久）重新排的当前生效路线，与地图一致；原始核验记录保留在「更多」页的调试面板里。
             </p>
           ) : null}
-          <Itinerary itinerary={shownItinerary} selectedStopId={selectedStopId} arrivedStopIds={arrivedStopIds} onSelectStop={onSelectStop} toilets={report?.toilets} />
+          <Itinerary itinerary={shownItinerary} selectedStopId={selectedStopId} arrivedStopIds={arrivedStopIds} onSelectStop={onSelectStop} agent={agent} toilets={report?.toilets} />
         </>
       )}
 
@@ -195,45 +144,59 @@ export function VerifiedRoutePanel({
         </div>
       )}
 
-      {report && (
-        <>
-          <p className="mt-3 text-[11px] font-medium text-ink-500">原始核验记录 · {report.categories.join(" + ")} · {formatHangzhouDateTime(report.generatedAt)}</p>
-          {report.amap && <p className="mt-1 text-[10px] text-ink-500">本次记录：地点请求 {report.amap.placeCalls} 次 · 步行请求 {report.amap.walkingCalls} 次 · 缓存命中 {report.amap.cacheHits} 次 · 失败 {report.amap.failedCalls} 次。</p>}
-          <CountLine report={report} />
-          <ToiletScopeNote lookup={report.toilets} />
-
-          {report.start && <StartLine start={report.start} />}
-
-          {report.error && (
-            <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/5 p-3">
-              <p className="text-[11px] font-semibold text-red-600">核验没有跑完</p>
-              <p className="mt-1 break-words text-[11px] leading-relaxed text-ink-700">
-                {report.error}
-              </p>
-            </div>
-          )}
-
-          {report.insufficiency && (
-            <div className="mt-3 rounded-xl border border-accent-500/40 bg-accent-50 p-3">
-              <p className="text-[11px] font-semibold text-accent-600">
-                未生成可行路线
-              </p>
-              <p className="mt-1 text-[11px] leading-relaxed text-ink-700">
-                {report.insufficiency}
-              </p>
-            </div>
-          )}
-
-          <details className="mt-3 rounded-lg bg-paper ring-1 ring-line">
-            <summary className="cursor-pointer px-2.5 py-2 text-[11px] font-medium text-ink-700">
-              核验依据 · 坐标系判定与飞猪原始坐标的处理方式
-            </summary>
-            <DatumLine datum={report.datum} />
-          </details>
-          <CandidateTable matches={report.matches} />
-          <RejectionList report={report} />
-        </>
+      {/* 错误与不可行说明属于「结果」，留在行程页；原始记录等审计信息移到「核验明细」页 */}
+      {report?.error && (
+        <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/5 p-3">
+          <p className="text-[11px] font-semibold text-red-600">核验没有跑完</p>
+          <p className="mt-1 break-words text-[11px] leading-relaxed text-ink-700">{report.error}</p>
+        </div>
       )}
+
+      {report?.insufficiency && (
+        <div className="mt-3 rounded-xl border border-accent-500/40 bg-accent-50 p-3">
+          <p className="text-[11px] font-semibold text-accent-600">未生成可行路线</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-ink-700">{report.insufficiency}</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * 「核验明细」页：原始记录、候选统计、坐标系判定、排除原因、洗手间口径。
+ * 从行程卡里整体搬过来，行程页因此只剩站名与距离。
+ */
+export function AuditDetails({ report }: { report: VerifyReport | null }) {
+  if (!report) {
+    return <p className="rounded-xl bg-paper px-3 py-2 text-[11px] text-ink-500">还没有核验记录。</p>;
+  }
+  return (
+    <section className="rounded-2xl border border-line bg-card p-4">
+      <p className="text-[11px] font-medium text-ink-500">
+        原始核验记录 · {report.categories.join(" + ")} · {formatHangzhouDateTime(report.generatedAt)}
+      </p>
+      <p className="mt-1 text-[10px] leading-relaxed text-ink-300">
+        核验会产生数十次真实请求；成功结果整体缓存约 30 分钟，失败重试、补测或缓存过期可能新增调用。
+      </p>
+      {report.amap && (
+        <p className="mt-1 text-[10px] text-ink-500">
+          本次记录：地点请求 {report.amap.placeCalls} 次 · 步行请求 {report.amap.walkingCalls} 次 · 缓存命中{" "}
+          {report.amap.cacheHits} 次 · 失败 {report.amap.failedCalls} 次。
+        </p>
+      )}
+      <CountLine report={report} />
+      <ToiletScopeNote lookup={report.toilets} />
+
+      {report.start && <StartLine start={report.start} />}
+
+      <details className="mt-3 rounded-lg bg-paper ring-1 ring-line">
+        <summary className="cursor-pointer px-2.5 py-2 text-[11px] font-medium text-ink-700">
+          核验依据 · 坐标系判定与飞猪原始坐标的处理方式
+        </summary>
+        <DatumLine datum={report.datum} />
+      </details>
+      <CandidateTable matches={report.matches} />
+      <RejectionList report={report} />
     </section>
   );
 }
@@ -321,12 +284,15 @@ function Itinerary({
   selectedStopId,
   arrivedStopIds,
   onSelectStop,
+  agent,
   toilets,
 }: {
   itinerary: VerifiedItinerary;
   selectedStopId: string | null;
   arrivedStopIds: string[];
   onSelectStop: (id: string) => void;
+  /** 「我到了」内嵌在每一站，需要能触发讲解 */
+  agent: AgentController;
   toilets?: ToiletLookup | null;
 }) {
   const arrived = new Set(arrivedStopIds);
@@ -349,18 +315,13 @@ function Itinerary({
 
       <dl className="mt-2 flex flex-wrap gap-1.5">
         <Chip label="合计" value={`${itinerary.totalMinutes} / ${itinerary.budgetMinutes} 分钟`} tone="brand" />
-        <Chip label="步行（高德）" value={`${itinerary.totalWalkMinutes} 分钟 · ${formatDistance(itinerary.totalWalkMeters)}`} />
-        <Chip label="停留（模拟）" value={stayText(billOf(itinerary))} />
-        <Chip label="缓冲（固定）" value={`${itinerary.bufferMinutes} 分钟`} />
+        <Chip label="步行" value={`${itinerary.totalWalkMinutes} 分钟 · ${formatDistance(itinerary.totalWalkMeters)}`} />
+        <Chip label="停留" value={stayText(billOf(itinerary))} />
+        <Chip label="缓冲" value={`${itinerary.bufferMinutes} 分钟`} />
       </dl>
 
       <p className="mt-2 text-[10px] leading-relaxed text-ink-500">
-        假定出发时间{" "}
-        <span className="font-medium text-ink-700">
-          {formatHangzhouDateTime(itinerary.assumedStartAt)}
-        </span>
-        （产品设定，用于判断营业时间冲突；不是实测时间）。步行数值全部来自高德路径规划，
-        不是直线距离换算。
+        按 {formatHangzhouDateTime(itinerary.assumedStartAt)} 出发估算；步行数值来自高德路径规划。
       </p>
 
       <ol className="mt-3">
@@ -382,91 +343,101 @@ function Itinerary({
         {itinerary.stops.map((stop, index) => {
           const leg = itinerary.legs[index];
           const isActive = stop.flyaiId === selectedStopId;
+          const isArrived = arrived.has(stop.flyaiId);
           return (
             <li key={stop.amapId || stop.flyaiId}>
               {leg && (
                 <div className="ml-2.5 flex items-center gap-2 py-1.5 pl-3">
                   <span className="w-px shrink-0 self-stretch bg-line" aria-hidden />
                   <p className="text-[11px] leading-relaxed text-ink-500">
-                    <SourceTag kind="amap" /> 步行 {leg.durationMinutes} 分钟 ·{" "}
-                    {formatDistance(leg.distanceMeters)}
-                    <span className="ml-1.5 text-[10px] text-ink-300">
-                      {leg.stepCount} 段{leg.firstInstruction ? ` · ${leg.firstInstruction}` : ""}
-                    </span>
+                    步行 {leg.durationMinutes} 分钟 · {formatDistance(leg.distanceMeters)}
                   </p>
                 </div>
               )}
 
               <div
-                className={`flex items-start gap-2 rounded-lg px-2.5 py-2 ${
-                  isActive
-                    ? "bg-accent-50 ring-2 ring-accent-500"
-                    : "bg-white/70 ring-1 ring-line"
+                className={`rounded-lg px-3 py-2.5 ${
+                  isActive ? "bg-accent-50 ring-2 ring-accent-500" : "bg-white/70 ring-1 ring-line"
                 }`}
               >
-                <span
-                  className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full text-[10px] font-semibold text-white ${
-                    arrived.has(stop.flyaiId) ? "bg-brand-700" : "bg-accent-500"
-                  }`}
-                >
-                  {arrived.has(stop.flyaiId) ? "✓" : index + 1}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                    <span className="text-[12px] font-medium text-ink-900">{stop.name}</span>
-                    <span className={`rounded px-1 py-px text-[9px] ${MATCH_BADGE[stop.matchStatus]}`}>
-                      {MATCH_STATUS_LABELS[stop.matchStatus]}
-                    </span>
-                    <span className={`rounded px-1 py-px text-[9px] ${OPENING_BADGE[stop.openingStatus]}`}>
-                      {OPENING_STATUS_LABELS[stop.openingStatus]}
-                    </span>
-                    {arrived.has(stop.flyaiId) && (
-                      <span className="rounded bg-brand-700 px-1 py-px text-[9px] text-white">
-                        已到达（手动模拟）
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => onSelectStop(stop.flyaiId)}
-                      aria-pressed={isActive}
-                      className={`ml-auto rounded px-1.5 py-0.5 text-[9px] font-medium ring-1 transition ${
-                        isActive
-                          ? "bg-accent-500 text-white ring-accent-500"
-                          : "bg-white text-ink-500 ring-line hover:bg-paper"
-                      }`}
-                    >
-                      {isActive ? "地图已定位" : "在地图定位"}
-                    </button>
+                <div className="flex items-start gap-2">
+                  <span
+                    className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full text-[10px] font-semibold text-white ${
+                      isArrived ? "bg-brand-700" : "bg-accent-500"
+                    }`}
+                  >
+                    {isArrived ? "✓" : index + 1}
                   </span>
-
-                  <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] leading-relaxed text-ink-500">
-                    <span>
-                      <SourceTag kind="amap" /> {stop.address ?? "高德未返回地址"}
-                    </span>
-                    <span>
-                      <SourceTag kind="simulated" /> 停留 {stop.stayMinutes} 分钟
-                    </span>
-                    {stop.jumpUrl && (
-                      <span>
-                        <SourceTag kind="flyai" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      <span className="text-[13px] font-medium text-ink-900">{stop.name}</span>
+                      {stop.jumpUrl && (
                         <a
                           href={stop.jumpUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="ml-1 font-medium text-brand-700 underline underline-offset-2"
+                          className="text-[11px] font-medium text-brand-700 underline underline-offset-2"
                         >
                           在飞猪查看 →
                         </a>
-                      </span>
-                    )}
-                  </span>
+                      )}
+                    </div>
 
-                  <span className="mt-1 block text-[10px] leading-relaxed text-ink-300">
-                    {stop.openingNote}
-                  </span>
-                  <EvidenceBar stop={stop} />
-                  <StopToiletLine lookup={toilets} stopName={stop.name} />
-                </span>
+                    <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
+                      {stop.address ?? "地址未返回"}
+                      <span className="mx-1 text-ink-300">·</span>
+                      停留 {stop.stayMinutes} 分钟
+                      <span className="mx-1 text-ink-300">·</span>
+                      {OPENING_STATUS_LABELS[stop.openingStatus]}
+                    </p>
+
+                    <StopToiletLine lookup={toilets} stopName={stop.name} />
+
+                    {/* 「我到了」内嵌在当前站：先选中这一站，再触发讲解 */}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={agent.arrived.phase === "loading"}
+                        onClick={() => {
+                          onSelectStop(stop.flyaiId);
+                          agent.arrive();
+                        }}
+                        className="rounded-lg bg-brand-700 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-brand-800 disabled:opacity-50"
+                      >
+                        {agent.arrived.phase === "loading" && isActive
+                          ? "讲解生成中…"
+                          : isArrived
+                            ? "我到了（再看一次）"
+                            : "我到了"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onSelectStop(stop.flyaiId)}
+                        aria-pressed={isActive}
+                        className={`rounded-lg px-2 py-1.5 text-[11px] ring-1 transition ${
+                          isActive
+                            ? "bg-accent-500 text-white ring-accent-500"
+                            : "bg-white text-ink-500 ring-line hover:bg-paper"
+                        }`}
+                      >
+                        {isActive ? "地图已定位" : "在地图定位"}
+                      </button>
+                    </div>
+
+                    {/* 讲解结果就显示在这一站下面；只有当前选中的站才渲染，避免串站 */}
+                    {isActive && (
+                      <AgentPanel
+                        agent={agent}
+                        stops={itinerary.stops.map((item) => ({
+                          flyaiId: item.flyaiId,
+                          name: item.name,
+                          matchStatus: item.matchStatus,
+                        }))}
+                        embedded
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
             </li>
           );
