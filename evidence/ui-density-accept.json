@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-11-18T06:04:31.503Z",
+  "checkedAt": "2026-11-20T05:31:31.913Z",
   "baseUrl": "http://localhost:3000",
   "paid": false,
   "fixture": true,
@@ -14,8 +14,8 @@
     "ui-density-audit.png",
     "ui-density-mobile.png"
   ],
-  "total": 33,
-  "passed": 33,
+  "total": 39,
+  "passed": 39,
   "checks": [
     {
       "name": "1 顶部分页是「行程 / 调整 / 核验明细」",
@@ -139,6 +139,30 @@
     },
     {
       "name": "14b 不是真实地图时仍如实标注「示意图」",
+      "pass": true
+    },
+    {
+      "name": "17 调整页有体力评估器",
+      "pass": true
+    },
+    {
+      "name": "17b 两条都在：全程走路 / 一口气能走",
+      "pass": true
+    },
+    {
+      "name": "17c 显示已用与上限的关系",
+      "pass": true
+    },
+    {
+      "name": "17d 未设上限时不画满格进度条",
+      "pass": true
+    },
+    {
+      "name": "18 主界面没有调试面板",
+      "pass": true
+    },
+    {
+      "name": "18b 主界面没有 LIVE / MOCK 字样",
       "pass": true
     },
     {

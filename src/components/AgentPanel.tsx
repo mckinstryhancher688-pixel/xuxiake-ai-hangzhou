@@ -7,9 +7,9 @@ import type { AgentNarration, ExploreResponse } from "@/lib/types";
 const PHASE_BADGE = {
   idle: { label: "未调用", className: "bg-paper text-ink-300 ring-1 ring-line" },
   loading: { label: "调用中…", className: "bg-accent-500/15 text-accent-600" },
-  done: { label: "LIVE · 百炼真实返回", className: "bg-brand-600/15 text-brand-700" },
+  done: { label: "已生成", className: "bg-brand-600/15 text-brand-700" },
   restored: {
-    label: "LIVE · 刷新前那一次",
+    label: "上次生成的那一次",
     className: "bg-brand-600/10 text-brand-700 ring-1 ring-brand-100",
   },
 } as const;

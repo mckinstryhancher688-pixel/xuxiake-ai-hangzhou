@@ -126,6 +126,23 @@ await d.page.screenshot({ path: path.join(EVIDENCE, "ui-density-audit.png"), ful
 check("14 地图不再显示技术性的底图说明", !auditText.includes("JS API 2.0") && !auditText.includes("手绘示意（真实地图未启用）"));
 check("14b 不是真实地图时仍如实标注「示意图」", auditText.includes("示意图，非真实地图") || auditText.includes("真实地图"));
 
+/* ── 体力评估器（调整页） ─────────────────────────────── */
+await d.page.getByRole("tab", { name: "调整" }).click();
+await d.page.waitForTimeout(600);
+const meter = d.page.locator('[aria-label="爸妈体力评估"]');
+check("17 调整页有体力评估器", (await meter.count()) === 1);
+const meterText = await meter.innerText();
+check("17b 两条都在：全程走路 / 一口气能走", meterText.includes("全程走路") && meterText.includes("一口气能走"));
+check("17c 显示已用与上限的关系", /已用 \d+ (分钟|米)/.test(meterText), meterText.split("\n").slice(0, 3).join(" | "));
+check("17d 未设上限时不画满格进度条", (await meter.getByRole("progressbar").count()) === 0, { bars: await meter.getByRole("progressbar").count() });
+
+/* ── 主界面不再有技术调试面板 ───────────────────────────── */
+await d.page.getByRole("tab", { name: "核验明细" }).click();
+await d.page.waitForTimeout(500);
+const techText = await d.page.evaluate(() => document.body.innerText);
+check("18 主界面没有调试面板", !techText.includes("开发调试面板") && !techText.includes("原始 JSON"));
+check("18b 主界面没有 LIVE / MOCK 字样", !/LIVE|MOCK/.test(techText));
+
 /* ── 手机端 ─────────────────────────────────────────────── */
 const m = await open({ width: 390, height: 844 });
 await m.page.getByRole("button", { name: "行程与探索", exact: true }).click().catch(() => {});

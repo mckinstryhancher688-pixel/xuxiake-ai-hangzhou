@@ -97,7 +97,7 @@ function ExplainCard({
         <div className="mt-2 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">
-              LIVE · 百炼真实返回
+              已生成
             </span>
             {explanation.proof ? (
               <span className="text-[10px] text-ink-500">

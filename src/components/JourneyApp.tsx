@@ -1,8 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DataSourcePanel } from "@/components/DataSourcePanel";
-import { DebugPanel } from "@/components/DebugPanel";
 import { DiscoverPanel } from "@/components/DiscoverPanel";
 import { ElderView } from "@/components/ElderView";
 import { ExplorePanel } from "@/components/ExplorePanel";
@@ -12,10 +10,10 @@ import { NegotiationPanel } from "@/components/NegotiationPanel";
 import { PlanActionBar } from "@/components/PlanActionBar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AuditDetails, VerifiedRoutePanel } from "@/components/VerifiedRoutePanel";
+import { StaminaMeter } from "@/components/StaminaMeter";
 import { WalkLimitPanel } from "@/components/WalkLimitPanel";
 import type { VerifiedItinerary } from "@/lib/types";
 import { useAgent } from "@/hooks/useAgent";
-import { agentDataSourceNote } from "@/lib/agent";
 import { useDiscover } from "@/hooks/useDiscover";
 import { useJourney } from "@/hooks/useJourney";
 import { useMapJsConfig } from "@/hooks/useMapJsConfig";
@@ -91,6 +89,8 @@ export function JourneyApp() {
   // 已经按「这份事实集 + 这个分钟数」重解成功过的记号：「调整」页的面板刚解完会回写 preflightMinutes，
   // 没有这个记号这里会再发一次一模一样的请求。
   const resolvedKeyRef = useRef<string | null>(null);
+  /** 「一口气能走」的上限；null = 没设。评估器要靠它画第二条进度条，必须能触发重渲染。 */
+  const [segmentLimitMeters, setSegmentLimitMeters] = useState<number | null>(null);
   useEffect(() => {
     // 没回答、或答了「不确定」时不重解：核验给出的就是不设上限的最优路线，没有什么可重排的
     if (!preflightFactsId || typeof preflightMinutes !== "number") return;
@@ -310,9 +310,26 @@ export function JourneyApp() {
                     {preflightNote}
                   </p>
                 )}
+                {/* 体力评估器：两条约束的「预算 vs 已用」进度条，先给结论再给调节项 */}
+                <StaminaMeter
+                  usedMinutes={activeItinerary?.totalWalkMinutes ?? null}
+                  minuteLimit={preflightMinutes ?? null}
+                  usedSegmentMeters={
+                    activeItinerary?.legs?.length
+                      ? Math.max(...activeItinerary.legs.map((leg) => leg.distanceMeters))
+                      : null
+                  }
+                  segmentLimitMeters={segmentLimitMeters}
+                />
                 {verifiedRoute.report?.ok && verifiedRoute.report.facts?.factsId ? (
                   <WalkLimitPanel
                     factsId={verifiedRoute.report.facts.factsId}
+                    showSegmentLimit
+                    currentLongestSegmentMeters={
+                      activeItinerary?.legs?.length
+                        ? Math.max(...activeItinerary.legs.map((leg) => leg.distanceMeters))
+                        : null
+                    }
                     currentWalkMeters={activeItinerary?.totalWalkMeters ?? null}
                     currentWalkMinutes={activeItinerary?.totalWalkMinutes ?? null}
                     selectedMinutes={preflightMinutes}
@@ -323,6 +340,8 @@ export function JourneyApp() {
                       resolvedKeyRef.current = `${preflightFactsId}|${applied.maxWalkMinutes}|${applied.stayMinutes}`;
                       setPreflightMinutes(applied.maxWalkMinutes);
                       setStayMinutes(applied.stayMinutes);
+                      // 评估器的第二条进度条要靠这个上限；null 会显示成「未设上限」
+                      setSegmentLimitMeters(applied.maxSegmentMeters);
                     }}
                   />
                 ) : (
@@ -388,30 +407,6 @@ export function JourneyApp() {
             )}
           </div>
 
-          {/* 数据来源与调试面板属于「更多」：首屏不该出现技术细节 */}
-          {planPage === "advanced" && (
-            <>
-              <DataSourcePanel
-                adapterNotes={[...journey.adapterNotes, agentDataSourceNote(agent.status)]}
-              />
-              <DebugPanel
-                discover={discover}
-                verified={verifiedRoute}
-                agent={agent}
-                mapConfig={mapConfig}
-                geometryNote={geometry.note}
-                demo={
-                  activeItinerary
-                    ? {
-                        label: journey.route.label,
-                        totalMinutes: journey.route.totalMinutes,
-                        stops: journey.pois.map((poi) => ({ name: poi.name, stayMinutes: poi.stayMinutes })),
-                      }
-                    : null
-                }
-              />
-            </>
-          )}
         </div>
       </main>
 

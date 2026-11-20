@@ -1,24 +1,25 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: #effcf9;
-  --color-brand-100: #ccf5ee;
-  --color-brand-500: #14b8a6;
-  --color-brand-600: #0d9488;
-  --color-brand-700: #0f766e;
+  /* 新中式温润：黛青作主色，米白作底，暖琥珀只用于强调 */
+  --color-brand-50: #f2f5f3;
+  --color-brand-100: #e2e9e5;
+  --color-brand-500: #4a6b5d;
+  --color-brand-600: #3a564a;
+  --color-brand-700: #2c3e35;
 
-  --color-accent-50: #fff8e8;
-  --color-accent-500: #f59e0b;
+  --color-accent-50: #fdf6ec;
+  --color-accent-500: #e88a2a;
   --color-accent-600: #d97706;
 
-  --color-ink-900: #10201e;
-  --color-ink-700: #2c3b39;
-  --color-ink-500: #5b6b68;
-  --color-ink-300: #9aa8a5;
+  --color-ink-900: #2c3e35;
+  --color-ink-700: #45564d;
+  --color-ink-500: #6b7a72;
+  --color-ink-300: #a3aea8;
 
-  --color-paper: #fbfaf7;
+  --color-paper: #faf8f5;
   --color-card: #ffffff;
-  --color-line: #e6e8e2;
+  --color-line: #e8e3da;
 
   --font-sans:
     var(--font-geist-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",

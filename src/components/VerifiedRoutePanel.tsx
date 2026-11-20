@@ -20,7 +20,7 @@ import type {
 const PHASE_BADGE: Record<VerifyPhase, { label: string; className: string }> = {
   idle: { label: "未核验", className: "bg-paper text-ink-300 ring-1 ring-line" },
   loading: { label: "核验中…", className: "bg-accent-500/15 text-accent-600" },
-  done: { label: "LIVE · 高德真实计算", className: "bg-brand-600/15 text-brand-700" },
+  done: { label: "已核验", className: "bg-brand-600/15 text-brand-700" },
   failed: { label: "核验失败", className: "bg-red-500/10 text-red-600" },
 };
 
@@ -127,7 +127,7 @@ export function VerifiedRoutePanel({
             </p>
           ) : routeAdjusted ? (
             <p className="mt-3 rounded-lg bg-accent-500/10 px-2.5 py-2 text-[11px] leading-relaxed text-accent-700">
-              以下是按你定的条件（全程能走多久、每站停留多久）重新排的当前生效路线，与地图一致；原始核验记录保留在「更多」页的调试面板里。
+              以下是按你定的条件（全程能走多久、每站停留多久）重新排的当前生效路线，与地图一致；原始核验记录保留在「核验明细」页。
             </p>
           ) : null}
           <Itinerary itinerary={shownItinerary} selectedStopId={selectedStopId} arrivedStopIds={arrivedStopIds} onSelectStop={onSelectStop} agent={agent} toilets={report?.toilets} />

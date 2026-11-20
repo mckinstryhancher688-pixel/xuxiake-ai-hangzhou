@@ -10,9 +10,9 @@ import type {
 const PHASE_BADGE = {
   idle: { label: "未调用", className: "bg-paper text-ink-300 ring-1 ring-line" },
   loading: { label: "调用中…", className: "bg-accent-500/15 text-accent-600" },
-  live: { label: "LIVE · 飞猪真实返回", className: "bg-brand-600/15 text-brand-700" },
+  live: { label: "真实数据", className: "bg-brand-600/15 text-brand-700" },
   failed: { label: "调用失败", className: "bg-red-500/10 text-red-600" },
-  mock: { label: "MOCK · 演示数据", className: "bg-accent-500/15 text-accent-600" },
+  mock: { label: "演示数据", className: "bg-accent-500/15 text-accent-600" },
 } as const;
 
 /** 一屏里最多摊开几张候选卡片，剩下的收起来，免得把主流程挤出首屏。 */
@@ -123,7 +123,7 @@ export function DiscoverPanel({
             onClick={discover.fallbackToMock}
             className="mt-2 rounded-lg border border-line bg-card px-2.5 py-1.5 text-[11px] font-medium text-ink-700 transition hover:bg-paper"
           >
-            改用演示数据（会明确标记为 Mock）
+            改用演示数据（会明确标注「演示数据」）
           </button>
         </div>
       )}
