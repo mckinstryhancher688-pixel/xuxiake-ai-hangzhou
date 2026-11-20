@@ -92,6 +92,10 @@ export interface DiscoveredPoi {
   coordinatesVerified: false;
   jumpUrl: string | null;
   description: string | null;
+  /** 飞猪给的主图 URL；没给就是 null，界面不画占位假图 */
+  mainPic: string | null;
+  /** 飞猪标注的收费状态，实测 10/10 都有值。"FREE" = 免费开放 */
+  freePoiStatus: string | null;
   source: DataSource;
   missingFields: DiscoveredPoiMissingField[];
   /** 飞猪返回这批数据的时间（调用凭证的 invokedAt）；缓存复用时保留原采集时间。早期记录与演示数据没有这个字段。 */
@@ -184,6 +188,10 @@ export interface CandidateMatch {
   jumpUrl: string | null;
   /** 飞猪原样返回的简介文本；第四阶段把它连同高德实测值一起喂给智能体，缺失就是 null */
   flyaiDescription: string | null;
+  /** 飞猪主图；早期记录可能没有 */
+  flyaiMainPic?: string | null;
+  /** 飞猪标注的收费状态（FREE 等）；早期记录可能没有 */
+  flyaiFreeStatus?: string | null;
   status: MatchStatus;
   /** 未匹配 / 可疑的具体原因，绝不省略 */
   reason: string | null;
@@ -290,6 +298,10 @@ export interface VerifiedStop {
   jumpUrl: string | null;
   /** 飞猪给的简介文本（未经核实的事实性文字），只作为智能体的语料，不在前端当结论展示 */
   flyaiDescription: string | null;
+  /** 飞猪主图；早期快照没有这个字段 */
+  flyaiMainPic?: string | null;
+  /** 飞猪标注的收费状态；"FREE" 表示免费开放，其它值不下结论 */
+  flyaiFreeStatus?: string | null;
   /** 飞猪返回该地点数据的时间；早期快照没有这个字段，界面只能写「查询时间未记录」 */
   flyaiCollectedAt?: string | null;
   /** id 是否飞猪原样返回且能在本次候选集合里对上；undefined = 早期记录未留存校验信息 */

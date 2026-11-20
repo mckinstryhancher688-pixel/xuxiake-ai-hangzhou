@@ -553,6 +553,8 @@ function compareCandidate(
     flyaiPosition: candidate.position,
     jumpUrl: candidate.jumpUrl,
     flyaiDescription: candidate.description ?? null,
+    flyaiMainPic: candidate.mainPic ?? null,
+    flyaiFreeStatus: candidate.freePoiStatus ?? null,
     flyaiCollectedAt: candidate.collectedAt ?? null,
     flyaiIdFromSource: flyaiIdFromSourceOf(candidate),
     deviationMeters: null,
@@ -872,6 +874,8 @@ function buildItinerary(
     openingNote: item.match.openingNote,
     jumpUrl: item.match.jumpUrl,
     flyaiDescription: item.match.flyaiDescription,
+    flyaiMainPic: item.match.flyaiMainPic ?? null,
+    flyaiFreeStatus: item.match.flyaiFreeStatus ?? null,
     flyaiCollectedAt: item.match.flyaiCollectedAt ?? null,
     flyaiIdFromSource: item.match.flyaiIdFromSource,
   }));

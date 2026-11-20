@@ -1,0 +1,99 @@
+{
+  "checkedAt": "2026-11-20T14:40:44.779Z",
+  "baseUrl": "http://localhost:3000",
+  "paid": false,
+  "paidNotice": "只调用 /api/discover（飞猪 CLI）；高德与百炼调用为 0，本次不产生任何计费请求。",
+  "cityName": "杭州",
+  "category": "文创街区",
+  "itemCount": 10,
+  "withMainPic": 10,
+  "withFreeStatus": 7,
+  "freeStatusValues": [
+    "FREE",
+    "UNKNOWN",
+    "NOT_FREE"
+  ],
+  "flyaiHourlyCalls": {
+    "before": 0,
+    "after": 1
+  },
+  "proof": {
+    "invokedAt": "2026-11-20T14:40:44.767Z",
+    "durationMs": 1148,
+    "exitCode": 0,
+    "command": "FLYAI_API_KEY=<已隐藏> node node_modules\\@fly-ai\\flyai-cli\\dist\\flyai-bundle.cjs \"search-poi\" \"--city-name\" \"杭州\" \"--category\" \"文创街区\"",
+    "cliEntry": "node_modules\\@fly-ai\\flyai-cli\\dist\\flyai-bundle.cjs",
+    "keySource": "env:FLYAI_API_KEY",
+    "stdoutBytes": 11530,
+    "cacheHit": false,
+    "rawItemCount": 10
+  },
+  "sample": [
+    {
+      "name": "清河坊街",
+      "mainPic": "https://img.alicdn.com/tfscom/TB1jXBteILJ8KJjy0FnSuwFDpXa",
+      "freePoiStatus": "FREE",
+      "missingFields": []
+    },
+    {
+      "name": "南宋御街",
+      "mainPic": "https://img.alicdn.com/tfscom/TB1o0A6exHI8KJjy1zbSuuxdpXa",
+      "freePoiStatus": "FREE",
+      "missingFields": []
+    },
+    {
+      "name": "桥西直街",
+      "mainPic": "https://img.alicdn.com/tfscom/TB1d2z1eTnI8KJjy0FfSuwdoVXa",
+      "freePoiStatus": "FREE",
+      "missingFields": []
+    },
+    {
+      "name": "良渚文化村",
+      "mainPic": "https://img.alicdn.com/imgextra/i2/6000000006215/O1CN01nIyfwC1vmWQQWUaFY_!!6000000006215-0-fliggyimage.jpg",
+      "freePoiStatus": "FREE",
+      "missingFields": []
+    },
+    {
+      "name": "南山路",
+      "mainPic": "https://img.alicdn.com/imgextra/i4/O1CN011vFXb645G1sBFTa_!!0-travel.jpg",
+      "freePoiStatus": "UNKNOWN",
+      "missingFields": []
+    }
+  ],
+  "total": 8,
+  "passed": 8,
+  "checks": [
+    {
+      "name": "0 服务端已配置飞猪 key 与 CLI",
+      "pass": true
+    },
+    {
+      "name": "1 /api/discover 返回真实批次（origin=flyai-live）",
+      "pass": true
+    },
+    {
+      "name": "2 这一批有候选",
+      "pass": true
+    },
+    {
+      "name": "3 mainPic 已解析成字段（缺失时为 null，不是 undefined）",
+      "pass": true
+    },
+    {
+      "name": "4 mainPic 只放行 http(s)，没有 javascript: 之类的值",
+      "pass": true
+    },
+    {
+      "name": "5 freePoiStatus 已解析成字段",
+      "pass": true
+    },
+    {
+      "name": "6 图片与免费标注都没进 missingFields（缺了不算数据缺失）",
+      "pass": true
+    },
+    {
+      "name": "7 本次只新增 1 次飞猪 CLI 调用，未触碰高德/百炼",
+      "pass": true
+    }
+  ]
+}

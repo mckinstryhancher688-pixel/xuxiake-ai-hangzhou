@@ -220,6 +220,24 @@ export function JourneyApp() {
             </div>
           )}
 
+          {/* 还没有路线时，先给一句「这是干什么的」，再给唯一的那一问 */}
+          {!hasRoute && !jointBlocked && (
+            <div className="rounded-3xl border border-line bg-card px-5 py-6 text-center shadow-card">
+              <span className="inline-flex items-center gap-2 rounded-full border border-line bg-paper px-3.5 py-1 text-[11px] text-ink-500">
+                <span className="size-1.5 rounded-full bg-zero-600" aria-hidden />
+                {journey.context.city}半日慢游 · 飞猪实景图文 × 高德实测步行路网
+              </span>
+              <h2 className="mt-3 font-display text-2xl leading-snug font-bold text-brand-700 sm:text-3xl">
+                陪爸妈慢逛{journey.context.district}，
+                <br className="sm:hidden" />
+                一段一段都实测过
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-ink-500">
+                飞猪出地点与实景图，高德逐段实测步行距离与耗时。先在下面回答一个问题：爸妈全程一共能走多久。
+              </p>
+            </div>
+          )}
+
           {/* 主流程按钮：窄屏钉在屏幕下沿（滚到哪一步都能点，首屏就一定看得见），
               桌面端回到右栏顶部跟随滚动。同一份组件、同一批按钮，不会出现两个入口。 */}
           <div className="fixed inset-x-0 bottom-0 z-30 p-3 lg:sticky lg:inset-x-auto lg:bottom-auto lg:top-4 lg:z-20 lg:p-0">
@@ -277,10 +295,10 @@ export function JourneyApp() {
           <div
             className={`${!hasRoute || tab === "plan" ? "flex" : "hidden"} flex-col gap-4 lg:flex lg:overflow-y-auto lg:pr-1`}
           >
-            {/* ── 还没有路线：只留「生成」这一件事（提问区已在底栏，这里只放一句说明） ── */}
+            {/* ── 还没有路线：行程页只留一句下一步，提问与生成都在上面的主流程条里 ── */}
             {!hasRoute ? (
               <p className="rounded-2xl border border-line bg-card px-4 py-3 text-[11px] leading-relaxed text-ink-500">
-                选好上面的时间，点「生成我的路线」。要用「文创街区」以外的类别，生成后到「更多」里换。
+                回答上面那一句、点「生成我的路线」即可。要换「文创街区」以外的类别，生成后到「核验明细」里换。
               </p>
             ) : null}
 

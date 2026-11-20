@@ -1,6 +1,7 @@
 import { formatDistance, formatMinutes } from "@/lib/format";
 import { formatHangzhouDateTime } from "@/lib/hangzhou-time";
 import { AgentPanel } from "@/components/AgentPanel";
+import { StopPhoto } from "@/components/StopPhoto";
 import { StopToiletLine, ToiletScopeNote } from "@/components/ToiletNote";
 import { sameCategories, type FlyAiPoiCategory } from "@/lib/discovery";
 import type { VerifiedRoute, VerifyPhase } from "@/hooks/useVerifiedRoute";
@@ -84,9 +85,9 @@ export function VerifiedRoutePanel({
     : PHASE_BADGE[route.phase];
 
   return (
-    <section className="rounded-2xl border border-line bg-card p-4 shadow-sm">
+    <section className="rounded-2xl border border-line bg-card p-4 shadow-card">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-sm font-semibold text-ink-900">这条路线怎么走</h2>
+        <h2 className="font-display text-sm font-bold text-brand-700">这条路线怎么走</h2>
         <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-medium ${badge.className}`}>
           {badge.label}
         </span>
@@ -297,16 +298,16 @@ function Itinerary({
 }) {
   const arrived = new Set(arrivedStopIds);
   return (
-    <div className="mt-3 rounded-xl border border-brand-600/30 bg-brand-50/40 p-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-xs font-semibold text-ink-900">
-          已核验的四小时步行行程 · {itinerary.stops.length} 站
+    <div className="mt-3 rounded-2xl border border-line bg-paper/70 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-display text-sm font-bold text-brand-700">
+          已排好 {itinerary.stops.length} 站 · 四小时内走得完
         </h3>
         <span
-          className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${
+          className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${
             itinerary.feasible
-              ? "bg-brand-600 text-white"
-              : "bg-red-500/15 text-red-600"
+              ? "border-zero-600/25 bg-zero-50 text-zero-600"
+              : "border-warn-600/25 bg-warn-50 text-warn-600"
           }`}
         >
           {itinerary.feasible ? "四小时内可完成" : "超出四小时"}
@@ -325,16 +326,16 @@ function Itinerary({
       </p>
 
       <ol className="mt-3">
-        <li className="flex items-start gap-2 rounded-lg bg-white/70 px-2.5 py-2 ring-1 ring-line">
-          <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-brand-700 text-[10px] font-semibold text-white">
+        <li className="flex items-start gap-2.5 rounded-2xl border border-line bg-card px-3.5 py-2.5 shadow-card">
+          <span className="grid size-5 shrink-0 place-items-center rounded-md bg-brand-700 font-display text-[11px] font-bold text-white">
             起
           </span>
           <span className="min-w-0 text-[12px] font-medium text-ink-900">
-            {itinerary.start.name}
+            <span className="font-display font-bold">{itinerary.start.name}</span>
             <span className="ml-1.5">
               <SourceTag kind="amap" />
             </span>
-            <span className="mt-0.5 block text-[10px] font-normal text-ink-300">
+            <span className="mt-0.5 block text-[10px] font-normal text-ink-400">
               {itinerary.start.address ?? "高德未返回地址"}
             </span>
           </span>
@@ -344,101 +345,142 @@ function Itinerary({
           const leg = itinerary.legs[index];
           const isActive = stop.flyaiId === selectedStopId;
           const isArrived = arrived.has(stop.flyaiId);
+          const isFree = stop.flyaiFreeStatus === "FREE";
           return (
             <li key={stop.amapId || stop.flyaiId}>
               {leg && (
-                <div className="ml-2.5 flex items-center gap-2 py-1.5 pl-3">
-                  <span className="w-px shrink-0 self-stretch bg-line" aria-hidden />
-                  <p className="text-[11px] leading-relaxed text-ink-500">
-                    步行 {leg.durationMinutes} 分钟 · {formatDistance(leg.distanceMeters)}
+                <div className="relative py-2.5 pl-10">
+                  {/* 虚线时间轴：与卡片里的序号方块同一条竖线（左 24px） */}
+                  <span
+                    className="absolute top-0 bottom-0 left-6 border-l-2 border-dashed border-brand-700/25"
+                    aria-hidden
+                    data-testid="leg-line"
+                  />
+                  <p
+                    className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-3 py-1 text-[11px] text-ink-700 shadow-sm"
+                    data-testid="leg-chip"
+                  >
+                    <span aria-hidden>🚶</span>
+                    <span>
+                      高德实测步行{" "}
+                      <strong className="font-semibold text-brand-700 tabular-nums">
+                        {formatDistance(leg.distanceMeters)}
+                      </strong>{" "}
+                      · 约 {leg.durationMinutes} 分钟
+                    </span>
                   </p>
                 </div>
               )}
 
-              <div
-                className={`rounded-lg px-3 py-2.5 ${
-                  isActive ? "bg-accent-50 ring-2 ring-accent-500" : "bg-white/70 ring-1 ring-line"
+              <article
+                className={`rounded-2xl border bg-card p-3.5 transition shadow-card ${
+                  isActive
+                    ? "border-brand-700 ring-1 ring-brand-700/20"
+                    : "border-line hover:border-brand-700/40"
                 }`}
               >
-                <div className="flex items-start gap-2">
-                  <span
-                    className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full text-[10px] font-semibold text-white ${
-                      isArrived ? "bg-brand-700" : "bg-accent-500"
-                    }`}
-                  >
-                    {isArrived ? "✓" : index + 1}
+                <div className="flex items-start gap-3.5">
+                  <span data-testid="stop-photo">
+                    <StopPhoto src={stop.flyaiMainPic} name={stop.name} />
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                      <span className="text-[13px] font-medium text-ink-900">{stop.name}</span>
+
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <span
+                          className={`grid size-5 shrink-0 place-items-center rounded-md font-display text-[11px] font-bold text-white tabular-nums ${
+                            isArrived ? "bg-zero-600" : "bg-brand-700"
+                          }`}
+                        >
+                          {isArrived ? "✓" : index + 1}
+                        </span>
+                        <h4 className="truncate font-display text-sm font-bold text-ink-900">{stop.name}</h4>
+                        {isFree && (
+                          <span
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-zero-600/20 bg-zero-50 px-2 py-px text-[10px] font-semibold text-zero-600"
+                            data-testid="free-badge"
+                            title="飞猪标注的免费开放状态；门票与当天是否开放以现场为准"
+                          >
+                            免费
+                            <SourceTag kind="flyai" />
+                          </span>
+                        )}
+                      </div>
                       {stop.jumpUrl && (
                         <a
                           href={stop.jumpUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[11px] font-medium text-brand-700 underline underline-offset-2"
+                          className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-line bg-paper px-2 py-0.5 text-[11px] font-semibold text-accent-600 transition hover:bg-accent-soft/60"
                         >
-                          在飞猪查看 →
+                          飞猪详情
+                          <span aria-hidden>↗</span>
                         </a>
                       )}
                     </div>
 
-                    <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
+                    <p className="truncate text-[11px] leading-relaxed text-ink-500">
                       {stop.address ?? "地址未返回"}
-                      <span className="mx-1 text-ink-300">·</span>
-                      停留 {stop.stayMinutes} 分钟
-                      <span className="mx-1 text-ink-300">·</span>
-                      {OPENING_STATUS_LABELS[stop.openingStatus]}
                     </p>
 
-                    <StopToiletLine lookup={toilets} stopName={stop.name} />
-
-                    {/* 「我到了」内嵌在当前站：先选中这一站，再触发讲解 */}
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={agent.arrived.phase === "loading"}
-                        onClick={() => {
-                          onSelectStop(stop.flyaiId);
-                          agent.arrive();
-                        }}
-                        className="rounded-lg bg-brand-700 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-brand-800 disabled:opacity-50"
-                      >
-                        {agent.arrived.phase === "loading" && isActive
-                          ? "讲解生成中…"
-                          : isArrived
-                            ? "我到了（再看一次）"
-                            : "我到了"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onSelectStop(stop.flyaiId)}
-                        aria-pressed={isActive}
-                        className={`rounded-lg px-2 py-1.5 text-[11px] ring-1 transition ${
-                          isActive
-                            ? "bg-accent-500 text-white ring-accent-500"
-                            : "bg-white text-ink-500 ring-line hover:bg-paper"
-                        }`}
-                      >
-                        {isActive ? "地图已定位" : "在地图定位"}
-                      </button>
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]">
+                      <span className="inline-flex items-center gap-1 font-medium text-zero-600">
+                        <span className="size-1.5 rounded-full bg-zero-600" aria-hidden />
+                        {OPENING_STATUS_LABELS[stop.openingStatus]}
+                      </span>
+                      <span className="text-ink-500">
+                        停留 {stop.stayMinutes} 分钟
+                      </span>
                     </div>
 
-                    {/* 讲解结果就显示在这一站下面；只有当前选中的站才渲染，避免串站 */}
-                    {isActive && (
-                      <AgentPanel
-                        agent={agent}
-                        stops={itinerary.stops.map((item) => ({
-                          flyaiId: item.flyaiId,
-                          name: item.name,
-                          matchStatus: item.matchStatus,
-                        }))}
-                        embedded
-                      />
-                    )}
+                    <StopToiletLine lookup={toilets} stopName={stop.name} />
                   </div>
                 </div>
-              </div>
+
+                {/* 「我到了」内嵌在当前站：先选中这一站，再触发讲解 */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-2.5">
+                  <button
+                    type="button"
+                    disabled={agent.arrived.phase === "loading"}
+                    onClick={() => {
+                      onSelectStop(stop.flyaiId);
+                      agent.arrive();
+                    }}
+                    className="rounded-xl bg-brand-700 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-brand-800 disabled:opacity-50"
+                  >
+                    {agent.arrived.phase === "loading" && isActive
+                      ? "讲解生成中…"
+                      : isArrived
+                        ? "我到了（再看一次）"
+                        : "我到了"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSelectStop(stop.flyaiId)}
+                    aria-pressed={isActive}
+                    className={`rounded-xl px-2.5 py-1.5 text-[11px] ring-1 transition ${
+                      isActive
+                        ? "bg-accent-soft text-accent-600 ring-accent-600/30"
+                        : "bg-paper text-ink-500 ring-line hover:bg-card"
+                    }`}
+                  >
+                    {isActive ? "地图已定位" : "在地图定位"}
+                  </button>
+                </div>
+
+                {/* 讲解结果就显示在这一站下面；只有当前选中的站才渲染，避免串站 */}
+                {isActive && (
+                  <AgentPanel
+                    agent={agent}
+                    stops={itinerary.stops.map((item) => ({
+                      flyaiId: item.flyaiId,
+                      name: item.name,
+                      matchStatus: item.matchStatus,
+                    }))}
+                    embedded
+                  />
+                )}
+              </article>
             </li>
           );
         })}

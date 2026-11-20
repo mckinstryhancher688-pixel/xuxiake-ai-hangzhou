@@ -7,23 +7,38 @@
   --color-brand-500: #4a6b5d;
   --color-brand-600: #3a564a;
   --color-brand-700: #2c3e35;
+  --color-brand-800: #1f2d26;
 
   --color-accent-50: #fdf6ec;
   --color-accent-500: #e88a2a;
   --color-accent-600: #d97706;
+  --color-accent-soft: #fef3c7;
 
   --color-ink-900: #2c3e35;
   --color-ink-700: #45564d;
+  --color-ink-600: #57655e;
   --color-ink-500: #6b7a72;
+  --color-ink-400: #8b968f;
   --color-ink-300: #a3aea8;
 
   --color-paper: #faf8f5;
   --color-card: #ffffff;
-  --color-line: #e8e3da;
+  --color-line: #eae5dc;
+  /* 「免费 / 零消耗」专用语义绿，不与品牌黛青混用 */
+  --color-zero-50: #f0fdf4;
+  --color-zero-600: #15803d;
+  --color-warn-50: #fef2f2;
+  --color-warn-600: #b91c1c;
 
+  /* 标题用宋体系：本机装了思源宋体就用它，没装也不联网下载，退回系统宋体 */
+  --font-display:
+    "Noto Serif SC", "Songti SC", "SimSun", "STSong", serif;
   --font-sans:
     var(--font-geist-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     "Noto Sans SC", sans-serif;
+
+  --shadow-card: 0 4px 20px -4px rgba(44, 62, 53, 0.06);
+  --shadow-card-hover: 0 12px 28px -8px rgba(44, 62, 53, 0.12);
 }
 
 body {

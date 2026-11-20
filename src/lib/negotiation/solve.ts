@@ -64,6 +64,8 @@ function toStop(facts: FactSet, id: string): VerifiedStop {
     openingNote: stop.openingNote,
     jumpUrl: stop.jumpUrl ?? null,
     flyaiDescription: stop.flyaiDescription ?? null,
+    flyaiMainPic: stop.flyaiMainPic ?? null,
+    flyaiFreeStatus: stop.flyaiFreeStatus ?? null,
     flyaiCollectedAt: stop.flyaiCollectedAt ?? null,
     flyaiIdFromSource: stop.flyaiIdFromSource,
   };

@@ -12,6 +12,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 /**
  * ⚠️ MOCK DATA — 只在 /api/discover 失败、用户主动点击「改用演示数据」时展示。
  * 演示 POI 本来就没有地址、飞猪链接与简介，缺失字段照实标出，不拿别的字段冒充。
+ * 实景图与免费标注同样没有：界面退成写站名的占位块，绝不塞一张看着像照片的假图。
  */
 export const MOCK_DISCOVERED_POIS: DiscoveredPoi[] = MOCK_POIS.map((poi) => ({
   id: poi.id,
@@ -22,6 +23,8 @@ export const MOCK_DISCOVERED_POIS: DiscoveredPoi[] = MOCK_POIS.map((poi) => ({
   coordinatesVerified: false,
   jumpUrl: null,
   description: null,
+  mainPic: null,
+  freePoiStatus: null,
   source: "mock",
   missingFields: ["address", "jumpUrl", "description"],
 }));

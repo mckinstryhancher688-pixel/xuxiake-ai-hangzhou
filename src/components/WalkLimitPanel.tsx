@@ -162,10 +162,12 @@ export function WalkLimitPanel({
     [factsId, onResolved],
   );
   return (
-    <section className="rounded-2xl border border-line bg-card p-3 shadow-sm" aria-label="爸妈能走多久">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-ink-700">爸妈全程一共能走多久？</h2>
-        <span className="text-[10px] text-ink-400">改上限不再花钱</span>
+    <section className="rounded-2xl border border-line bg-card p-3.5 shadow-card" aria-label="爸妈能走多久">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-display text-sm font-bold text-brand-700">爸妈全程一共能走多久？</h2>
+        <span className="rounded-full border border-zero-600/25 bg-zero-50 px-2.5 py-0.5 text-[10px] font-semibold text-zero-600">
+          改上限不再花钱
+        </span>
       </div>
       <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
         路线已经用高德实测过了。这里只按你选的时间重新排，不会再请求高德。

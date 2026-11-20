@@ -20,11 +20,11 @@ export function SiteHeader({
     <header className="border-b border-line bg-card/90 backdrop-blur">
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-brand-700 text-lg font-semibold text-white">
+          <span className="grid size-10 place-items-center rounded-xl bg-brand-700 font-display text-lg font-bold text-white">
             徐
           </span>
           <div>
-            <h1 className="text-base leading-tight font-semibold tracking-tight text-ink-900">
+            <h1 className="font-display text-base leading-tight font-bold tracking-tight text-brand-700">
               徐霞客 AI
             </h1>
             <p className="text-xs text-ink-500">走到哪儿，看到哪儿</p>

@@ -36,6 +36,9 @@ export interface FactStop {
   address?: string | null;
   jumpUrl?: string | null;
   flyaiDescription?: string | null;
+  /** 飞猪给的主图与收费状态；早期事实集没有这两个字段，界面按缺失处理 */
+  flyaiMainPic?: string | null;
+  flyaiFreeStatus?: string | null;
   /** 飞猪给的类别与高德给的评分：都是这一轮已经付过费拿到的字段，缺失就是 null */
   category?: string | null;
   rating?: string | null;

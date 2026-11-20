@@ -10,7 +10,7 @@ const START = {
   reason: "夹具：与真实流程相同的固定起点设定",
 };
 
-function stop(id, name, lat, lng) {
+function stop(id, name, lat, lng, extra = {}) {
   return {
     name,
     flyaiId: id,
@@ -24,8 +24,11 @@ function stop(id, name, lat, lng) {
     openingNote: "夹具：按假定窗口不冲突",
     jumpUrl: null,
     flyaiDescription: null,
+    flyaiMainPic: null,
+    flyaiFreeStatus: null,
     flyaiCollectedAt: "2026-11-15T02:00:00.000Z",
     flyaiIdFromSource: true,
+    ...extra,
   };
 }
 
@@ -75,9 +78,19 @@ function match(item) {
   };
 }
 
+/**
+ * 第二站的实景图与收费状态取自真实 /api/discover 返回（见 evidence/flyai-photo-accept.json，
+ * 原 POI 为「良渚文化村」，freePoiStatus 原值为 UNKNOWN，另取「南山路」验证 UNKNOWN 不显示徽标）。
+ * 只有这两个字段是真的；行程、步行段与站名仍是夹具，别把这份快照当真实路线。
+ */
+const REAL_MAINPIC =
+  "https://img.alicdn.com/imgextra/i2/6000000006215/O1CN01nIyfwC1vmWQQWUaFY_!!6000000006215-0-fliggyimage.jpg";
+
 const STOPS = [
-  stop("a", "桩站点A（夹具）", 30.256, 120.154),
-  stop("b", "桩站点B（夹具）", 30.257, 120.153),
+  // 第一站：飞猪没给图 + 标了 FREE → 应画占位块并显示「免费」徽标
+  stop("a", "桩站点A（夹具）", 30.256, 120.154, { flyaiMainPic: null, flyaiFreeStatus: "FREE" }),
+  // 第二站：真实图 + UNKNOWN → 应画出 <img>，且不得显示「免费」
+  stop("b", "桩站点B（夹具）", 30.257, 120.153, { flyaiMainPic: REAL_MAINPIC, flyaiFreeStatus: "UNKNOWN" }),
 ];
 
 const LEGS = [

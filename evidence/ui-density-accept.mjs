@@ -1,5 +1,6 @@
 /**
- * 前端减负验收（2026-11-16 改版）：卡片去标签、审计归档、Tab 置顶、状态胶囊合并。
+ * 前端减负验收（2026-11-16 改版；2026-11-20 加飞猪实景图与免费标注）：
+ * 卡片去标签、审计归档、Tab 置顶、状态胶囊合并、mainPic/免费徽标/虚线时间轴、首页 hero。
  *
  * 零付费：注入夹具快照，拦截一切 POST。只验证视图层，不代表真实路线。
  * 跑法：先 npm run build && npm run start，再 node evidence/ui-density-accept.mjs
@@ -38,23 +39,33 @@ const check = (name, pass, detail) => {
 
 const browser = await chromium.launch({ headless: false, executablePath: EXEC, args: ["--lang=zh-CN"] });
 
-async function open(vp) {
+/**
+ * 只放行飞猪 CDN 的静态实景图（GET，不计费）；其余外网一律拦掉。
+ * 所有 POST 仍然全部拦死并计数，保证零付费。
+ */
+const IMAGE_HOSTS = new Set(["img.alicdn.com"]);
+
+async function open(vp, { withSnapshot = true } = {}) {
   const context = await browser.newContext({ viewport: vp, locale: "zh-CN" });
-  await context.addInitScript(([k, v]) => sessionStorage.setItem(k, v), [KEY, JSON.stringify(FIXTURE_SNAPSHOT)]);
+  if (withSnapshot) {
+    await context.addInitScript(([k, v]) => sessionStorage.setItem(k, v), [KEY, JSON.stringify(FIXTURE_SNAPSHOT)]);
+  }
   let paidPosts = 0;
+  let imageGets = 0;
   await context.route("**/*", (route) => {
     const req = route.request();
     if (req.method() === "POST") { paidPosts += 1; return route.abort(); }
     try {
-      const h = new URL(req.url()).hostname;
-      if (h === "localhost" || h === "127.0.0.1") return route.continue();
+      const url = new URL(req.url());
+      if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return route.continue();
+      if (IMAGE_HOSTS.has(url.hostname)) { imageGets += 1; return route.continue(); }
     } catch { /* ignore */ }
     return route.abort();
   });
   const page = await context.newPage();
   await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 30000 });
   await page.waitForTimeout(2000);
-  return { context, page, paid: () => paidPosts };
+  return { context, page, paid: () => paidPosts, images: () => imageGets };
 }
 
 /* ── 桌面：三个 Tab 在右栏顶部，大字版入口与之并列 ───────────── */
@@ -84,8 +95,60 @@ const arriveBtns = await d.page.getByRole("button", { name: /^我到了$/ }).cou
 check("8 「我到了」内嵌在每一站（夹具 2 站 → 2 个按钮）", arriveBtns === 2, { count: arriveBtns });
 check("8b 已到达的站改成「我到了（再看一次）」不重复计数", (await d.page.getByRole("button", { name: /再看一次/ }).count()) === 0);
 
-/* ── 巨型横幅与常驻说明已删 ─────────────────────────────── */
-check("9 没有置顶的「我到了」大横幅", await d.page.locator("section", { hasText: "在场探索 · 百炼托管智能体" }).count() === 0);
+/* ── 飞猪实景图与「免费」标注 ───────────────────────────── */
+const photos = await d.page.evaluate(() =>
+  Array.from(document.querySelectorAll('[data-testid="stop-photo"]')).map((node) => {
+    const img = node.querySelector("img");
+    return {
+      hasImg: Boolean(img),
+      src: img ? img.getAttribute("src") : null,
+      loaded: img ? img.naturalWidth > 0 : false,
+      placeholder: node.querySelector('[role="img"]')?.getAttribute("aria-label") ?? null,
+    };
+  }),
+);
+check("19 每一站都有一个图位（夹具 2 站 → 2 个）", photos.length === 2, photos);
+check(
+  "19b 飞猪没给图时画占位块（写明「飞猪未返回实景图」），不塞假照片",
+  photos[0]?.hasImg === false && Boolean(photos[0]?.placeholder?.includes("飞猪未返回实景图")),
+  photos[0],
+);
+check(
+  "19c 飞猪给了 mainPic 就真把实景图画出来（真的加载成功）",
+  photos[1]?.hasImg === true && photos[1]?.loaded === true && /^https:\/\/img\.alicdn\.com\//.test(photos[1]?.src ?? ""),
+  photos[1],
+);
+
+const cards = await d.page.evaluate(() =>
+  Array.from(document.querySelectorAll("article")).map((card) => ({
+    name: card.querySelector("h4")?.textContent ?? "",
+    free: card.querySelector('[data-testid="free-badge"]')?.textContent ?? null,
+    serifName: getComputedStyle(card.querySelector("h4") ?? document.body).fontFamily,
+  })),
+);
+check("20 「免费」只出现在飞猪标了 FREE 的那一站", cards.filter((c) => c.free).length === 1 && cards[0]?.free?.includes("免费"), cards.map((c) => ({ name: c.name, free: c.free })));
+check("20b UNKNOWN 不当成免费（第二站没有徽标）", cards[1]?.free === null, cards[1]?.free);
+check("20c 「免费」旁边标明来源是飞猪", cards[0]?.free?.includes("飞猪") === true, cards[0]?.free);
+check("20d 站名用宋体（新中式编辑感）", /Songti|SimSun|Noto Serif|STSong|serif/.test(cards[0]?.serifName ?? ""), cards[0]?.serifName);
+
+/* ── 虚线时间轴 + 实测步行 chip ─────────────────────────── */
+const legs = await d.page.evaluate(() => {
+  const lines = Array.from(document.querySelectorAll('[data-testid="leg-line"]'));
+  const chips = Array.from(document.querySelectorAll('[data-testid="leg-chip"]'));
+  return {
+    lines: lines.length,
+    dashed: lines.every((line) => getComputedStyle(line).borderLeftStyle === "dashed"),
+    chips: chips.map((chip) => chip.textContent?.replace(/\s+/g, " ").trim() ?? ""),
+  };
+});
+check("21 两站之间有虚线时间轴", legs.lines === 2 && legs.dashed, { lines: legs.lines, dashed: legs.dashed });
+check(
+  "21b 步行段写明「高德实测步行」与距离分钟",
+  legs.chips.length === 2 && legs.chips.every((text) => /高德实测步行 (1\.2 公里|\d+ 米) · 约 \d+ 分钟/.test(text)),
+  legs.chips,
+);
+
+/* ── 巨型横幅与常驻说明已删 ─────────────────────────────── */check("9 没有置顶的「我到了」大横幅", await d.page.locator("section", { hasText: "在场探索 · 百炼托管智能体" }).count() === 0);
 check("10 行程页没有常驻的「数据可信说明」大块", !cardText.includes("地板价") && !cardText.includes("绝不用常识补数字"));
 
 /* ── 顶栏单一胶囊 ───────────────────────────────────────── */
@@ -158,6 +221,18 @@ check("16 全程 0 次付费 POST", d.paid() + m.paid() === 0, { desktop: d.paid
 
 await m.context.close();
 await d.context.close();
+
+/* ── 首页（还没有路线）：一句提问 + 一张说明卡，不默认打开地图 ── */
+const h = await open({ width: 1440, height: 900 }, { withSnapshot: false });
+const homeText = await h.page.evaluate(() => document.body.innerText);
+check("22 首页有宋体大标题，说清是陪爸妈慢逛", /陪爸妈慢逛/.test(homeText) && homeText.includes("一段一段都实测过"));
+check("22b 首页写清两个来源：飞猪实景图文 × 高德实测步行路网", homeText.includes("飞猪实景图文") && homeText.includes("高德实测步行路网"));
+check("22c 首页只有一个问题：爸妈全程一共能走多久", homeText.includes("爸妈全程一共能走多久"));
+check("22d 首页不默认打开地图（没有「地图」分页，也没有示意图）", (await h.page.getByRole("button", { name: "地图", exact: true }).count()) === 0 && !homeText.includes("示意图"));
+await h.page.screenshot({ path: path.join(EVIDENCE, "ui-density-home.png"), fullPage: false });
+check("23 首页这一段也是 0 次付费 POST", h.paid() === 0, { paid: h.paid() });
+await h.context.close();
+
 await browser.close();
 
 const failed = results.filter((r) => !r.pass);
@@ -166,9 +241,13 @@ const summary = {
   baseUrl: BASE,
   paid: false,
   fixture: true,
-  fixtureNotice: "注入夹具快照、拦截一切 POST；只验证视图层信息密度与层级，不代表真实路线。",
+  fixtureNotice:
+    "注入夹具快照、拦截一切 POST；只验证视图层信息密度与层级，不代表真实路线。" +
+    "例外：第二站的实景图与 freePoiStatus=UNKNOWN 取自真实 /api/discover 返回（见 flyai-photo-accept.json），" +
+    "用来验证图片真的能加载、UNKNOWN 不会被当成免费；该图片请求是飞猪 CDN 的静态 GET，不计费。",
   tabs,
-  screenshots: ["ui-density-route.png", "ui-density-audit.png", "ui-density-mobile.png"],
+  imageGets: d.images(),
+  screenshots: ["ui-density-route.png", "ui-density-audit.png", "ui-density-mobile.png", "ui-density-home.png"],
   total: results.length,
   passed: results.length - failed.length,
   checks: results,

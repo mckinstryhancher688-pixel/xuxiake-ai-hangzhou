@@ -80,6 +80,8 @@ export function buildFactSet(input: {
     address: match.amap?.address ?? null,
     jumpUrl: match.jumpUrl,
     flyaiDescription: match.flyaiDescription,
+    flyaiMainPic: match.flyaiMainPic ?? null,
+    flyaiFreeStatus: match.flyaiFreeStatus ?? null,
     category: match.category ?? null,
     rating: match.amap?.rating ?? null,
     flyaiCollectedAt: match.flyaiCollectedAt ?? null,

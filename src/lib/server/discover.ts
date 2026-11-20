@@ -311,6 +311,9 @@ function toDiscoveredPoi(
   const position = toLatLng(record.latitude, record.longitude);
   const jumpUrl = toHttpUrl(record.jumpUrl);
   const description = toText(record.description);
+  // 主图和收费状态属于「有就展示、没有就不画」，缺了不算数据缺失，不进 missingFields
+  const mainPic = toHttpUrl(record.mainPic);
+  const freePoiStatus = toText(record.freePoiStatus);
 
   if (!id) missingFields.push("id");
   if (!address) missingFields.push("address");
@@ -329,6 +332,8 @@ function toDiscoveredPoi(
     coordinatesVerified: false,
     jumpUrl,
     description,
+    mainPic,
+    freePoiStatus,
     source: "live",
     missingFields,
     // 缓存命中时 items 原样复用，这个时间仍是原始采集时间，不会因复用被刷新
