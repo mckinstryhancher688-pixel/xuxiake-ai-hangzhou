@@ -22,25 +22,35 @@ export function AgentPanel({
   agent,
   stops,
   embedded = false,
+  forStopId = null,
+  forStopName = null,
 }: {
   agent: AgentController;
   stops: { flyaiId: string; name: string; matchStatus: string }[];
   embedded?: boolean;
+  /** embedded 模式：这一段讲解属于哪一站；不属于当前卡片就不渲染，避免串站 */
+  forStopId?: string | null;
+  forStopName?: string | null;
 }) {
   const loading = agent.arrived.phase === "loading";
 
   if (embedded) {
-    // 没有发起过到达、也没有在跑时，卡片里什么都不显示
-    if (!agent.arrival && agent.arrived.phase !== "loading" && !agent.arrived.error) return null;
+    // 讲解只挂在它自己那一站下面：选中别的站时这里什么都不显示
+    const mine = agent.arrival?.stopName === forStopName;
+    // 正在生成的这一回合与它的失败提示同样按站归属，否则 A 站的报错会挂到 B 站卡片里
+    const myTurn = forStopId !== null && agent.arrived.stopId === forStopId;
+    const myLoading = loading && myTurn;
+    const myError = myTurn ? agent.arrived.error : null;
+    if (!myLoading && !myError && !mine) return null;
     return (
       <div className="mt-2">
         <ArrivalResult
-          response={agent.arrival}
-          error={agent.arrived.error}
-          loading={loading}
+          response={!myLoading && mine ? agent.arrival : null}
+          error={myError}
+          loading={myLoading}
           live={agent.live.arrive}
-          canRetry={!loading}
-          onRetry={() => agent.arrive()}
+          canRetry={!myLoading}
+          onRetry={() => agent.arrive(forStopId)}
         />
       </div>
     );

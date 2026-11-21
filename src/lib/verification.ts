@@ -111,6 +111,28 @@ export function isWindowClosed(
   );
 }
 
+/**
+ * 飞猪会把行政办公点标成可逛类别：实测「文创街区」第 10 条候选是「馒头山社区居委会」。
+ * 这类名字在高德也能同名核实、类型码也落在白名单里，但步行终点会落在办公室门口，
+ * 不是能逛的地点。在消耗任何高德调用之前按名字剔掉，理由记进拒绝清单。
+ */
+const OFFICE_NAME_SUFFIXES = [
+  "居委会",
+  "村委会",
+  "村民委员会",
+  "居民委员会",
+  "办事处",
+  "人民政府",
+  "党群服务中心",
+  "社区服务中心",
+  "街道办事处",
+];
+
+export function isAdministrativeOfficeName(name: string): boolean {
+  const trimmed = name.trim();
+  return OFFICE_NAME_SUFFIXES.some((suffix) => trimmed.endsWith(suffix));
+}
+
 /** GET /api/verify 的返回体：只暴露布尔值与脱敏形状，绝不返回 key 本身。 */
 export interface AmapServerStatus {
   keyPresent: boolean;

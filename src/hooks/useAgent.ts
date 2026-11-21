@@ -22,6 +22,8 @@ export type AgentPhase = "idle" | "loading" | "done";
 interface AgentState {
   phase: AgentPhase;
   error: string | null;
+  /** 这次回合是替哪一站买的；讲解与失败提示都只挂在这一站的卡片下 */
+  stopId: string | null;
 }
 
 /** 智能体正在真实生成的文字（未校验）＋已经等了多久，只用于进度反馈。 */
@@ -63,9 +65,9 @@ export function useAgent(
 ) {
   const [tokenOverride, setToken] = useState<string | null>(null);
   const [pickedOverride, setPickedStopId] = useState<string | null>(null);
-  const [arrived, setArrived] = useState<AgentState>({ phase: "idle", error: null });
+  const [arrived, setArrived] = useState<AgentState>({ phase: "idle", error: null, stopId: null });
   const [arrivalOverride, setArrival] = useState<ExploreResponse | null>(null);
-  const [adjusted, setAdjusted] = useState<AgentState>({ phase: "idle", error: null });
+  const [adjusted, setAdjusted] = useState<AgentState>({ phase: "idle", error: null, stopId: null });
   const [adjustmentOverride, setAdjustment] = useState<AdjustResponse | null>(null);
   const [status, setStatus] = useState<AgentServerStatus | null>(null);
   /** 用户在本轮里手动确认过到达的站点（flyaiId）。只是模拟到达，不是真实 GPS。 */
@@ -167,12 +169,20 @@ export function useAgent(
   }, [busy]);
 
   const send = useCallback(
-    async (intent: "arrive" | "shorten") => {
+    async (intent: "arrive" | "shorten", stopIdOverride: string | null = null) => {
+      // 卡片上的按钮在同一次点击里既改选中站、又发请求。setState 要等下一次渲染才生效，
+      // 闭包里的 selectedStopId 还是上一站，所以点击方必须把目标站直接传进来，
+      // 否则这一个付费回合会买到上一站的讲解（界面上一片空白，钱却花了）。
+      const targetStopId = stopIdOverride ?? selectedStopId;
       if (executionBlocked || (plan && intent === "shorten")) {
         const setState = intent === "arrive" ? setArrived : setAdjusted;
-        setState({ phase: "done", error: executionBlocked
-          ? "双人方案尚未正式生效，请先确认同一版本。"
-          : "双方确认版不能由单人调整，请在双人协商中提出新方案。" });
+        setState({
+          phase: "done",
+          stopId: targetStopId,
+          error: executionBlocked
+            ? "双人方案尚未正式生效，请先确认同一版本。"
+            : "双方确认版不能由单人调整，请在双人协商中提出新方案。",
+        });
         return;
       }
       if (inFlight.current[intent]) return;
@@ -181,13 +191,13 @@ export function useAgent(
       const now = Date.now();
       startedAt.current[intent] = now;
       setLive((prev) => ({ ...prev, [intent]: { text: "", waitedMs: 0, startedAt: now } }));
-      setState({ phase: "loading", error: null });
+      setState({ phase: "loading", error: null, stopId: targetStopId });
       try {
         const result = await requestAgent(
           {
             intent,
             cityName: city,
-            stopId: selectedStopId,
+            stopId: targetStopId,
             interests,
             categories,
             token,
@@ -202,8 +212,8 @@ export function useAgent(
         );
         if (intent === "arrive") {
           setArrival(result as ExploreResponse);
-          if (result.ok && selectedStopId && !arrivedStopIds.includes(selectedStopId)) {
-            setArrivedStopIds([...arrivedStopIds, selectedStopId]);
+          if (result.ok && targetStopId && !arrivedStopIds.includes(targetStopId)) {
+            setArrivedStopIds([...arrivedStopIds, targetStopId]);
           }
         } else {
           setAdjustment(result as AdjustResponse);
@@ -211,11 +221,13 @@ export function useAgent(
         if (typeof result.token === "string") setToken(result.token);
         setState({
           phase: "done",
+          stopId: targetStopId,
           error: result.ok ? null : (result.error ?? "百炼没有返回结果。"),
         });
       } catch (caught) {
         setState({
           phase: "done",
+          stopId: targetStopId,
           error: caught instanceof Error ? caught.message : String(caught),
         });
       } finally {
@@ -227,7 +239,8 @@ export function useAgent(
     [arrivedStopIds, categories, city, executionBlocked, interests, plan, refreshStatus, selectedStopId, token],
   );
 
-  const arrive = useCallback(() => send("arrive"), [send]);
+  /** 传入 stopId＝「就是这一站」，卡片按钮必须传，否则会买到上一站的讲解 */
+  const arrive = useCallback((stopId?: string | null) => send("arrive", stopId ?? null), [send]);
   const shorten = useCallback(() => send("shorten"), [send]);
 
   return {

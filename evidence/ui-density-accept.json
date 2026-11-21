@@ -1,23 +1,30 @@
 {
-  "checkedAt": "2026-11-20T14:41:05.393Z",
-  "baseUrl": "http://localhost:3000",
+  "checkedAt": "2026-11-21T09:23:57.318Z",
+  "baseUrl": "http://127.0.0.1:3000",
   "paid": false,
   "fixture": true,
-  "fixtureNotice": "注入夹具快照、拦截一切 POST；只验证视图层信息密度与层级，不代表真实路线。例外：第二站的实景图与 freePoiStatus=UNKNOWN 取自真实 /api/discover 返回（见 flyai-photo-accept.json），用来验证图片真的能加载、UNKNOWN 不会被当成免费；该图片请求是飞猪 CDN 的静态 GET，不计费。",
+  "fixtureNotice": "注入夹具快照、拦截一切 POST；只验证视图层信息密度与层级，不代表真实路线。例外：第二站的实景图与 freePoiStatus=UNKNOWN 取自真实 /api/discover 返回（见 flyai-photo-accept.json），用来验证图片真的能加载、UNKNOWN 不会被当成免费；该图片请求是飞猪 CDN 的静态 GET，不计费。「我到了」那一段真的点了按钮，但 POST 在浏览器边界就被 abort，服务端 totalTurns 前后不变（见 arriveTarget）。",
   "tabs": [
     "行程",
     "调整",
     "核验明细"
   ],
   "imageGets": 1,
+  "arriveTarget": {
+    "sentStopId": "b",
+    "blockedAgentPosts": 1,
+    "turnsBefore": 0,
+    "turnsAfter": 0
+  },
   "screenshots": [
     "ui-density-route.png",
     "ui-density-audit.png",
     "ui-density-mobile.png",
-    "ui-density-home.png"
+    "ui-density-home.png",
+    "ui-density-arrive-target.png"
   ],
-  "total": 53,
-  "passed": 53,
+  "total": 63,
+  "passed": 63,
   "checks": [
     {
       "name": "1 顶部分页是「行程 / 调整 / 核验明细」",
@@ -229,6 +236,46 @@
     },
     {
       "name": "23 首页这一段也是 0 次付费 POST",
+      "pass": true
+    },
+    {
+      "name": "24 选中第 2 站时，第 2 站卡片不显示第 1 站的讲解",
+      "pass": true
+    },
+    {
+      "name": "24b 第 2 站到过但没有自己的讲解：按钮仍是「我到了」",
+      "pass": true
+    },
+    {
+      "name": "24c 第 1 站有自己的讲解：按钮是「再看一次」",
+      "pass": true
+    },
+    {
+      "name": "24d 切到第 1 站后，讲解只出现在第 1 站卡片里",
+      "pass": true
+    },
+    {
+      "name": "25 讲解这一段也是 0 次付费 POST",
+      "pass": true
+    },
+    {
+      "name": "26 点第 2 站的「我到了」，请求里带的就是第 2 站（修好之前带的是第 1 站）",
+      "pass": true
+    },
+    {
+      "name": "26b 一次点击只发出一个回合，没有买两次",
+      "pass": true
+    },
+    {
+      "name": "26c 这一回合的结果挂在第 2 站卡片里（这里是拦截造成的失败提示）",
+      "pass": true
+    },
+    {
+      "name": "26d 切回第 1 站后，第 2 站那一次的失败提示不跟过来",
+      "pass": true
+    },
+    {
+      "name": "27 服务端回合数一步没动：POST 全部在浏览器边界被拦掉，这一段零付费",
       "pass": true
     }
   ]

@@ -1,8 +1,9 @@
 /**
- * 前端减负验收（2026-11-16 改版；2026-11-20 加飞猪实景图与免费标注）：
- * 卡片去标签、审计归档、Tab 置顶、状态胶囊合并、mainPic/免费徽标/虚线时间轴、首页 hero。
+ * 前端减负验收（2026-11-16 改版；2026-11-20 加飞猪实景图与免费标注；2026-11-21 加讲解按站归属）：
+ * 卡片去标签、审计归档、Tab 置顶、状态胶囊合并、mainPic/免费徽标/虚线时间轴、首页 hero、
+ * 「我到了」的讲解与失败提示只挂在自己那一站、点击时把目标站 id 直接交给请求。
  *
- * 零付费：注入夹具快照，拦截一切 POST。只验证视图层，不代表真实路线。
+ * 零付费：注入夹具快照，拦截一切 POST（含真的点了「我到了」那一次）。只验证视图层，不代表真实路线。
  * 跑法：先 npm run build && npm run start，再 node evidence/ui-density-accept.mjs
  */
 import fs from "node:fs";
@@ -14,8 +15,9 @@ import { FIXTURE_SNAPSHOT } from "./preflight-fixture.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const EVIDENCE = path.join(ROOT, "evidence");
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const KEY = "xuxiake.session.route";
+const AGENT_KEY = "xuxiake.session.agent";
 
 const CLI = [
   process.env.PLAYWRIGHT_CLI_PACKAGE,
@@ -45,16 +47,25 @@ const browser = await chromium.launch({ headless: false, executablePath: EXEC, a
  */
 const IMAGE_HOSTS = new Set(["img.alicdn.com"]);
 
-async function open(vp, { withSnapshot = true } = {}) {
+async function open(vp, { withSnapshot = true, agentSnapshot = null } = {}) {
   const context = await browser.newContext({ viewport: vp, locale: "zh-CN" });
   if (withSnapshot) {
     await context.addInitScript(([k, v]) => sessionStorage.setItem(k, v), [KEY, JSON.stringify(FIXTURE_SNAPSHOT)]);
   }
+  if (agentSnapshot) {
+    await context.addInitScript(([k, v]) => sessionStorage.setItem(k, v), [AGENT_KEY, JSON.stringify(agentSnapshot)]);
+  }
   let paidPosts = 0;
   let imageGets = 0;
+  /** 被拦掉的 POST 长什么样：用来验证「点哪一站就买哪一站」，请求根本没出浏览器 */
+  const blocked = [];
   await context.route("**/*", (route) => {
     const req = route.request();
-    if (req.method() === "POST") { paidPosts += 1; return route.abort(); }
+    if (req.method() === "POST") {
+      paidPosts += 1;
+      blocked.push({ url: req.url(), body: req.postData() ?? null });
+      return route.abort();
+    }
     try {
       const url = new URL(req.url());
       if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return route.continue();
@@ -65,7 +76,7 @@ async function open(vp, { withSnapshot = true } = {}) {
   const page = await context.newPage();
   await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 30000 });
   await page.waitForTimeout(2000);
-  return { context, page, paid: () => paidPosts, images: () => imageGets };
+  return { context, page, paid: () => paidPosts, images: () => imageGets, blocked: () => blocked };
 }
 
 /* ── 桌面：三个 Tab 在右栏顶部，大字版入口与之并列 ───────────── */
@@ -233,6 +244,107 @@ await h.page.screenshot({ path: path.join(EVIDENCE, "ui-density-home.png"), full
 check("23 首页这一段也是 0 次付费 POST", h.paid() === 0, { paid: h.paid() });
 await h.context.close();
 
+/* ── 讲解不串站：第 1 站的讲解绝不显示在第 2 站卡片里 ──────────
+   注入一份「到达过两站、但讲解只属于第 1 站」的智能体快照，选中第 2 站：
+   修好之前第 2 站卡片会显示第 1 站的讲解（真实验收时用户就是这么发现的）。 */
+const FIXTURE_AGENT = {
+  token: null,
+  pickedStopId: "b",
+  arrivedStopIds: ["a", "b"],
+  arrival: {
+    ok: true,
+    error: null,
+    stopName: "桩站点A（夹具）",
+    arrivalMode: "simulated",
+    narration: {
+      headline: "夹具讲解：只属于桩站点A",
+      details: ["夹具细节"],
+      nextSuggestion: "",
+      degraded: false,
+      rawText: "",
+      numericAudit: { claims: [], matched: 0, unmatched: [] },
+    },
+    proof: null,
+    token: null,
+  },
+  adjustment: null,
+};
+const n = await open({ width: 1440, height: 900 }, { agentSnapshot: FIXTURE_AGENT });
+const cardsOf = () =>
+  n.page.evaluate(() =>
+    [...document.querySelectorAll("article")].map((a) => ({
+      name: (a.querySelector("h4")?.textContent ?? "").trim(),
+      hasNarration: a.innerText.includes("夹具讲解：只属于桩站点A"),
+      buttons: [...a.querySelectorAll("button")].map((b) => b.textContent.trim()),
+    })),
+  );
+let narrCards = await cardsOf();
+const cardA = narrCards.find((c) => c.name.includes("桩站点A"));
+const cardB = narrCards.find((c) => c.name.includes("桩站点B"));
+check("24 选中第 2 站时，第 2 站卡片不显示第 1 站的讲解", cardB?.hasNarration === false, { b: cardB?.hasNarration });
+check(
+  "24b 第 2 站到过但没有自己的讲解：按钮仍是「我到了」",
+  cardB?.buttons.includes("我到了") === true && !cardB.buttons.includes("我到了（再看一次）"),
+  cardB?.buttons,
+);
+check("24c 第 1 站有自己的讲解：按钮是「再看一次」", cardA?.buttons.includes("我到了（再看一次）") === true, cardA?.buttons);
+await n.page.locator("article", { hasText: "桩站点A（夹具）" }).getByRole("button", { name: "在地图定位" }).click();
+await n.page.waitForTimeout(600);
+narrCards = await cardsOf();
+const cardA2 = narrCards.find((c) => c.name.includes("桩站点A"));
+const cardB2 = narrCards.find((c) => c.name.includes("桩站点B"));
+check(
+  "24d 切到第 1 站后，讲解只出现在第 1 站卡片里",
+  cardA2?.hasNarration === true && cardB2?.hasNarration === false,
+  { a: cardA2?.hasNarration, b: cardB2?.hasNarration },
+);
+check("25 讲解这一段也是 0 次付费 POST", n.paid() === 0, { paid: n.paid() });
+await n.context.close();
+
+/* ── 点哪一站就买哪一站 ─────────────────────────────────────────
+   修好之前：卡片按钮在同一次点击里既改选中站、又发请求，闭包里的 selectedStopId
+   还是上一站，于是一个付费回合买到上一站的讲解，界面上什么都看不到（钱花了）。
+   这里 POST 全部在浏览器边界被 abort，服务端连会话都不会建；
+   再用 /api/agent 的 totalTurns 前后不变，证明这一段确实零付费。 */
+const turnsBefore = (await (await fetch(`${BASE}/api/agent`)).json()).totalTurns;
+const p = await open({ width: 1440, height: 900 });
+const cardTextOf = () =>
+  p.page.evaluate(() =>
+    [...document.querySelectorAll("article")].map((a) => ({
+      name: (a.querySelector("h4")?.textContent ?? "").trim(),
+      text: a.innerText,
+    })),
+  );
+// 默认选中的是第 1 站；不先切站，直接点第 2 站的「我到了」
+await p.page.locator("article", { hasText: "桩站点B（夹具）" }).getByRole("button", { name: /^我到了$/ }).click();
+await p.page.waitForTimeout(2000);
+const agentPosts = p.blocked().filter((item) => item.url.includes("/api/agent"));
+const sentStopId = agentPosts.length ? JSON.parse(agentPosts[0].body).stopId : null;
+check("26 点第 2 站的「我到了」，请求里带的就是第 2 站（修好之前带的是第 1 站）", sentStopId === "b", { sentStopId });
+check("26b 一次点击只发出一个回合，没有买两次", agentPosts.length === 1, { count: agentPosts.length });
+let pCards = await cardTextOf();
+check(
+  "26c 这一回合的结果挂在第 2 站卡片里（这里是拦截造成的失败提示）",
+  pCards.find((c) => c.name.includes("桩站点B"))?.text.includes("失败 · ") === true,
+  { cardB: pCards.find((c) => c.name.includes("桩站点B"))?.text.slice(-120) },
+);
+await p.page.locator("article", { hasText: "桩站点A（夹具）" }).getByRole("button", { name: "在地图定位" }).click();
+await p.page.waitForTimeout(800);
+pCards = await cardTextOf();
+check(
+  "26d 切回第 1 站后，第 2 站那一次的失败提示不跟过来",
+  pCards.find((c) => c.name.includes("桩站点A"))?.text.includes("失败 · ") === false,
+  { cardA: pCards.find((c) => c.name.includes("桩站点A"))?.text.slice(-120) },
+);
+await p.page.screenshot({ path: path.join(EVIDENCE, "ui-density-arrive-target.png") });
+const turnsAfter = (await (await fetch(`${BASE}/api/agent`)).json()).totalTurns;
+check(
+  "27 服务端回合数一步没动：POST 全部在浏览器边界被拦掉，这一段零付费",
+  turnsAfter === turnsBefore,
+  { before: turnsBefore, after: turnsAfter, blocked: p.blocked().length },
+);
+await p.context.close();
+
 await browser.close();
 
 const failed = results.filter((r) => !r.pass);
@@ -244,10 +356,18 @@ const summary = {
   fixtureNotice:
     "注入夹具快照、拦截一切 POST；只验证视图层信息密度与层级，不代表真实路线。" +
     "例外：第二站的实景图与 freePoiStatus=UNKNOWN 取自真实 /api/discover 返回（见 flyai-photo-accept.json），" +
-    "用来验证图片真的能加载、UNKNOWN 不会被当成免费；该图片请求是飞猪 CDN 的静态 GET，不计费。",
+    "用来验证图片真的能加载、UNKNOWN 不会被当成免费；该图片请求是飞猪 CDN 的静态 GET，不计费。" +
+    "「我到了」那一段真的点了按钮，但 POST 在浏览器边界就被 abort，服务端 totalTurns 前后不变（见 arriveTarget）。",
   tabs,
   imageGets: d.images(),
-  screenshots: ["ui-density-route.png", "ui-density-audit.png", "ui-density-mobile.png", "ui-density-home.png"],
+  arriveTarget: { sentStopId, blockedAgentPosts: agentPosts.length, turnsBefore, turnsAfter },
+  screenshots: [
+    "ui-density-route.png",
+    "ui-density-audit.png",
+    "ui-density-mobile.png",
+    "ui-density-home.png",
+    "ui-density-arrive-target.png",
+  ],
   total: results.length,
   passed: results.length - failed.length,
   checks: results,

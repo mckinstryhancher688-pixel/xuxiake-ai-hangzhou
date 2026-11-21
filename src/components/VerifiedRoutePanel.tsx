@@ -345,6 +345,8 @@ function Itinerary({
           const leg = itinerary.legs[index];
           const isActive = stop.flyaiId === selectedStopId;
           const isArrived = arrived.has(stop.flyaiId);
+          /** 只有这一站自己生成过讲解，按钮才说「再看一次」，卡片里才会挂讲解 */
+          const hasNarration = agent.arrival?.stopName === stop.name;
           const isFree = stop.flyaiFreeStatus === "FREE";
           return (
             <li key={stop.amapId || stop.flyaiId}>
@@ -437,20 +439,20 @@ function Itinerary({
                   </div>
                 </div>
 
-                {/* 「我到了」内嵌在当前站：先选中这一站，再触发讲解 */}
+                {/* 「我到了」内嵌在当前站：选中这一站，并把这一站的 id 直接交给请求 */}
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-2.5">
                   <button
                     type="button"
                     disabled={agent.arrived.phase === "loading"}
                     onClick={() => {
                       onSelectStop(stop.flyaiId);
-                      agent.arrive();
+                      agent.arrive(stop.flyaiId);
                     }}
                     className="rounded-xl bg-brand-700 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-brand-800 disabled:opacity-50"
                   >
-                    {agent.arrived.phase === "loading" && isActive
+                    {agent.arrived.phase === "loading" && agent.arrived.stopId === stop.flyaiId
                       ? "讲解生成中…"
-                      : isArrived
+                      : hasNarration
                         ? "我到了（再看一次）"
                         : "我到了"}
                   </button>
@@ -468,7 +470,7 @@ function Itinerary({
                   </button>
                 </div>
 
-                {/* 讲解结果就显示在这一站下面；只有当前选中的站才渲染，避免串站 */}
+                {/* 讲解只在这一站被选中、且这段讲解确实是它自己的时候才渲染，避免串站 */}
                 {isActive && (
                   <AgentPanel
                     agent={agent}
@@ -478,6 +480,8 @@ function Itinerary({
                       matchStatus: item.matchStatus,
                     }))}
                     embedded
+                    forStopId={stop.flyaiId}
+                    forStopName={stop.name}
                   />
                 )}
               </article>

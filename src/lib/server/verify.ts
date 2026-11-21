@@ -30,6 +30,7 @@ import {
   START_KEYWORD,
   VERIFY_DISTRICT,
   assumedTripWindow,
+  isAdministrativeOfficeName,
   isWindowClosed,
   parseOpeningWindows,
   type AmapServerStatus,
@@ -153,7 +154,11 @@ async function runPipeline(
     return fail(base, log, flyaiProofs, `飞猪候选获取失败，无法核验：${batch.error ?? "未知错误"}`);
   }
 
-  const candidates = dedupeByName(batch.results.flatMap((result) => result.items));
+  const discovered = dedupeByName(batch.results.flatMap((result) => result.items));
+  // 行政办公点（居委会一类）在花高德调用之前剔掉；理由后面记进拒绝清单，不静默吞掉
+  const officeRejected = discovered.filter((item) => isAdministrativeOfficeName(item.name));
+  const candidates = discovered.filter((item) => !isAdministrativeOfficeName(item.name));
+  const candidateCount = discovered.length;
   if (!candidates.length) {
     return fail(base, log, flyaiProofs, "飞猪返回了成功状态但没有任何候选地点。");
   }
@@ -192,6 +197,12 @@ async function runPipeline(
   const unverifiedCount = matches.filter((m) => m.status === "unverified").length;
   const routable = matches.filter((m) => m.routable && m.routablePosition);
   const rejections: { name: string; reason: string }[] = [];
+  for (const item of officeRejected) {
+    rejections.push({
+      name: item.name,
+      reason: "飞猪把它标进了可逛类别，但名字是行政办公点（居委会/村委会一类），步行终点会落在办公室门口；未消耗高德调用",
+    });
+  }
   /** 高德明确「没有路线」的有向段；与「从没测过」严格区分，见 facts.ts */
   const failedPairKeys: string[] = [];
   for (const match of matches.filter((m) => !m.routable)) {
@@ -206,7 +217,7 @@ async function runPipeline(
       ...base,
       ok: false,
       error: null,
-      candidateCount: candidates.length,
+      candidateCount,
       datum,
       start,
       matches,
@@ -248,7 +259,7 @@ async function runPipeline(
       ...base,
       ok: false,
       error: null,
-      candidateCount: candidates.length,
+      candidateCount,
       datum,
       start,
       matches,
@@ -321,7 +332,7 @@ async function runPipeline(
       ...base,
       ok: false,
       error: null,
-      candidateCount: candidates.length,
+      candidateCount,
       datum,
       start,
       matches,
@@ -345,7 +356,7 @@ async function runPipeline(
       ...base,
       ok: false,
       error: null,
-      candidateCount: candidates.length,
+      candidateCount,
       datum,
       start,
       matches,
@@ -406,7 +417,7 @@ async function runPipeline(
     ...base,
     ok: true,
     error: null,
-    candidateCount: candidates.length,
+    candidateCount,
     datum,
     start,
     matches,
